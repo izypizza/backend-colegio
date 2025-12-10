@@ -47,27 +47,87 @@ php artisan migrate --seed
 php artisan serve
 ```
 
+El servidor estará disponible en: **http://localhost:8000**
+
 ## 📡 Endpoints API
 
-### Autenticación
-- `POST /api/register` - Registro de usuario
-- `POST /api/login` - Inicio de sesión
-- `POST /api/logout` - Cerrar sesión
-- `GET /api/user` - Usuario autenticado
+### Información del servidor
+- `GET http://localhost:8000/` - Información del backend
 
-### Recursos
-- `/api/estudiantes` - Gestión de estudiantes
-- `/api/docentes` - Gestión de docentes
-- `/api/materias` - Gestión de materias
-- `/api/secciones` - Gestión de secciones
-- `/api/calificaciones` - Gestión de calificaciones
-- `/api/asistencias` - Gestión de asistencias
-- `/api/horarios` - Gestión de horarios
-- `/api/periodos` - Períodos académicos
+### Autenticación
+- `POST http://localhost:8000/api/register` - Registro de usuario
+- `POST http://localhost:8000/api/login` - Inicio de sesión
+- `POST http://localhost:8000/api/logout` - Cerrar sesión
+- `GET http://localhost:8000/api/user` - Usuario autenticado
+
+### Recursos (CRUD Completo)
+
+#### Secciones
+- `GET http://localhost:8000/api/secciones` - Listar secciones
+- `POST http://localhost:8000/api/secciones` - Crear sección
+- `GET http://localhost:8000/api/secciones/{id}` - Ver sección
+- `PUT http://localhost:8000/api/secciones/{id}` - Actualizar sección
+- `DELETE http://localhost:8000/api/secciones/{id}` - Eliminar sección
+
+#### Docentes
+- `GET http://localhost:8000/api/docentes` - Listar docentes
+- `POST http://localhost:8000/api/docentes` - Crear docente
+- `GET http://localhost:8000/api/docentes/{id}` - Ver docente
+- `PUT http://localhost:8000/api/docentes/{id}` - Actualizar docente
+- `DELETE http://localhost:8000/api/docentes/{id}` - Eliminar docente
+
+#### Estudiantes
+- `GET http://localhost:8000/api/estudiantes` - Listar estudiantes
+- `POST http://localhost:8000/api/estudiantes` - Crear estudiante
+- `GET http://localhost:8000/api/estudiantes/{id}` - Ver estudiante
+- `PUT http://localhost:8000/api/estudiantes/{id}` - Actualizar estudiante
+- `DELETE http://localhost:8000/api/estudiantes/{id}` - Eliminar estudiante
+
+#### Materias
+- `GET http://localhost:8000/api/materias` - Listar materias
+- `POST http://localhost:8000/api/materias` - Crear materia
+- `GET http://localhost:8000/api/materias/{id}` - Ver materia
+- `PUT http://localhost:8000/api/materias/{id}` - Actualizar materia
+- `DELETE http://localhost:8000/api/materias/{id}` - Eliminar materia
+
+#### Calificaciones
+- `GET http://localhost:8000/api/calificaciones` - Listar calificaciones
+- `POST http://localhost:8000/api/calificaciones` - Registrar calificación
+- `GET http://localhost:8000/api/calificaciones/{id}` - Ver calificación
+- `PUT http://localhost:8000/api/calificaciones/{id}` - Actualizar calificación
+- `DELETE http://localhost:8000/api/calificaciones/{id}` - Eliminar calificación
+
+#### Asistencias
+- `GET http://localhost:8000/api/asistencias` - Listar asistencias
+- `POST http://localhost:8000/api/asistencias` - Registrar asistencia
+- `GET http://localhost:8000/api/asistencias/{id}` - Ver asistencia
+- `PUT http://localhost:8000/api/asistencias/{id}` - Actualizar asistencia
+- `DELETE http://localhost:8000/api/asistencias/{id}` - Eliminar asistencia
+
+#### Horarios
+- `GET http://localhost:8000/api/horarios` - Listar horarios
+- `POST http://localhost:8000/api/horarios` - Crear horario
+- `GET http://localhost:8000/api/horarios/{id}` - Ver horario
+- `PUT http://localhost:8000/api/horarios/{id}` - Actualizar horario
+- `DELETE http://localhost:8000/api/horarios/{id}` - Eliminar horario
+
+#### Períodos Académicos
+- `GET http://localhost:8000/api/periodos` - Listar períodos
+- `POST http://localhost:8000/api/periodos` - Crear período
+- `GET http://localhost:8000/api/periodos/{id}` - Ver período
+- `PUT http://localhost:8000/api/periodos/{id}` - Actualizar período
+- `DELETE http://localhost:8000/api/periodos/{id}` - Eliminar período
+
+#### Asignaciones Docente-Materia
+- `GET http://localhost:8000/api/asignaciones` - Listar asignaciones
+- `POST http://localhost:8000/api/asignaciones` - Crear asignación
+- `GET http://localhost:8000/api/asignaciones/{id}` - Ver asignación
+- `PUT http://localhost:8000/api/asignaciones/{id}` - Actualizar asignación
+- `DELETE http://localhost:8000/api/asignaciones/{id}` - Eliminar asignación
 
 ## 🔒 Seguridad
 
-Todas las rutas API están protegidas con `auth:sanctum` middleware.
+Todas las rutas API requieren autenticación con `auth:sanctum` middleware.
 
 ## 📦 Tecnologías
 
