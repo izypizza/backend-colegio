@@ -5,6 +5,9 @@
 
     RewriteEngine On
 
+    # Seguridad: Ocultar información del servidor
+    ServerSignature Off
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
@@ -12,6 +15,12 @@
     # Handle X-XSRF-Token Header
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # Bloquear acceso a archivos sensibles
+    <FilesMatch "^\.env|^\.git|composer\.(json|lock)|package(-lock)?\.json|\.md$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
 
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d

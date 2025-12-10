@@ -1,2 +1,3 @@
+# Backend API - No indexable
 User-agent: *
-Disallow:
+Disallow: /
