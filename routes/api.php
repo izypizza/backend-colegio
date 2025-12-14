@@ -12,6 +12,8 @@ use App\Http\Controllers\PeriodoAcademicoController;
 use App\Http\Controllers\AsignacionDocenteMateriaController;
 use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\CalificacionController;
+use App\Http\Controllers\PadreController;
+use App\Http\Controllers\GradoController;
 
 // Rutas de autenticación (públicas)
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -28,6 +30,8 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 Route::apiResource('secciones', SeccionController::class);
 Route::apiResource('docentes', DocenteController::class);
+Route::apiResource('padres', PadreController::class);
+Route::apiResource('grados', GradoController::class);
 Route::apiResource('materias', MateriaController::class);
 Route::apiResource('estudiantes', EstudianteController::class);
 Route::apiResource('horarios', HorarioController::class);
