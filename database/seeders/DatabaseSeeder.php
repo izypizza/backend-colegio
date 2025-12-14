@@ -176,10 +176,37 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        // 12. Crear usuario de prueba
+        // 12. Crear usuarios de prueba para cada rol
+        
+        // Usuario Administrador
         User::factory()->create([
             'name' => 'Administrador',
             'email' => 'admin@colegio.pe',
+            'password' => bcrypt('admin123'),
+        ]);
+
+        // Usuario Docente (asociado al primer docente creado)
+        $primerDocente = \App\Models\Docente::first();
+        User::factory()->create([
+            'name' => $primerDocente->nombre,
+            'email' => 'docente@colegio.pe',
+            'password' => bcrypt('docente123'),
+        ]);
+
+        // Usuario Estudiante (asociado al primer estudiante creado)
+        $primerEstudiante = \App\Models\Estudiante::first();
+        User::factory()->create([
+            'name' => $primerEstudiante->nombre,
+            'email' => 'estudiante@colegio.pe',
+            'password' => bcrypt('estudiante123'),
+        ]);
+
+        // Usuario Padre (asociado al primer padre creado)
+        $primerPadre = \App\Models\Padre::first();
+        User::factory()->create([
+            'name' => $primerPadre->nombre,
+            'email' => 'padre@colegio.pe',
+            'password' => bcrypt('padre123'),
         ]);
 
         $this->command->info('✅ Base de datos poblada con datos del sistema educativo peruano');
