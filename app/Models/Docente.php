@@ -12,9 +12,19 @@ class Docente extends Model
     protected $table = 'docentes';
 
     protected $fillable = [
+        'user_id',
         'nombre',
+        'email',
+        'telefono',
+        'dni',
+        'direccion',
         'especialidad'
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function asignaciones()
     {

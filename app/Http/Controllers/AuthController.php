@@ -41,7 +41,9 @@ class AuthController extends Controller
                     'id' => (string) $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'role' => 'admin', // Ajustar según la lógica de roles
+                    'role' => $user->role ?? 'admin',
+                    'avatar' => $user->avatar,
+                    'isActive' => $user->is_active ?? true,
                     'createdAt' => $user->created_at->toISOString(),
                 ],
             ],

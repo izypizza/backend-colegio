@@ -12,14 +12,23 @@ class Estudiante extends Model
     protected $table = 'estudiantes';
 
     protected $fillable = [
+        'user_id',
         'nombre',
+        'dni',
         'fecha_nacimiento',
+        'direccion',
+        'telefono',
         'seccion_id'
     ];
 
     protected $casts = [
         'fecha_nacimiento' => 'date'
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function seccion()
     {

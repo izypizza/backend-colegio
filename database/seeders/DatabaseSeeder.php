@@ -78,11 +78,38 @@ class DatabaseSeeder extends Seeder
             \App\Models\PeriodoAcademico::create($periodo);
         }
 
-        // 5. Crear Docentes (15 docentes)
-        \App\Models\Docente::factory(15)->create();
+        // 5. Crear Docentes (15 docentes con usuarios)
+        $docentes = \App\Models\Docente::factory(15)->create();
+        
+        // Crear usuarios para cada docente
+        foreach ($docentes as $index => $docente) {
+            $user = User::create([
+                'name' => $docente->nombre,
+                'email' => 'docente' . ($index + 1) . '@colegio.pe',
+                'password' => bcrypt('password'),
+                'role' => 'docente',
+                'is_active' => true,
+            ]);
+            
+            $docente->update(['user_id' => $user->id]);
+        }
 
-        // 6. Crear Padres (50 padres)
-        \App\Models\Padre::factory(50)->create();
+        // 6. Crear Padres (50 padres con usuarios)
+        $padres = \App\Models\Padre::factory(50)->create();
+        
+        // Crear usuarios para algunos padres (30% tendrán acceso al sistema)
+        $padresConAcceso = $padres->random(15);
+        foreach ($padresConAcceso as $index => $padre) {
+            $user = User::create([
+                'name' => $padre->nombre,
+                'email' => 'padre' . ($index + 1) . '@colegio.pe',
+                'password' => bcrypt('password'),
+                'role' => 'padre',
+                'is_active' => true,
+            ]);
+            
+            $padre->update(['user_id' => $user->id]);
+        }
 
         // 7. Crear Estudiantes (100 estudiantes distribuidos en las secciones)
         $secciones = \App\Models\Seccion::all();
@@ -179,34 +206,39 @@ class DatabaseSeeder extends Seeder
         // 12. Crear usuarios de prueba para cada rol
         
         // Usuario Administrador
-        User::factory()->create([
+        User::create([
             'name' => 'Administrador',
             'email' => 'admin@colegio.pe',
-            'password' => bcrypt('admin123'),
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+            'is_active' => true,
         ]);
 
-        // Usuario Docente (asociado al primer docente creado)
-        $primerDocente = \App\Models\Docente::first();
-        User::factory()->create([
-            'name' => $primerDocente->nombre,
+        // Usuario Docente Test
+        User::create([
+            'name' => 'Docente Test',
             'email' => 'docente@colegio.pe',
-            'password' => bcrypt('docente123'),
+            'password' => bcrypt('password'),
+            'role' => 'docente',
+            'is_active' => true,
         ]);
 
-        // Usuario Estudiante (asociado al primer estudiante creado)
-        $primerEstudiante = \App\Models\Estudiante::first();
-        User::factory()->create([
-            'name' => $primerEstudiante->nombre,
-            'email' => 'estudiante@colegio.pe',
-            'password' => bcrypt('estudiante123'),
-        ]);
-
-        // Usuario Padre (asociado al primer padre creado)
-        $primerPadre = \App\Models\Padre::first();
-        User::factory()->create([
-            'name' => $primerPadre->nombre,
+        // Usuario Padre Test
+        User::create([
+            'name' => 'Padre Test',
             'email' => 'padre@colegio.pe',
-            'password' => bcrypt('padre123'),
+            'password' => bcrypt('password'),
+            'role' => 'padre',
+            'is_active' => true,
+        ]);
+
+        // Usuario Estudiante Test
+        User::create([
+            'name' => 'Estudiante Test',
+            'email' => 'estudiante@colegio.pe',
+            'password' => bcrypt('password'),
+            'role' => 'estudiante',
+            'is_active' => true,
         ]);
 
         $this->command->info('✅ Base de datos poblada con datos del sistema educativo peruano');

@@ -12,9 +12,19 @@ class Padre extends Model
     protected $table = 'padres';
 
     protected $fillable = [
+        'user_id',
         'nombre',
-        'telefono'
+        'email',
+        'telefono',
+        'dni',
+        'direccion',
+        'ocupacion'
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function estudiantes()
     {
