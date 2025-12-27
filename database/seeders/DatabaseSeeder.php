@@ -214,31 +214,84 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        // Usuario Docente Test
-        User::create([
+        // Usuario Docente Test con registro de docente asociado
+        $userDocente = User::create([
             'name' => 'Docente Test',
             'email' => 'docente@colegio.pe',
             'password' => bcrypt('password'),
             'role' => 'docente',
             'is_active' => true,
         ]);
+        
+        $docenteTest = \App\Models\Docente::create([
+            'nombre' => 'Docente Test',
+            'especialidad' => 'Matemáticas',
+            'user_id' => $userDocente->id,
+        ]);
+        
+        // Asignar algunas materias al docente test
+        $materiasMath = \App\Models\Materia::where('nombre', 'like', '%Matemática%')->take(2)->get();
+        $seccionesTest = \App\Models\Seccion::take(2)->get();
+        $periodoActual = \App\Models\PeriodoAcademico::first();
+        
+        foreach ($seccionesTest as $seccion) {
+            foreach ($materiasMath as $materia) {
+                \App\Models\AsignacionDocenteMateria::create([
+                    'docente_id' => $docenteTest->id,
+                    'materia_id' => $materia->id,
+                    'seccion_id' => $seccion->id,
+                    'periodo_academico_id' => $periodoActual->id,
+                ]);
+            }
+        }
 
-        // Usuario Padre Test
-        User::create([
+        // Usuario Padre Test con registro de padre asociado
+        $userPadre = User::create([
             'name' => 'Padre Test',
             'email' => 'padre@colegio.pe',
             'password' => bcrypt('password'),
             'role' => 'padre',
             'is_active' => true,
         ]);
+        
+        $padreTest = \App\Models\Padre::create([
+            'nombre' => 'Padre Test',
+            'telefono' => '888888888',
+            'user_id' => $userPadre->id,
+        ]);
+        
+        // Asociar algunos estudiantes al padre test
+        $estudiantesTest = \App\Models\Estudiante::take(2)->get();
+        foreach ($estudiantesTest as $estudiante) {
+            \DB::table('estudiante_padre')->insert([
+                'estudiante_id' => $estudiante->id,
+                'padre_id' => $padreTest->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
-        // Usuario Estudiante Test
-        User::create([
+        // Usuario Estudiante Test con registro de estudiante asociado
+        $userEstudiante = User::create([
             'name' => 'Estudiante Test',
             'email' => 'estudiante@colegio.pe',
             'password' => bcrypt('password'),
             'role' => 'estudiante',
             'is_active' => true,
+        ]);
+        
+        $seccionTest = \App\Models\Seccion::first();
+        $estudianteTest = \App\Models\Estudiante::create([
+            'nombre' => 'Estudiante Test',
+            'fecha_nacimiento' => '2010-01-01',
+            'seccion_id' => $seccionTest->id,
+            'user_id' => $userEstudiante->id,
+        ]);
+
+        // Ejecutar seeders adicionales
+        $this->call([
+            BibliotecaSeeder::class,
+            EleccionSeeder::class,
         ]);
 
         $this->command->info('✅ Base de datos poblada con datos del sistema educativo peruano');
@@ -253,5 +306,7 @@ class DatabaseSeeder extends Seeder
         $this->command->info('🕐 Horarios: ' . \App\Models\Horario::count());
         $this->command->info('✓ Asistencias: ' . \App\Models\Asistencia::count());
         $this->command->info('📊 Calificaciones: ' . \App\Models\Calificacion::count());
+        $this->command->info('📚 Libros: ' . \App\Models\Libro::count());
+        $this->command->info('🗳️ Elecciones: ' . \App\Models\Eleccion::count());
     }
 }

@@ -10,10 +10,103 @@ class CalificacionController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $calificaciones = Calificacion::with(['estudiante.seccion', 'materia', 'periodoAcademico'])->get();
+        $query = Calificacion::with(['estudiante.seccion', 'materia', 'periodoAcademico']);
+
+        // Filtrar por estudiante
+        if ($request->has('estudiante_id')) {
+            $query->where('estudiante_id', $request->estudiante_id);
+        }
+
+        // Filtrar por materia
+        if ($request->has('materia_id')) {
+            $query->where('materia_id', $request->materia_id);
+        }
+
+        // Filtrar por periodo académico
+        if ($request->has('periodo_academico_id')) {
+            $query->where('periodo_academico_id', $request->periodo_academico_id);
+        }
+
+        // Filtrar por sección
+        if ($request->has('seccion_id')) {
+            $query->whereHas('estudiante.seccion', function ($q) use ($request) {
+                $q->where('id', $request->seccion_id);
+            });
+        }
+
+        $calificaciones = $query->get();
         return response()->json($calificaciones);
+    }
+
+    /**
+     * Obtener calificaciones de un estudiante (para padres)
+     */
+    public function misHijosCalificaciones(Request $request)
+    {
+        // Obtener los estudiantes del padre autenticado
+        $padre = $request->user()->padre;
+        
+        if (!$padre) {
+            return response()->json(['message' => 'Usuario no es un padre registrado'], 403);
+        }
+
+        $estudiantes = $padre->estudiantes()->with([
+            'calificaciones.materia',
+            'calificaciones.periodoAcademico',
+            'seccion.grado'
+        ])->get();
+
+        return response()->json($estudiantes);
+    }
+
+    /**
+     * Boletín de notas por estudiante y periodo
+     */
+    public function boletin($estudiante_id, $periodo_id)
+    {
+        $calificaciones = Calificacion::where('estudiante_id', $estudiante_id)
+            ->where('periodo_academico_id', $periodo_id)
+            ->with(['materia', 'periodoAcademico'])
+            ->get();
+
+        $promedio = $calificaciones->avg('nota');
+
+        return response()->json([
+            'estudiante_id' => $estudiante_id,
+            'periodo_academico_id' => $periodo_id,
+            'calificaciones' => $calificaciones,
+            'promedio' => round($promedio, 2),
+            'aprobado' => $promedio >= 11
+        ]);
+    }
+
+    /**
+     * Reporte de calificaciones por materia
+     */
+    public function reportePorMateria($materia_id, Request $request)
+    {
+        $periodo_id = $request->input('periodo_academico_id');
+
+        $query = Calificacion::where('materia_id', $materia_id)
+            ->with(['estudiante.seccion']);
+
+        if ($periodo_id) {
+            $query->where('periodo_academico_id', $periodo_id);
+        }
+
+        $calificaciones = $query->get();
+
+        return response()->json([
+            'calificaciones' => $calificaciones,
+            'estadisticas' => [
+                'total_estudiantes' => $calificaciones->count(),
+                'promedio_general' => round($calificaciones->avg('nota'), 2),
+                'aprobados' => $calificaciones->where('nota', '>=', 11)->count(),
+                'desaprobados' => $calificaciones->where('nota', '<', 11)->count(),
+            ]
+        ]);
     }
 
     /**

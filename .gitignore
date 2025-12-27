@@ -22,3 +22,22 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Archivos de prueba
+**/test*.php
+**/prueba*.php
+**/verificar*.php
+**/debug*.php
+
+# Archivos de desarrollo
+.php-cs-fixer.cache
+.php-cs-fixer.php
+_ide_helper.php
+_ide_helper_models.php
+
+# Storage
+/storage/debugbar/
+/storage/logs/*.log
+
+# Cache
+/bootstrap/cache/*.php

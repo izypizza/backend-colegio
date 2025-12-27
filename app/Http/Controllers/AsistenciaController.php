@@ -10,10 +10,94 @@ class AsistenciaController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $asistencias = Asistencia::with(['estudiante.seccion', 'materia'])->get();
+        $query = Asistencia::with(['estudiante.seccion', 'materia']);
+
+        // Filtrar por fecha
+        if ($request->has('fecha_inicio') && $request->has('fecha_fin')) {
+            $query->whereBetween('fecha', [$request->fecha_inicio, $request->fecha_fin]);
+        }
+
+        // Filtrar por estudiante
+        if ($request->has('estudiante_id')) {
+            $query->where('estudiante_id', $request->estudiante_id);
+        }
+
+        // Filtrar por materia
+        if ($request->has('materia_id')) {
+            $query->where('materia_id', $request->materia_id);
+        }
+
+        // Filtrar por sección
+        if ($request->has('seccion_id')) {
+            $query->whereHas('estudiante.seccion', function ($q) use ($request) {
+                $q->where('id', $request->seccion_id);
+            });
+        }
+
+        $asistencias = $query->orderBy('fecha', 'desc')->get();
         return response()->json($asistencias);
+    }
+
+    /**
+     * Reporte de asistencias por estudiante
+     */
+    public function reportePorEstudiante($estudiante_id, Request $request)
+    {
+        $query = Asistencia::where('estudiante_id', $estudiante_id)
+            ->with(['materia']);
+
+        if ($request->has('fecha_inicio') && $request->has('fecha_fin')) {
+            $query->whereBetween('fecha', [$request->fecha_inicio, $request->fecha_fin]);
+        }
+
+        $asistencias = $query->get();
+        
+        $total = $asistencias->count();
+        $presentes = $asistencias->where('presente', true)->count();
+        $ausentes = $asistencias->where('presente', false)->count();
+        $porcentaje_asistencia = $total > 0 ? round(($presentes / $total) * 100, 2) : 0;
+
+        return response()->json([
+            'asistencias' => $asistencias,
+            'estadisticas' => [
+                'total' => $total,
+                'presentes' => $presentes,
+                'ausentes' => $ausentes,
+                'porcentaje_asistencia' => $porcentaje_asistencia
+            ]
+        ]);
+    }
+
+    /**
+     * Reporte de asistencias por sección
+     */
+    public function reportePorSeccion($seccion_id, Request $request)
+    {
+        $fecha = $request->input('fecha', now()->format('Y-m-d'));
+
+        $asistencias = Asistencia::whereHas('estudiante.seccion', function ($q) use ($seccion_id) {
+                $q->where('id', $seccion_id);
+            })
+            ->where('fecha', $fecha)
+            ->with(['estudiante', 'materia'])
+            ->get();
+
+        $total = $asistencias->count();
+        $presentes = $asistencias->where('presente', true)->count();
+        $ausentes = $asistencias->where('presente', false)->count();
+
+        return response()->json([
+            'fecha' => $fecha,
+            'asistencias' => $asistencias,
+            'estadisticas' => [
+                'total' => $total,
+                'presentes' => $presentes,
+                'ausentes' => $ausentes,
+                'porcentaje_asistencia' => $total > 0 ? round(($presentes / $total) * 100, 2) : 0
+            ]
+        ]);
     }
 
     /**
