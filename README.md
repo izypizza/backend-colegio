@@ -1,45 +1,105 @@
-# Sistema de Gestión Escolar - Backend API
+# 🎓 Sistema de Gestión Escolar - Backend API
 
-API REST desarrollada con Laravel 12 para la gestión integral de instituciones educativas del sistema peruano.
+API REST desarrollada con **Laravel 12** para la gestión integral de instituciones educativas. Sistema completo con autenticación, roles, calificaciones, asistencias, biblioteca digital y más.
 
-## 🚀 Características Principales
+## ✨ Características Principales
 
-- ✅ API REST completa con autenticación Laravel Sanctum
-- ✅ Sistema de roles y permisos (5 roles: Admin, Auxiliar, Docente, Padre, Estudiante)
-- ✅ Gestión completa de estudiantes, docentes y padres de familia
-- ✅ Sistema de calificaciones, asistencias y horarios
-- ✅ Períodos académicos configurables
-- ✅ Middleware de control de acceso por roles
-- ✅ Base de datos estructurada con 23 tablas relacionadas
-- ✅ Comandos artisan personalizados para verificación
-- ✅ Exportación de datos a Excel/PDF
-- ✅ CORS configurado para desarrollo local y red
+### 🔐 Autenticación y Seguridad
+- Autenticación con **Laravel Sanctum**
+- Sistema de roles multinivel (5 roles)
+- Middleware de autorización por endpoints
+- Protección CORS configurada
+- Tokens de sesión seguros
 
-## 📋 Requisitos Técnicos
+### 👥 Gestión de Usuarios
+- **5 Roles**: Admin, Auxiliar, Docente, Padre, Estudiante
+- Perfiles completos por rol
+- Relaciones padres-hijos
+- Asignación docente-materia-sección
 
-- **PHP** >= 8.2
-- **Composer** 2.x
-- **MySQL** 8.0+ o MariaDB 10.3+
-- **XAMPP** (recomendado para desarrollo local)
-- **Node.js** (opcional, para compilar assets)
+### 📚 Gestión Académica
+- Grados y secciones con capacidad y turno
+- Materias y asignaciones
+- Períodos académicos configurables
+- Horarios por sección y día
+- Calificaciones con períodos
+- Registro de asistencias
 
-## 🛠️ Instalación y Configuración
+### 🏫 Portales Personalizados
+- **Portal Docente**: Mis clases, estudiantes, calificaciones, asistencias
+- **Portal Estudiante**: Mis calificaciones, asistencias, perfil, boletín
+- **Portal Padre**: Información de hijos, calificaciones, asistencias
 
-### Paso 1: Clonar e Instalar Dependencias
+### 📖 Sistema de Biblioteca
+- Catálogo de libros con categorías
+- Préstamos y devoluciones
+- Historial de préstamos por usuario
+- Control de disponibilidad
 
+### 🗳️ Sistema de Elecciones Escolares
+- Creación de elecciones
+- Votación estudiantil
+- Resultados en tiempo real
+- Prevención de voto duplicado
+
+## 🗄️ Base de Datos
+
+### Estructura (27 Tablas)
+
+#### Usuarios y Roles
+- `users` - Usuarios del sistema
+- `roles` - Roles disponibles
+- `role_user` - Asignación de roles
+
+#### Académico
+- `grados` - Niveles educativos (1° Primaria, 5° Secundaria, etc.)
+- `secciones` - Secciones por grado (A, B, C) con capacidad y turno
+- `materias` - Asignaturas del currículo
+- `periodos_academicos` - Bimestres, trimestres, etc.
+
+#### Personas
+- `estudiantes` - Estudiantes con sección asignada
+- `docentes` - Docentes con especialidad
+- `padres` - Padres de familia
+- `padre_estudiante` - Relación padres-hijos
+
+#### Gestión Educativa
+- `asignacion_docente_materia` - Docente + Materia + Sección + Período
+- `horarios` - Horario por sección, materia, día y hora
+- `calificaciones` - Notas por estudiante, materia y período
+- `asistencias` - Registro diario de asistencia
+
+#### Biblioteca
+- `categorias_libros` - Categorías del catálogo
+- `libros` - Libros con ISBN, autor, stock
+- `prestamos_libros` - Préstamos con fechas
+
+#### Elecciones
+- `elecciones` - Elecciones escolares
+- `candidatos` - Candidatos por elección
+- `votos` - Votos emitidos
+
+## 🚀 Instalación
+
+### Requisitos
+- PHP >= 8.2
+- Composer >= 2.0
+- MySQL >= 8.0 o MariaDB >= 10.3
+- XAMPP (recomendado) o servidor local
+
+### Paso 1: Clonar e Instalar
 ```bash
 # Clonar repositorio
-git clone https://github.com/usuario/backend-colegio.git
+git clone https://github.com/tu-usuario/backend-colegio.git
 cd backend-colegio
 
-# Instalar dependencias PHP
+# Instalar dependencias
 composer install
 ```
 
-### Paso 2: Configuración de Entorno
-
+### Paso 2: Configurar Entorno
 ```bash
-# Copiar archivo de configuración
+# Copiar configuración
 cp .env.example .env
 
 # Generar clave de aplicación
@@ -47,565 +107,304 @@ php artisan key:generate
 ```
 
 ### Paso 3: Configurar Base de Datos
-
-Editar `.env` con tus credenciales:
-
+Editar `.env`:
 ```env
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=tupac_amaru_db
+DB_DATABASE=colegio_db
 DB_USERNAME=root
 DB_PASSWORD=
-
-# Configuración CORS y Sanctum
-SANCTUM_STATEFUL_DOMAINS=localhost:3000,127.0.0.1:3000,192.168.1.5:3000
-FRONTEND_URL=http://localhost:3000
 ```
 
-### Paso 4: Ejecutar Migraciones y Seeders
-
+### Paso 4: Migrar y Poblar
 ```bash
-# Crear tablas y poblar con datos de prueba
-php artisan migrate --seed
+# Crear tablas
+php artisan migrate
 
-# O si necesitas resetear la base de datos
-php artisan migrate:fresh --seed
-
-# Crear usuarios auxiliares adicionales
-php artisan db:seed --class=AuxiliarSeeder
+# Poblar datos de prueba (IMPORTANTE para testing)
+php artisan db:seed
 ```
 
-### Paso 5: Verificar Instalación
-
+### Paso 5: Iniciar Servidor
 ```bash
-# Ver usuarios creados
-php artisan users:verify
-
-# Ver diagrama de base de datos
-php artisan db:diagram
-
-# Verificar integridad de datos
-php artisan db:check
-```
-
-### Paso 6: Iniciar Servidor
-
-```bash
-# Iniciar servidor de desarrollo
+# Servidor de desarrollo
 php artisan serve
 
-# El servidor estará disponible en:
-# http://localhost:8000
+# O con host personalizado
+php artisan serve --host=0.0.0.0 --port=8000
 ```
-
-## 🔐 Sistema de Autenticación y Roles
-
-### Roles y Permisos
-
-El sistema implementa **5 roles** con diferentes niveles de acceso:
-
-| Rol | Email de Prueba | Permisos y Funciones |
-|-----|----------------|----------------------|
-| 👨‍💼 **Admin** | `admin@colegio.pe` | **Acceso total al sistema**<br>• Gestión de usuarios y roles<br>• Configuración del sistema<br>• Gestión de grados, materias y periodos<br>• Acceso a todos los reportes |
-| 🧑‍💼 **Auxiliar** | `auxiliar@colegio.pe` | **Personal administrativo**<br>• Gestión de estudiantes<br>• Registro de asistencias y calificaciones<br>• Generación de reportes académicos<br>• Gestión de horarios |
-| 👨‍🏫 **Docente** | `docente1@colegio.pe` | **Gestión académica**<br>• Ver cursos asignados<br>• Registrar asistencias de sus alumnos<br>• Ingresar calificaciones<br>• Consultar horarios |
-| 👨‍👩‍👧 **Padre** | `padre1@colegio.pe` | **Seguimiento de hijos**<br>• Ver calificaciones de hijos<br>• Revisar asistencias<br>• Consultar horarios<br>• Descargar boletas |
-| 👨‍🎓 **Estudiante** | `estudiante@colegio.pe` | **Información personal**<br>• Ver calificaciones propias<br>• Revisar asistencia<br>• Consultar horario<br>• Descargar boleta |
-
-**Contraseña para todos**: `password`
-
-### Implementación de Middleware
-
-El middleware `RoleMiddleware` protege las rutas según el rol:
-
-**Archivo**: `app/Http/Middleware/RoleMiddleware.php`
-
-```php
-// Protección por rol único
-Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
-    Route::apiResource('grados', GradoController::class);
-    Route::apiResource('materias', MateriaController::class);
-});
-
-// Protección por múltiples roles
-Route::middleware(['auth:sanctum', 'role:admin,auxiliar'])->group(function () {
-    Route::apiResource('estudiantes', EstudianteController::class);
-    Route::post('asistencias', [AsistenciaController::class, 'store']);
-});
-
-// Ejemplo avanzado
-Route::middleware(['auth:sanctum', 'role:admin,auxiliar,docente'])->group(function () {
-    Route::get('reportes/academicos', [ReporteController::class, 'index']);
-});
-```
-
-### Helpers Disponibles en el Modelo User
-
-```php
-// Verificar rol específico
-$user->isAdmin();       // true si es admin
-$user->isAuxiliar();    // true si es auxiliar
-$user->isDocente();     // true si es docente
-$user->isPadre();       // true si es padre
-$user->isEstudiante();  // true si es estudiante
-
-// Verificar múltiples roles
-$user->hasRole(['admin', 'auxiliar']);  // true si tiene alguno de los roles
-
-// Verificar acceso administrativo
-$user->hasAdminAccess();  // true si es admin o auxiliar
-```
-
-### Ejemplo de Uso en Controladores
-
-```php
-public function index(Request $request)
-{
-    $user = $request->user();
-
-    // Admin y auxiliar ven todo
-    if ($user->hasAdminAccess()) {
-        return Estudiante::with('seccion')->paginate(50);
-    }
-
-    // Docente solo ve estudiantes de sus cursos
-    if ($user->isDocente()) {
-        return Estudiante::whereHas('seccion.asignaciones', function ($query) use ($user) {
-            $query->where('docente_id', $user->docente->id);
-        })->paginate(50);
-    }
-
-    // Padre solo ve a sus hijos
-    if ($user->isPadre()) {
-        return $user->padre->estudiantes()->with('seccion')->get();
-    }
-
-    return response()->json(['error' => 'No autorizado'], 403);
-}
-```
-
-## 🗄️ Estructura de Base de Datos
-
-### Arquitectura en 4 Capas
-
-```
-[CAPA 1: AUTENTICACIÓN]
-    users → Tabla central de autenticación y roles
-
-[CAPA 2: PERFILES]
-    docentes, padres, estudiantes → Relación 1:1 con users
-
-[CAPA 3: ESTRUCTURA ACADÉMICA]
-    grados, secciones, materias, periodos_academicos
-
-[CAPA 4: OPERACIONES]
-    asignaciones, asistencias, calificaciones, horarios
-```
-
-### Comando para Ver Diagrama Completo
-
-```bash
-php artisan db:diagram
-```
-
-Muestra toda la arquitectura con:
-- 📊 Diagramas visuales en ASCII
-- 🔗 Relaciones entre tablas (Foreign Keys)
-- 📋 Detalles de campos y tipos
-- 📈 Estadísticas de registros
-
-### Comandos Útiles de Base de Datos
-
-```bash
-# Verificar integridad de datos
-php artisan db:check
-
-# Ver todos los usuarios y sus roles
-php artisan users:verify
-
-# Sincronizar usuarios con perfiles
-php artisan users:sync
-```
-
-### Tablas Principales
-
-| Tabla | Descripción | Registros de Prueba |
-|-------|-------------|---------------------|
-| `users` | Usuarios y autenticación | ~187 |
-| `docentes` | Profesores | 15 |
-| `padres` | Padres de familia | 50 |
-| `estudiantes` | Alumnos | 111 |
-| `grados` | 1° Primaria a 5° Secundaria | 11 |
-| `secciones` | A, B, C por grado | 33 |
-| `materias` | Currículo peruano | 11 |
-| `periodos_academicos` | Bimestres 2025 | 4 |
-| `asignacion_docente_materia` | Asignaciones | 200 |
-| `asistencias` | Registro diario | 300 |
-| `calificaciones` | Notas por periodo | 190 |
-| `horarios` | Programación | 50 |
 
 ## 📡 API Endpoints
 
 ### Autenticación
-
-| Método | Endpoint | Descripción | Requiere Auth |
-|--------|----------|-------------|---------------|
-| POST | `/api/auth/login` | Iniciar sesión | No |
-| POST | `/api/auth/register` | Registrar usuario | No |
-| GET | `/api/auth/me` | Usuario autenticado | Sí |
-| POST | `/api/auth/logout` | Cerrar sesión | Sí |
-
-**Ejemplo de Login:**
-```json
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@colegio.pe",
-  "password": "password"
-}
-
-Response (200):
-{
-  "success": true,
-  "data": {
-    "token": "1|xxxxx...",
-    "user": {
-      "id": 1,
-      "name": "Administrador",
-      "email": "admin@colegio.pe",
-      "role": "admin"
-    }
-  }
-}
+```http
+POST   /api/auth/login       # Iniciar sesión
+POST   /api/auth/register    # Registrar usuario
+POST   /api/auth/logout      # Cerrar sesión
+GET    /api/auth/me          # Usuario actual
 ```
 
-### Recursos CRUD (Requieren Autenticación)
-
-Todos los endpoints siguen el patrón RESTful estándar:
-
-| Recurso | GET (listar) | POST (crear) | GET (ver) | PUT (editar) | DELETE |
-|---------|-------------|-------------|-----------|-------------|--------|
-| Estudiantes | `/api/estudiantes` | `/api/estudiantes` | `/api/estudiantes/{id}` | `/api/estudiantes/{id}` | `/api/estudiantes/{id}` |
-| Docentes | `/api/docentes` | `/api/docentes` | `/api/docentes/{id}` | `/api/docentes/{id}` | `/api/docentes/{id}` |
-| Padres | `/api/padres` | `/api/padres` | `/api/padres/{id}` | `/api/padres/{id}` | `/api/padres/{id}` |
-| Grados | `/api/grados` | `/api/grados` | `/api/grados/{id}` | `/api/grados/{id}` | `/api/grados/{id}` |
-| Secciones | `/api/secciones` | `/api/secciones` | `/api/secciones/{id}` | `/api/secciones/{id}` | `/api/secciones/{id}` |
-| Materias | `/api/materias` | `/api/materias` | `/api/materias/{id}` | `/api/materias/{id}` | `/api/materias/{id}` |
-| Periodos | `/api/periodos` | `/api/periodos` | `/api/periodos/{id}` | `/api/periodos/{id}` | `/api/periodos/{id}` |
-| Horarios | `/api/horarios` | `/api/horarios` | `/api/horarios/{id}` | `/api/horarios/{id}` | `/api/horarios/{id}` |
-| Asistencias | `/api/asistencias` | `/api/asistencias` | `/api/asistencias/{id}` | `/api/asistencias/{id}` | `/api/asistencias/{id}` |
-| Calificaciones | `/api/calificaciones` | `/api/calificaciones` | `/api/calificaciones/{id}` | `/api/calificaciones/{id}` | `/api/calificaciones/{id}` |
-| Asignaciones | `/api/asignaciones` | `/api/asignaciones` | `/api/asignaciones/{id}` | `/api/asignaciones/{id}` | `/api/asignaciones/{id}` |
-
-**Headers requeridos:**
-```
-Authorization: Bearer {token}
-Content-Type: application/json
-Accept: application/json
+### Dashboard
+```http
+GET    /api/dashboard/stats  # Estadísticas por rol
 ```
 
-## 🛠️ Comandos Artisan Personalizados
+### Grados, Materias, Períodos (Admin)
+```http
+GET    /api/grados           # Listar grados (Todos)
+POST   /api/grados           # Crear grado (Admin)
+PUT    /api/grados/{id}      # Actualizar grado (Admin)
+DELETE /api/grados/{id}      # Eliminar grado (Admin)
 
-### Verificar Usuarios
-```bash
-php artisan users:verify
-```
-Verifica y actualiza los usuarios de prueba con roles y contraseñas correctas.
+GET    /api/materias         # Listar materias (Todos)
+POST   /api/materias         # Crear materia (Admin)
 
-### Ver Estado de Migraciones
-```bash
-php artisan migrate:status
-```
-
-### Refrescar Base de Datos
-```bash
-php artisan migrate:fresh --seed
-```
-⚠️ **Advertencia:** Esto eliminará todos los datos existentes.
-
-## 📊 Datos de Prueba (Seeders)
-
-Al ejecutar `php artisan db:seed`, se crean:
-
-- ✅ **11 Grados** - Primaria y Secundaria (sistema peruano)
-- ✅ **33 Secciones** - A, B, C por cada grado
-- ✅ **15 Docentes** - Con usuarios y credenciales
-- ✅ **50 Padres** - Algunos con acceso al sistema
-- ✅ **~100 Estudiantes** - Distribuidos en secciones
-- ✅ **11 Materias** - Currículo Nacional Peruano
-- ✅ **4 Períodos** - Bimestres 2025
-- ✅ **Asignaciones** - Docentes asignados a materias
-- ✅ **Horarios** - Clases programadas
-- ✅ **Asistencias** - Registros de últimos 30 días
-- ✅ **Calificaciones** - Notas de estudiantes
-
-## 🔧 Configuración CORS
-
-El backend está configurado para aceptar peticiones desde:
-
-```php
-// config/cors.php
-'allowed_origins' => [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-],
+GET    /api/periodos         # Listar períodos (Todos)
+POST   /api/periodos         # Crear período (Admin)
 ```
 
-Para agregar más orígenes, editar `config/cors.php`.
-
-## 📦 Tecnologías y Paquetes
-
-### Framework y Core
-- **Laravel 12.x** - Framework PHP
-- **PHP 8.2+** - Lenguaje de programación
-
-### Autenticación y Seguridad
-- **Laravel Sanctum 4.x** - Autenticación API con tokens
-- **Spatie Laravel Permission 6.x** - Roles y permisos
-
-### Base de Datos
-- **MySQL 8.0+** - Sistema de gestión de base de datos
-- **Laravel Migrations** - Control de versiones de BD
-
-### Exportación y Reportes
-- **Maatwebsite Laravel Excel 3.x** - Exportación a Excel
-- **Barryvdh DomPDF 3.x** - Generación de PDFs
-
-### Procesamiento de Datos
-- **Intervention Image** - Procesamiento de imágenes
-- **Carbon** - Manejo de fechas (incluido en Laravel)
-
-### Desarrollo
-- **Laravel Debugbar** (dev) - Depuración
-- **Laravel IDE Helper** (dev) - Autocompletado IDE
-- **Laravel Pint** (dev) - Code styling
-- **PHPUnit** (dev) - Testing
-
-## 🌐 Configuración CORS
-
-El backend está configurado para aceptar peticiones desde:
-- `http://localhost:3000` (desarrollo local)
-- `http://127.0.0.1:3000` (desarrollo local)
-- `http://192.168.1.5:3000` (IP de red local)
-- Cualquier IP en el rango `192.168.x.x:3000`
-
-### Agregar más IPs permitidas
-
-Edita `config/cors.php`:
-```php
-'allowed_origins' => [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://TU_IP:3000', // Agregar aquí
-],
+### Secciones (Admin/Auxiliar crear, Todos leer)
+```http
+GET    /api/secciones        # Listar secciones (Todos)
+POST   /api/secciones        # Crear sección (Admin/Auxiliar)
+PUT    /api/secciones/{id}   # Actualizar (Admin/Auxiliar)
+DELETE /api/secciones/{id}   # Eliminar (Admin/Auxiliar)
 ```
 
-Después de editar, reinicia el servidor:
-```bash
-php artisan serve
+### Estudiantes (Admin/Auxiliar)
+```http
+GET    /api/estudiantes      # Listar estudiantes
+POST   /api/estudiantes      # Crear estudiante
+PUT    /api/estudiantes/{id} # Actualizar
+DELETE /api/estudiantes/{id} # Eliminar
 ```
 
-## 📚 Comandos Útiles del Proyecto
-
-### Verificación y Diagnóstico
-```bash
-# Ver diagrama visual de la base de datos
-php artisan db:diagram
-
-# Verificar estado completo de la BD
-php artisan db:check
-
-# Verificar usuarios de prueba
-php artisan users:verify
-
-# Sincronizar relaciones users
-php artisan users:sync --fresh
+### Docentes (Admin/Auxiliar/Docente)
+```http
+GET    /api/docentes         # Listar docentes
+POST   /api/docentes         # Crear docente
+PUT    /api/docentes/{id}    # Actualizar
+DELETE /api/docentes/{id}    # Eliminar
 ```
 
-## 🧪 Testing
-
-```bash
-# Ejecutar todos los tests
-php artisan test
-
-# Ejecutar tests con cobertura
-php artisan test --coverage
-
-# Ejecutar un test específico
-php artisan test --filter=NombreDelTest
+### Asignaciones (Admin/Auxiliar/Docente)
+```http
+GET    /api/asignaciones     # Listar asignaciones docente-materia
+POST   /api/asignaciones     # Crear asignación
+PUT    /api/asignaciones/{id}# Actualizar
+DELETE /api/asignaciones/{id}# Eliminar
 ```
 
-## 🚀 Despliegue a Producción
-
-### Preparación
-```bash
-# 1. Optimizar autoload
-composer install --optimize-autoloader --no-dev
-
-# 2. Cachear configuración
-php artisan config:cache
-
-# 3. Cachear rutas
-php artisan route:cache
-
-# 4. Cachear vistas
-php artisan view:cache
-
-# 5. Optimizar
-php artisan optimize
+### Horarios (Admin/Auxiliar crear, Todos leer)
+```http
+GET    /api/horarios         # Listar horarios (Todos)
+POST   /api/horarios         # Crear horario (Admin/Auxiliar)
+PUT    /api/horarios/{id}    # Actualizar (Admin/Auxiliar)
+DELETE /api/horarios/{id}    # Eliminar (Admin/Auxiliar)
 ```
 
-### Variables de Entorno Recomendadas
-```env
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://tu-dominio.com
-
-DB_CONNECTION=mysql
-DB_HOST=tu-servidor-bd
-DB_PORT=3306
-DB_DATABASE=nombre_bd
-DB_USERNAME=usuario
-DB_PASSWORD=contraseña_segura
-
-SANCTUM_STATEFUL_DOMAINS=tu-frontend.com
-FRONTEND_URL=https://tu-frontend.com
+### Calificaciones (Admin/Auxiliar)
+```http
+GET    /api/calificaciones   # Listar todas
+POST   /api/calificaciones   # Crear
+PUT    /api/calificaciones/{id}
+DELETE /api/calificaciones/{id}
+GET    /api/calificaciones/boletin/{estudiante_id}/{periodo_id}
 ```
 
-## 🐛 Solución de Problemas
-
-### Error: "Could not find driver"
-```bash
-# Habilitar extensión PDO MySQL en php.ini
-extension=pdo_mysql
-extension=mysqli
+### Asistencias (Admin/Auxiliar)
+```http
+GET    /api/asistencias      # Listar todas
+POST   /api/asistencias      # Registrar
+PUT    /api/asistencias/{id}
+DELETE /api/asistencias/{id}
+GET    /api/asistencias/reporte/estudiante/{id}
+GET    /api/asistencias/reporte/seccion/{id}
 ```
 
-### Error: "Class HasApiTokens not found"
-```bash
-composer require laravel/sanctum
-php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
+### Portal Docente (Rol: Docente)
+```http
+GET    /api/docente/mis-asignaciones      # Mis materias asignadas
+GET    /api/docente/mis-estudiantes       # Estudiantes de mis secciones
+GET    /api/docente/mis-calificaciones    # Calificaciones que he registrado
+GET    /api/docente/mis-asistencias       # Asistencias de mis estudiantes
+POST   /api/docente/registrar-calificacion
+POST   /api/docente/registrar-asistencia
 ```
 
-### Error: "Table 'users' doesn't exist"
-```bash
-php artisan migrate
+### Portal Estudiante (Rol: Estudiante)
+```http
+GET    /api/estudiante/mi-perfil          # Mi información
+GET    /api/estudiante/mis-calificaciones # Mis notas
+GET    /api/estudiante/mis-asistencias    # Mi asistencia
+GET    /api/estudiante/mi-boletin/{periodo_id}
 ```
 
-### Limpiar caché
-```bash
-php artisan cache:clear
-php artisan config:clear
-php artisan route:clear
-php artisan view:clear
+### Portal Padre (Rol: Padre)
+```http
+GET    /api/padre/mis-hijos               # Lista de hijos
+GET    /api/padre/calificaciones-hijos    # Notas de todos mis hijos
+GET    /api/padre/asistencias-hijo/{hijo_id}
+GET    /api/padre/boletin-hijo/{hijo_id}/{periodo_id}
 ```
 
-## 🔄 Comandos Útiles
-
-### Verificación del Sistema
-```bash
-# Verificar estado de la base de datos
-php artisan db:check
-
-# Verificar/actualizar usuarios de prueba
-php artisan users:verify
-
-# Sincronizar relaciones users (crear usuarios para registros existentes)
-php artisan users:sync --fresh
-
-# Ver estado de migraciones
-php artisan migrate:status
-
-# Reiniciar base de datos (⚠️ elimina todos los datos)
-php artisan migrate:fresh --seed
+### Biblioteca (Admin/Auxiliar)
+```http
+GET    /api/categorias-libros
+POST   /api/categorias-libros
+GET    /api/libros
+POST   /api/libros
+GET    /api/prestamos
+POST   /api/prestamos
+POST   /api/prestamos/{id}/devolver
+GET    /api/mis-prestamos                 # Mis préstamos (Todos)
 ```
 
-### Comandos de Desarrollo
+### Elecciones (Admin crear, Estudiante votar)
+```http
+GET    /api/elecciones                    # Listar elecciones
+POST   /api/elecciones                    # Crear (Admin)
+POST   /api/votos                         # Votar (Estudiante)
+GET    /api/mis-votos                     # Mis votos (Estudiante)
+GET    /api/elecciones/{id}/resultados    # Ver resultados
+GET    /api/elecciones/{id}/ya-vote       # Verificar si voté
+```
+
+## 👥 Usuarios de Prueba
+
+Después de ejecutar `php artisan db:seed`:
+
+| Email | Password | Rol | Descripción |
+|-------|----------|-----|-------------|
+| admin@colegio.pe | password | Admin | Control total del sistema |
+| auxiliar@colegio.pe | password | Auxiliar | Personal administrativo |
+| docente@colegio.pe | password | Docente | Profesor con 4 asignaciones |
+| padre@colegio.pe | password | Padre | Padre con 2 hijos |
+| estudiante@colegio.pe | password | Estudiante | Estudiante matriculado |
+
+## 🔧 Comandos Útiles
+
 ```bash
 # Limpiar caché
 php artisan cache:clear
 php artisan config:clear
 php artisan route:clear
-php artisan view:clear
 
-# Ver rutas disponibles
+# Ver rutas
 php artisan route:list
 
-# Crear modelo con migración y factory
-php artisan make:model NombreModelo -mf
+# Rehacer base de datos
+php artisan migrate:fresh --seed
 
-# Crear controlador de recursos
-php artisan make:controller NombreController --resource
+# Ejecutar pruebas
+php artisan test
 ```
 
-## 🔄 Actualizaciones Recientes
+## 📁 Estructura del Proyecto
 
-### v2.0.0 (22 de diciembre de 2025)
+```
+backend/
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/          # Controladores API
+│   │   │   ├── AuthController.php
+│   │   │   ├── DocentePortalController.php
+│   │   │   ├── EstudiantePortalController.php
+│   │   │   ├── PadrePortalController.php
+│   │   │   └── ... (21 controladores más)
+│   │   ├── Middleware/           # Middleware personalizado
+│   │   │   └── RoleMiddleware.php
+│   │   └── Requests/
+│   ├── Models/                   # Modelos Eloquent (27 modelos)
+│   ├── Services/                 # Lógica de negocio
+│   └── Repositories/             # Capa de datos
+├── database/
+│   ├── migrations/               # Migraciones de BD
+│   └── seeders/                  # Datos de prueba
+├── routes/
+│   └── api.php                   # Rutas API (171 líneas)
+├── config/
+│   ├── cors.php                  # Configuración CORS
+│   └── sanctum.php               # Configuración autenticación
+└── .env                          # Variables de entorno
+```
 
-#### ✅ Sistema de Relaciones Implementado
-- ✅ 183 usuarios sincronizados con roles correctos
-- ✅ 15 docentes con user_id vinculado
-- ✅ 50 padres con user_id vinculado
-- ✅ 118 estudiantes con user_id vinculado
-- ✅ 0 registros huérfanos (100% sincronizado)
+## 🛡️ Seguridad
 
-#### ✅ Migraciones Agregadas
-- `add_user_id_to_docentes_table` - FK a users + email, telefono, dni, direccion
-- `add_user_id_to_padres_table` - FK a users + email, dni, direccion, ocupacion
-- `add_user_id_to_estudiantes_table` - FK a users + dni, telefono, direccion
-- `add_role_to_users_table` - role (enum), is_active, avatar
+### Middleware de Roles
+Protección de endpoints por rol:
+```php
+Route::middleware(['role:admin'])->group(function () {
+    // Solo admins
+});
 
-#### ✅ Modelos Mejorados
-- `User.php` - hasOne(Docente, Padre, Estudiante) + helpers (isAdmin, isDocente, etc)
-- `Docente.php` - belongsTo(User) + campos adicionales
-- `Padre.php` - belongsTo(User) + campos adicionales
-- `Estudiante.php` - belongsTo(User) + campos adicionales
+Route::middleware(['role:admin,auxiliar,docente'])->group(function () {
+    // Múltiples roles
+});
+```
 
-#### ✅ Comandos Artisan Personalizados
-- `php artisan users:verify` - Verificar usuarios de prueba
-- `php artisan users:sync --fresh` - Sincronizar relaciones
-- `php artisan db:check` - Verificar estado completo de BD
+### Tokens Sanctum
+- Tokens de sesión con expiración
+- Logout revoca tokens
+- Middleware `auth:sanctum` en todas las rutas protegidas
 
-#### ✅ Endpoints API
-- `POST /api/auth/login` - Login con roles
-- `GET /api/auth/me` - Usuario actual
-- `POST /api/auth/logout` - Cerrar sesión
-- CRUD completo: `/api/estudiantes`, `/api/docentes`, `/api/padres`
+### CORS
+Configurado para desarrollo local y red:
+```php
+'allowed_origins' => ['http://localhost:3000', 'http://192.168.*.*:3000']
+```
 
-## 🤝 Contribución
+## 📦 Dependencias Principales
 
-### Flujo de Trabajo
-1. Fork del repositorio
-2. Crear rama para feature: `git checkout -b feature/nueva-funcionalidad`
-3. Commit de cambios: `git commit -m 'Add: nueva funcionalidad'`
-4. Push a la rama: `git push origin feature/nueva-funcionalidad`
-5. Crear Pull Request
+```json
+{
+  "php": "^8.2",
+  "laravel/framework": "^12.0",
+  "laravel/sanctum": "^4.0",
+  "spatie/laravel-permission": "^6.0",
+  "maatwebsite/excel": "^3.1",
+  "barryvdh/laravel-dompdf": "^3.0"
+}
+```
 
-### Estándares de Código
-- PSR-12 para PHP
-- Laravel Best Practices
-- Nombres descriptivos en español para el dominio
-- Comentarios en español
-- Tests para nuevas funcionalidades
+## 🐛 Troubleshooting
+
+### Error: "Access denied for user"
+```bash
+# Verificar credenciales en .env
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+### Error: "Class not found"
+```bash
+composer dump-autoload
+php artisan optimize:clear
+```
+
+### Error: CORS
+```bash
+# Verificar config/cors.php
+php artisan config:clear
+```
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT.
+Este proyecto es de código abierto bajo licencia MIT.
 
-## 👥 Autores
+## 👨‍💻 Contribuir
 
-- **Equipo de Desarrollo** - Sistema Escolar Túpac Amaru
+1. Fork el proyecto
+2. Crea una rama (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit cambios (`git commit -m 'Agregar funcionalidad'`)
+4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
+5. Abre un Pull Request
 
-## 🙏 Agradecimientos
+## 📞 Contacto
 
-- Laravel Framework
-- Comunidad de desarrolladores PHP
-- Spatie por sus excelentes paquetes
+Para soporte o consultas, contactar al equipo de desarrollo.
 
 ---
 
-**Última actualización:** 16 de diciembre de 2025  
-**Versión:** 2.0.0  
-**Estado:** ✅ Producción Ready
+**Desarrollado con ❤️ para instituciones educativas**
