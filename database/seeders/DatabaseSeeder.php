@@ -36,20 +36,20 @@ class DatabaseSeeder extends Seeder
             \App\Models\Grado::create($grado);
         }
 
-        // 2. Crear Secciones según estructura real del colegio
+        // 2. Crear Secciones (reducidas para desarrollo rápido)
         $gradosCreados = \App\Models\Grado::all();
         $estructuraSecciones = [
-            '1° Primaria' => ['A', 'B', 'C', 'D', 'E'],
-            '2° Primaria' => ['A', 'B', 'C', 'D', 'E'],
-            '3° Primaria' => ['A', 'B', 'C', 'D', 'E', 'F'],
-            '4° Primaria' => ['A', 'B', 'C', 'D', 'E', 'F'],
-            '5° Primaria' => ['A', 'B', 'C', 'D', 'E', 'F'],
-            '6° Primaria' => ['A', 'B', 'C', 'D', 'E', 'F'],
-            '1° Secundaria' => ['A', 'B', 'C', 'D'],
-            '2° Secundaria' => ['A', 'B', 'C', 'D'],
-            '3° Secundaria' => ['A', 'B', 'C', 'D'],
-            '4° Secundaria' => ['A', 'B', 'C', 'D'],
-            '5° Secundaria' => ['A', 'B', 'C', 'D'],
+            '1° Primaria' => ['A', 'B'],
+            '2° Primaria' => ['A', 'B'],
+            '3° Primaria' => ['A', 'B'],
+            '4° Primaria' => ['A', 'B'],
+            '5° Primaria' => ['A', 'B'],
+            '6° Primaria' => ['A', 'B'],
+            '1° Secundaria' => ['A', 'B'],
+            '2° Secundaria' => ['A', 'B'],
+            '3° Secundaria' => ['A', 'B'],
+            '4° Secundaria' => ['A', 'B'],
+            '5° Secundaria' => ['A', 'B'],
         ];
         
         foreach ($gradosCreados as $grado) {
@@ -111,11 +111,11 @@ class DatabaseSeeder extends Seeder
             $docente->update(['user_id' => $user->id]);
         }
 
-        // 6. Crear Padres (50 padres con usuarios)
-        $padres = \App\Models\Padre::factory(50)->create();
+        // 6. Crear Padres (30 padres con usuarios)
+        $padres = \App\Models\Padre::factory(30)->create();
         
         // Crear usuarios para algunos padres (30% tendrán acceso al sistema)
-        $padresConAcceso = $padres->random(15);
+        $padresConAcceso = $padres->random(10);
         foreach ($padresConAcceso as $index => $padre) {
             $nombreCompleto = $padre->nombres . ' ' . $padre->apellido_paterno . ' ' . $padre->apellido_materno;
             $user = User::create([
@@ -139,8 +139,8 @@ class DatabaseSeeder extends Seeder
             $tutorIndex = $index % $docentesDisponibles->count();
             $seccion->update(['tutor_id' => $docentesDisponibles[$tutorIndex]->id]);
             
-            // 15-35 estudiantes por sección (variable pero sin exceder 40)
-            $cantidadEstudiantes = rand(15, 35);
+            // 4-8 estudiantes por sección (desarrollo rápido)
+            $cantidadEstudiantes = rand(4, 8);
             for ($i = 0; $i < $cantidadEstudiantes; $i++) {
                 $estudiante = \App\Models\Estudiante::factory()->create([
                     'seccion_id' => $seccion->id
@@ -199,7 +199,7 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        // 10. Crear Asistencias (últimos 60 días con datos completos)
+        // 10. Crear Asistencias (últimos 20 días - desarrollo rápido)
         $estudiantes = \App\Models\Estudiante::all();
         
         foreach ($estudiantes as $estudiante) {
@@ -211,8 +211,8 @@ class DatabaseSeeder extends Seeder
                 $materiasSeccion = $materiasCreadas->pluck('id')->take(5);
             }
             
-            // Generar asistencias para los últimos 60 días
-            for ($i = 0; $i < 60; $i++) {
+            // Generar asistencias para los últimos 20 días
+            for ($i = 0; $i < 20; $i++) {
                 $fecha = now()->subDays($i);
                 
                 // Solo crear asistencias de lunes a viernes
