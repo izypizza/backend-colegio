@@ -13,17 +13,30 @@ class Estudiante extends Model
 
     protected $fillable = [
         'user_id',
-        'nombre',
+        'nombres',
+        'apellido_paterno',
+        'apellido_materno',
         'dni',
         'fecha_nacimiento',
         'direccion',
         'telefono',
-        'seccion_id'
+        'seccion_id',
+        'estado'
     ];
 
     protected $casts = [
         'fecha_nacimiento' => 'date'
     ];
+
+    protected $appends = ['nombre_completo'];
+
+    /**
+     * Accessor para nombre completo en formato: Apellido Paterno Apellido Materno, Nombres
+     */
+    public function getNombreCompletoAttribute(): string
+    {
+        return trim("{$this->apellido_paterno} {$this->apellido_materno}, {$this->nombres}");
+    }
 
     public function user()
     {

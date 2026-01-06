@@ -14,12 +14,17 @@ class Eleccion extends Model
     protected $fillable = [
         'titulo',
         'fecha',
-        'activa',
+        'fecha_inicio',
+        'fecha_cierre',
+        'estado',
+        'resultados_publicados'
     ];
 
     protected $casts = [
         'fecha' => 'date',
-        'activa' => 'boolean',
+        'fecha_inicio' => 'datetime',
+        'fecha_cierre' => 'datetime',
+        'resultados_publicados' => 'boolean',
     ];
 
     /**

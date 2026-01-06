@@ -19,6 +19,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Registrar middleware de roles personalizados
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'modulo.activo' => \App\Http\Middleware\CheckModuloActivo::class,
+            'maintenance' => \App\Http\Middleware\CheckMaintenanceMode::class,
+        ]);
+        
+        // Aplicar middleware de mantenimiento globalmente a todas las rutas API
+        $middleware->api(append: [
+            \App\Http\Middleware\CheckMaintenanceMode::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

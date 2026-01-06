@@ -10,9 +10,18 @@ class SeccionController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $secciones = Seccion::with(['grado', 'estudiantes'])->get();
+        $query = Seccion::with(['grado', 'estudiantes']);
+        
+        // Paginación para mejorar performance
+        if ($request->has('all') && $request->all === 'true') {
+            $secciones = $query->get();
+            return response()->json($secciones);
+        }
+
+        $perPage = $request->get('per_page', 50);
+        $secciones = $query->paginate($perPage);
         return response()->json($secciones);
     }
 

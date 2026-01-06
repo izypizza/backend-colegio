@@ -19,4 +19,9 @@ class Grado extends Model
     {
         return $this->hasMany(Seccion::class);
     }
+
+    public function estudiantes()
+    {
+        return $this->hasManyThrough(Estudiante::class, Seccion::class);
+    }
 }
