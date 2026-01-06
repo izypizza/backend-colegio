@@ -13,13 +13,25 @@ class Padre extends Model
 
     protected $fillable = [
         'user_id',
-        'nombre',
+        'nombres',
+        'apellido_paterno',
+        'apellido_materno',
+        'dni',
         'email',
         'telefono',
-        'dni',
         'direccion',
         'ocupacion'
     ];
+
+    protected $appends = ['nombre_completo'];
+
+    /**
+     * Accessor para nombre completo en formato: Apellido Paterno Apellido Materno, Nombres
+     */
+    public function getNombreCompletoAttribute(): string
+    {
+        return trim("{$this->apellido_paterno} {$this->apellido_materno}, {$this->nombres}");
+    }
 
     public function user()
     {

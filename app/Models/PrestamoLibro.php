@@ -16,11 +16,13 @@ class PrestamoLibro extends Model
         'user_id',
         'fecha_prestamo',
         'fecha_devolucion',
+        'devuelto',
     ];
 
     protected $casts = [
         'fecha_prestamo' => 'date',
         'fecha_devolucion' => 'date',
+        'devuelto' => 'boolean',
     ];
 
     /**

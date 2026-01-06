@@ -28,6 +28,30 @@ class AuthController extends Controller
             ]);
         }
 
+        // Verificar si el usuario está activo
+        if (!$user->is_active) {
+            throw ValidationException::withMessages([
+                'email' => ['Su cuenta está desactivada. Contacte al administrador.'],
+            ]);
+        }
+
+        // Verificar estado del estudiante si el usuario es estudiante
+        if ($user->role === 'estudiante') {
+            $estudiante = $user->estudiante;
+            
+            if ($estudiante && $estudiante->estado === 'suspendido') {
+                throw ValidationException::withMessages([
+                    'email' => ['Su cuenta está suspendida. Contacte al administrador.'],
+                ]);
+            }
+            
+            if ($estudiante && $estudiante->estado === 'egresado') {
+                throw ValidationException::withMessages([
+                    'email' => ['Ya no puede acceder al sistema. Ha egresado del colegio.'],
+                ]);
+            }
+        }
+
         // Crear token de acceso
         $token = $user->createToken('auth-token')->plainTextToken;
 

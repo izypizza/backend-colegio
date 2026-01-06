@@ -16,12 +16,34 @@ class PadreFactory extends Factory
      */
     public function definition(): array
     {
-        $nombres = ['Juan', 'María', 'Carlos', 'Rosa', 'Luis', 'Ana', 'Pedro', 'Carmen', 'José', 'Elena'];
-        $apellidos = ['García', 'Rodríguez', 'López', 'Martínez', 'González', 'Pérez', 'Sánchez', 'Ramírez', 'Torres', 'Flores'];
+        $nombres = ['Juan', 'María', 'Carlos', 'Rosa', 'Luis', 'Ana', 'Pedro', 'Carmen', 'José', 'Elena', 'Francisco', 'Teresa', 'Antonio', 'Isabel', 'Manuel'];
+        $apellidosPaternos = ['García', 'Rodríguez', 'López', 'Martínez', 'González', 'Pérez', 'Sánchez', 'Ramírez', 'Torres', 'Flores'];
+        $apellidosMaternos = ['Rojas', 'Castro', 'Silva', 'Vargas', 'Mendoza', 'Gutiérrez', 'Morales', 'Ortiz', 'Ríos', 'Vega'];
+        $ocupaciones = ['Ingeniero', 'Doctor', 'Abogado', 'Comerciante', 'Empresario', 'Contador', 'Profesor', 'Independiente'];
+        
+        $nombre = fake()->randomElement($nombres);
+        $apPaterno = fake()->randomElement($apellidosPaternos);
+        $apMaterno = fake()->randomElement($apellidosMaternos);
+        
+        $nombreEmail = $this->removeAccents($nombre);
+        $apellidoEmail = $this->removeAccents($apPaterno);
         
         return [
-            'nombre' => fake()->randomElement($nombres) . ' ' . fake()->randomElement($apellidos) . ' ' . fake()->randomElement($apellidos),
-            'telefono' => '9' . fake()->numerify('########') // Formato peruano: 9XXXXXXXX
+            'nombres' => $nombre,
+            'apellido_paterno' => $apPaterno,
+            'apellido_materno' => $apMaterno,
+            'dni' => fake()->unique()->numerify('########'),
+            'email' => strtolower($nombreEmail . '.' . $apellidoEmail . fake()->numerify('##')) . '@gmail.com',
+            'telefono' => '9' . fake()->numerify('########'),
+            'direccion' => fake()->address(),
+            'ocupacion' => fake()->randomElement($ocupaciones),
         ];
+    }
+    
+    private function removeAccents($string)
+    {
+        $unwanted = ['á'=>'a', 'é'=>'e', 'í'=>'i', 'ó'=>'o', 'ú'=>'u', 'ñ'=>'n',
+                     'Á'=>'A', 'É'=>'E', 'Í'=>'I', 'Ó'=>'O', 'Ú'=>'U', 'Ñ'=>'N'];
+        return strtr($string, $unwanted);
     }
 }

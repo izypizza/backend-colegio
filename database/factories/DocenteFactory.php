@@ -16,17 +16,38 @@ class DocenteFactory extends Factory
      */
     public function definition(): array
     {
-        $nombres = ['Roberto', 'Patricia', 'Fernando', 'Mónica', 'Ricardo', 'Claudia', 'Alberto', 'Silvia', 'Jorge', 'Teresa'];
-        $apellidos = ['García', 'Rodríguez', 'López', 'Martínez', 'González', 'Pérez', 'Sánchez', 'Ramírez', 'Torres', 'Flores'];
+        $nombres = ['Roberto', 'Patricia', 'Fernando', 'Mónica', 'Ricardo', 'Claudia', 'Alberto', 'Silvia', 'Jorge', 'Teresa', 'Luis', 'Carmen', 'Daniel', 'Elena', 'Miguel'];
+        $apellidosPaternos = ['García', 'Rodríguez', 'López', 'Martínez', 'González', 'Pérez', 'Sánchez', 'Ramírez', 'Torres', 'Flores'];
+        $apellidosMaternos = ['Rojas', 'Castro', 'Silva', 'Vargas', 'Mendoza', 'Gutiérrez', 'Morales', 'Ortiz', 'Ríos', 'Vega'];
         $especialidades = [
             'Matemáticas', 'Comunicación', 'Ciencias Sociales', 'Ciencia y Tecnología',
             'Educación Física', 'Arte y Cultura', 'Inglés', 'Educación Religiosa',
-            'Tutoría', 'Educación para el Trabajo'
+            'Tutoría', 'Educación para el Trabajo', 'Desarrollo Personal y Ciudadanía'
         ];
         
+        $nombre = fake()->randomElement($nombres);
+        $apPaterno = fake()->randomElement($apellidosPaternos);
+        $apMaterno = fake()->randomElement($apellidosMaternos);
+        
+        $nombreEmail = $this->removeAccents($nombre);
+        $apellidoEmail = $this->removeAccents($apPaterno);
+        
         return [
-            'nombre' => 'Prof. ' . fake()->randomElement($nombres) . ' ' . fake()->randomElement($apellidos) . ' ' . fake()->randomElement($apellidos),
-            'especialidad' => fake()->randomElement($especialidades)
+            'nombres' => $nombre,
+            'apellido_paterno' => $apPaterno,
+            'apellido_materno' => $apMaterno,
+            'dni' => fake()->unique()->numerify('########'),
+            'email' => strtolower($nombreEmail . '.' . $apellidoEmail) . '@colegio.pe',
+            'telefono' => '9' . fake()->numerify('########'),
+            'direccion' => fake()->address(),
+            'especialidad' => fake()->randomElement($especialidades),
         ];
+    }
+    
+    private function removeAccents($string)
+    {
+        $unwanted = ['á'=>'a', 'é'=>'e', 'í'=>'i', 'ó'=>'o', 'ú'=>'u', 'ñ'=>'n',
+                     'Á'=>'A', 'É'=>'E', 'Í'=>'I', 'Ó'=>'O', 'Ú'=>'U', 'Ñ'=>'N'];
+        return strtr($string, $unwanted);
     }
 }

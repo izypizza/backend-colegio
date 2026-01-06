@@ -23,6 +23,9 @@ use App\Http\Controllers\VotoController;
 use App\Http\Controllers\DocentePortalController;
 use App\Http\Controllers\EstudiantePortalController;
 use App\Http\Controllers\PadrePortalController;
+use App\Http\Controllers\AuxiliarPermisoController;
+use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\ConfiguracionController;
 
 // Rutas de autenticación (públicas)
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -41,11 +44,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
 
     // ========================================
+    // CONFIGURACIONES DEL SISTEMA (Solo Admin)
+    // ========================================
+    Route::middleware(['role:admin'])->group(function () {
+        Route::get('/configuraciones', [ConfiguracionController::class, 'index']);
+        Route::get('/configuraciones/{clave}', [ConfiguracionController::class, 'obtener']);
+        Route::post('/configuraciones', [ConfiguracionController::class, 'actualizar']);
+        Route::post('/sistema/limpiar-cache', [ConfiguracionController::class, 'limpiarCache']);
+        Route::get('/sistema/info', [ConfiguracionController::class, 'infoSistema']);
+    });
+
+    // ========================================
     // RUTAS CON CONTROL DE ACCESO POR ROLES
     // ========================================
 
-    // Solo Admin - Gestión completa del sistema
+    // Solo Admin - Gestión completa del sistema (PROTEGIDO)
     Route::middleware(['role:admin'])->group(function () {
+        // Grados y Materias requieren confirmación especial por ser datos permanentes
         Route::apiResource('grados', GradoController::class);
         Route::apiResource('materias', MateriaController::class);
         Route::apiResource('periodos', PeriodoAcademicoController::class)->except(['index', 'show']);
@@ -69,19 +84,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware(['role:admin,auxiliar'])->group(function () {
         Route::apiResource('estudiantes', EstudianteController::class);
         Route::apiResource('asistencias', AsistenciaController::class);
-        Route::apiResource('calificaciones', CalificacionController::class);
+        
+        // Reportes de asistencias (ANTES de apiResource para evitar conflictos)
+        Route::get('/asistencias/reporte/estudiante/{estudiante_id}', [AsistenciaController::class, 'reportePorEstudiante']);
+        Route::get('/asistencias/reporte/seccion/{seccion_id}', [AsistenciaController::class, 'reportePorSeccion']);
+        
+        // Calificaciones - Protegido por módulo activo
+        Route::middleware(['modulo.activo:modulo_calificaciones_activo'])->group(function () {
+            // Reportes de calificaciones (ANTES de apiResource para evitar conflictos)
+            Route::get('/calificaciones/estadisticas-avanzadas', [CalificacionController::class, 'estadisticasAvanzadas']);
+            Route::get('/calificaciones/boletin/{estudiante_id}/{periodo_id}', [CalificacionController::class, 'boletin']);
+            Route::get('/calificaciones/reporte/materia/{materia_id}', [CalificacionController::class, 'reportePorMateria']);
+            
+            Route::apiResource('calificaciones', CalificacionController::class);
+        });
+        
         Route::apiResource('secciones', SeccionController::class)->except(['index', 'show']);
         Route::apiResource('horarios', HorarioController::class)->except(['index', 'show']);
         Route::apiResource('grados', GradoController::class)->except(['index', 'show']);
         Route::apiResource('materias', MateriaController::class)->except(['index', 'show']);
-        
-        // Reportes de asistencias
-        Route::get('/asistencias/reporte/estudiante/{estudiante_id}', [AsistenciaController::class, 'reportePorEstudiante']);
-        Route::get('/asistencias/reporte/seccion/{seccion_id}', [AsistenciaController::class, 'reportePorSeccion']);
-        
-        // Reportes de calificaciones
-        Route::get('/calificaciones/boletin/{estudiante_id}/{periodo_id}', [CalificacionController::class, 'boletin']);
-        Route::get('/calificaciones/reporte/materia/{materia_id}', [CalificacionController::class, 'reportePorMateria']);
     });
 
     // Admin, Auxiliar o Docente - Gestión académica
@@ -89,6 +110,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('docentes', DocenteController::class);
         Route::apiResource('horarios', HorarioController::class);
         Route::apiResource('asignaciones', AsignacionDocenteMateriaController::class);
+    });
+
+    // Docentes - Registrar asistencias y calificaciones de SUS estudiantes
+    Route::middleware(['role:docente'])->group(function () {
+        Route::post('/docente/asistencias', [AsistenciaController::class, 'store']);
+        Route::put('/docente/asistencias/{id}', [AsistenciaController::class, 'update']);
+        Route::post('/docente/calificaciones', [CalificacionController::class, 'store']);
+        Route::put('/docente/calificaciones/{id}', [CalificacionController::class, 'update']);
     });
 
     // Admin, Auxiliar, Docente o Padre - Información general
@@ -105,36 +134,75 @@ Route::middleware('auth:sanctum')->group(function () {
     // SISTEMA DE BIBLIOTECA
     // ========================================
     
-    // Admin o Auxiliar - Gestión de biblioteca
-    Route::middleware(['role:admin,auxiliar'])->group(function () {
+    // Admin y Bibliotecario - Gestión completa de biblioteca
+    Route::middleware(['role:admin,bibliotecario'])->group(function () {
         Route::apiResource('categorias-libros', CategoriaLibroController::class);
         Route::apiResource('libros', LibroController::class);
-        Route::apiResource('prestamos', PrestamoLibroController::class)->only(['index', 'store']);
+        Route::get('/prestamos', [PrestamoLibroController::class, 'index']);
         Route::post('/prestamos/{id}/devolver', [PrestamoLibroController::class, 'devolver']);
+        Route::get('/biblioteca/reportes', [PrestamoLibroController::class, 'reportes']);
     });
 
-    // Todos los usuarios autenticados pueden consultar libros y sus préstamos
+    // Todos los usuarios autenticados pueden consultar libros, solicitar préstamos y ver sus préstamos
     Route::get('/libros-disponibles', [LibroController::class, 'index']);
+    Route::post('/prestamos', [PrestamoLibroController::class, 'store']);
     Route::get('/mis-prestamos', [PrestamoLibroController::class, 'misPrestamos']);
 
     // ========================================
     // SISTEMA DE ELECCIONES ESCOLARES
     // ========================================
     
-    // Admin - Gestión de elecciones
+    // Admin - Gestión completa de elecciones (solo supervisión, no manipula votos)
     Route::middleware(['role:admin'])->group(function () {
         Route::apiResource('elecciones', EleccionController::class);
+        Route::post('/elecciones/{id}/activar', [EleccionController::class, 'activar']);
+        Route::post('/elecciones/{id}/cerrar', [EleccionController::class, 'cerrar']);
+        Route::post('/elecciones/{id}/publicar-resultados', [EleccionController::class, 'publicarResultados']);
     });
 
-    // Estudiantes - Votar en elecciones
+    // Estudiantes - Votar en elecciones activas
     Route::middleware(['role:estudiante'])->group(function () {
         Route::post('/votos', [VotoController::class, 'store']);
         Route::get('/mis-votos', [VotoController::class, 'misVotos']);
     });
 
-    // Todos pueden ver elecciones y resultados
+    // Todos pueden ver elecciones y resultados (solo si están publicados)
+    Route::get('/elecciones', [EleccionController::class, 'index']);
+    Route::get('/elecciones/{id}', [EleccionController::class, 'show']);
     Route::get('/elecciones/{id}/resultados', [EleccionController::class, 'resultados']);
     Route::get('/elecciones/{id}/ya-vote', [EleccionController::class, 'yaVote']);
+
+    // ========================================
+    // SISTEMA DE PERMISOS ESPECIALES PARA AUXILIARES
+    // ========================================
+    
+    // Admin - Gestión de permisos especiales
+    Route::middleware(['role:admin'])->group(function () {
+        Route::get('/auxiliares', [AuxiliarPermisoController::class, 'getAuxiliares']);
+        Route::get('/auxiliar-permisos', [AuxiliarPermisoController::class, 'index']);
+        Route::post('/auxiliar-permisos', [AuxiliarPermisoController::class, 'store']);
+        Route::get('/auxiliar-permisos/{userId}', [AuxiliarPermisoController::class, 'show']);
+        Route::delete('/auxiliar-permisos/{userId}', [AuxiliarPermisoController::class, 'destroy']);
+    });
+
+    // Auxiliar - Ver sus propios permisos
+    Route::middleware(['role:auxiliar'])->group(function () {
+        Route::get('/mi-permiso-especial', [AuxiliarPermisoController::class, 'miPermiso']);
+    });
+
+    // ========================================
+    // GESTIÓN DE USUARIOS Y PERSONAS
+    // ========================================
+    
+    // Admin - Gestión completa de usuarios
+    Route::middleware(['role:admin'])->group(function () {
+        Route::get('/users', [UserManagementController::class, 'index']);
+        Route::post('/users', [UserManagementController::class, 'store']);
+        Route::put('/users/{id}', [UserManagementController::class, 'update']);
+        Route::post('/users/{id}/toggle-active', [UserManagementController::class, 'toggleActive']);
+        Route::get('/personas-sin-usuario/{tipo}', [UserManagementController::class, 'personasSinUsuario']);
+        Route::put('/estudiantes/{id}/estado', [UserManagementController::class, 'updateEstadoEstudiante']);
+    });
 
     // ========================================
     // PORTAL DOCENTE

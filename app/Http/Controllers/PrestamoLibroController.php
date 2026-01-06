@@ -37,27 +37,44 @@ class PrestamoLibroController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'libro_id' => 'required|exists:libros,id',
-            'user_id' => 'required|exists:users,id',
-            'fecha_prestamo' => 'required|date',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Verificar que el libro esté disponible
+        // Verificar que el libro tenga stock disponible
         $libro = Libro::findOrFail($request->libro_id);
-        if (!$libro->disponible) {
-            return response()->json(['error' => 'El libro no está disponible'], 400);
+        if ($libro->cantidad_disponible <= 0) {
+            return response()->json(['error' => 'El libro no tiene stock disponible'], 400);
         }
 
-        // Crear préstamo
-        $prestamo = PrestamoLibro::create($request->all());
+        // Verificar que el usuario no tenga un préstamo activo del mismo libro
+        $prestamoActivo = PrestamoLibro::where('user_id', $request->user()->id)
+            ->where('libro_id', $request->libro_id)
+            ->where('devuelto', false)
+            ->first();
 
-        // Marcar libro como no disponible
-        $libro->update(['disponible' => false]);
+        if ($prestamoActivo) {
+            return response()->json(['error' => 'Ya tienes un préstamo activo de este libro'], 400);
+        }
 
-        return response()->json($prestamo->load(['libro.categoria', 'usuario']), 201);
+        // Crear préstamo con fecha de devolución de 15 días
+        $fechaPrestamo = now();
+        $fechaDevolucion = now()->addDays(15);
+
+        $prestamo = PrestamoLibro::create([
+            'libro_id' => $request->libro_id,
+            'user_id' => $request->user()->id,
+            'fecha_prestamo' => $fechaPrestamo,
+            'fecha_devolucion' => $fechaDevolucion,
+            'devuelto' => false,
+        ]);
+
+        // Reducir cantidad disponible del libro
+        $libro->decrement('cantidad_disponible');
+
+        return response()->json($prestamo->load(['libro.categoria']), 201);
     }
 
     /**
@@ -67,25 +84,17 @@ class PrestamoLibroController extends Controller
     {
         $prestamo = PrestamoLibro::findOrFail($id);
 
-        if (!$prestamo->estaActivo()) {
+        if ($prestamo->devuelto) {
             return response()->json(['error' => 'Este préstamo ya fue devuelto'], 400);
         }
 
-        $validator = Validator::make($request->all(), [
-            'fecha_devolucion' => 'required|date',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
         // Registrar devolución
-        $prestamo->update(['fecha_devolucion' => $request->fecha_devolucion]);
+        $prestamo->update(['devuelto' => true]);
 
-        // Marcar libro como disponible
-        $prestamo->libro->update(['disponible' => true]);
+        // Incrementar cantidad disponible del libro
+        $prestamo->libro->increment('cantidad_disponible');
 
-        return response()->json($prestamo->load(['libro.categoria', 'usuario']));
+        return response()->json($prestamo->load(['libro.categoria']));
     }
 
     /**
