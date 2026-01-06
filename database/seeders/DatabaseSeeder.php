@@ -36,29 +36,29 @@ class DatabaseSeeder extends Seeder
             \App\Models\Grado::create($grado);
         }
 
-        // 2. Crear Secciones (reducidas para desarrollo rápido)
+        // 2. Crear Secciones según estructura real del colegio
         $gradosCreados = \App\Models\Grado::all();
         $estructuraSecciones = [
-            '1° Primaria' => ['A', 'B'],
-            '2° Primaria' => ['A', 'B'],
-            '3° Primaria' => ['A', 'B'],
-            '4° Primaria' => ['A', 'B'],
-            '5° Primaria' => ['A', 'B'],
-            '6° Primaria' => ['A', 'B'],
-            '1° Secundaria' => ['A', 'B'],
-            '2° Secundaria' => ['A', 'B'],
-            '3° Secundaria' => ['A', 'B'],
-            '4° Secundaria' => ['A', 'B'],
-            '5° Secundaria' => ['A', 'B'],
+            '1° Primaria' => ['A', 'B', 'C', 'D', 'E'],
+            '2° Primaria' => ['A', 'B', 'C', 'D', 'E'],
+            '3° Primaria' => ['A', 'B', 'C', 'D', 'E', 'F'],
+            '4° Primaria' => ['A', 'B', 'C', 'D', 'E', 'F'],
+            '5° Primaria' => ['A', 'B', 'C', 'D', 'E', 'F'],
+            '6° Primaria' => ['A', 'B', 'C', 'D', 'E', 'F'],
+            '1° Secundaria' => ['A', 'B', 'C', 'D'],
+            '2° Secundaria' => ['A', 'B', 'C', 'D'],
+            '3° Secundaria' => ['A', 'B', 'C', 'D'],
+            '4° Secundaria' => ['A', 'B', 'C', 'D'],
+            '5° Secundaria' => ['A', 'B', 'C', 'D'],
         ];
-        
+
         foreach ($gradosCreados as $grado) {
             $secciones = $estructuraSecciones[$grado->nombre] ?? ['A', 'B', 'C'];
             foreach ($secciones as $seccion) {
                 \App\Models\Seccion::create([
                     'nombre' => $seccion,
                     'grado_id' => $grado->id,
-                    'capacidad_maxima' => 40
+                    'capacidad_maxima' => 40,
                 ]);
             }
         }
@@ -96,36 +96,36 @@ class DatabaseSeeder extends Seeder
 
         // 5. Crear Docentes (15 docentes con usuarios)
         $docentes = \App\Models\Docente::factory(15)->create();
-        
+
         // Crear usuarios para cada docente
         foreach ($docentes as $index => $docente) {
-            $nombreCompleto = $docente->nombres . ' ' . $docente->apellido_paterno . ' ' . $docente->apellido_materno;
+            $nombreCompleto = $docente->nombres.' '.$docente->apellido_paterno.' '.$docente->apellido_materno;
             $user = User::create([
                 'name' => $nombreCompleto,
-                'email' => 'docente' . ($index + 1) . '@colegio.pe',
-                'password' => bcrypt('docente' . ($index + 1)),
+                'email' => 'docente'.($index + 1).'@colegio.pe',
+                'password' => bcrypt('docente'.($index + 1)),
                 'role' => 'docente',
                 'is_active' => true,
             ]);
-            
+
             $docente->update(['user_id' => $user->id]);
         }
 
         // 6. Crear Padres (30 padres con usuarios)
         $padres = \App\Models\Padre::factory(30)->create();
-        
+
         // Crear usuarios para algunos padres (30% tendrán acceso al sistema)
         $padresConAcceso = $padres->random(10);
         foreach ($padresConAcceso as $index => $padre) {
-            $nombreCompleto = $padre->nombres . ' ' . $padre->apellido_paterno . ' ' . $padre->apellido_materno;
+            $nombreCompleto = $padre->nombres.' '.$padre->apellido_paterno.' '.$padre->apellido_materno;
             $user = User::create([
                 'name' => $nombreCompleto,
-                'email' => 'padre' . ($index + 1) . '@colegio.pe',
-                'password' => bcrypt('padre' . ($index + 1)),
+                'email' => 'padre'.($index + 1).'@colegio.pe',
+                'password' => bcrypt('padre'.($index + 1)),
                 'role' => 'padre',
                 'is_active' => true,
             ]);
-            
+
             $padre->update(['user_id' => $user->id]);
         }
 
@@ -133,17 +133,17 @@ class DatabaseSeeder extends Seeder
         $secciones = \App\Models\Seccion::all();
         $estudiantesCreados = [];
         $docentesDisponibles = \App\Models\Docente::all();
-        
+
         foreach ($secciones as $index => $seccion) {
             // Asignar un tutor único a cada sección
             $tutorIndex = $index % $docentesDisponibles->count();
             $seccion->update(['tutor_id' => $docentesDisponibles[$tutorIndex]->id]);
-            
-            // 4-8 estudiantes por sección (desarrollo rápido)
-            $cantidadEstudiantes = rand(4, 8);
+
+            // 8-12 estudiantes por sección (realista pero manejable)
+            $cantidadEstudiantes = rand(8, 12);
             for ($i = 0; $i < $cantidadEstudiantes; $i++) {
                 $estudiante = \App\Models\Estudiante::factory()->create([
-                    'seccion_id' => $seccion->id
+                    'seccion_id' => $seccion->id,
                 ]);
                 $estudiantesCreados[] = $estudiante;
 
@@ -162,15 +162,15 @@ class DatabaseSeeder extends Seeder
         foreach ($secciones as $seccion) {
             // Asignar 5-7 materias por sección
             $materiasAsignadas = $materiasCreadas->random(rand(5, 7));
-            
+
             foreach ($materiasAsignadas as $materia) {
                 $docente = $docentes->random();
-                
+
                 \App\Models\AsignacionDocenteMateria::create([
                     'docente_id' => $docente->id,
                     'materia_id' => $materia->id,
                     'seccion_id' => $seccion->id,
-                    'periodo_academico_id' => $periodo2025->id
+                    'periodo_academico_id' => $periodo2025->id,
                 ]);
             }
         }
@@ -189,39 +189,39 @@ class DatabaseSeeder extends Seeder
         foreach ($asignaciones->take(50) as $asignacion) { // Solo algunas asignaciones para no saturar
             $dia = $dias[array_rand($dias)];
             $hora = $horas[array_rand($horas)];
-            
+
             \App\Models\Horario::create([
                 'seccion_id' => $asignacion->seccion_id,
                 'materia_id' => $asignacion->materia_id,
                 'dia' => $dia,
                 'hora_inicio' => $hora[0],
-                'hora_fin' => $hora[1]
+                'hora_fin' => $hora[1],
             ]);
         }
 
         // 10. Crear Asistencias (últimos 20 días - desarrollo rápido)
         $estudiantes = \App\Models\Estudiante::all();
-        
+
         foreach ($estudiantes as $estudiante) {
             // Obtener las materias de su sección
             $materiasSeccion = $asignaciones->where('seccion_id', $estudiante->seccion_id)
-                                           ->pluck('materia_id')->unique();
-            
+                ->pluck('materia_id')->unique();
+
             if ($materiasSeccion->isEmpty()) {
                 $materiasSeccion = $materiasCreadas->pluck('id')->take(5);
             }
-            
+
             // Generar asistencias para los últimos 20 días
             for ($i = 0; $i < 20; $i++) {
                 $fecha = now()->subDays($i);
-                
+
                 // Solo crear asistencias de lunes a viernes
                 if ($fecha->dayOfWeek >= 1 && $fecha->dayOfWeek <= 5) {
                     // Asistencia por cada materia
                     foreach ($materiasSeccion->random(rand(4, min(6, $materiasSeccion->count()))) as $materiaId) {
                         // 90% presente, 10% ausente
                         $presente = fake()->boolean(90);
-                        
+
                         \App\Models\Asistencia::create([
                             'estudiante_id' => $estudiante->id,
                             'materia_id' => $materiaId,
@@ -238,12 +238,12 @@ class DatabaseSeeder extends Seeder
         foreach ($estudiantes as $estudiante) {
             // Obtener las materias de su secci\u00f3n
             $materiasSeccion = $asignaciones->where('seccion_id', $estudiante->seccion_id)
-                                           ->pluck('materia_id')->unique();
-            
+                ->pluck('materia_id')->unique();
+
             if ($materiasSeccion->isEmpty()) {
                 $materiasSeccion = $materiasCreadas->pluck('id')->take(7);
             }
-            
+
             // Crear calificaciones para cada per\u00edodo
             foreach ($periodosCreados as $periodo) {
                 foreach ($materiasSeccion as $materiaId) {
@@ -251,17 +251,17 @@ class DatabaseSeeder extends Seeder
                     $notaBase = rand(11, 18);
                     $variacion = rand(-2, 2);
                     $nota = max(0, min(20, $notaBase + $variacion));
-                    
+
                     // Algunos estudiantes destacados
                     if (rand(1, 10) > 8) {
                         $nota = rand(17, 20);
                     }
-                    
+
                     // Algunos estudiantes con dificultades
                     if (rand(1, 10) > 9) {
                         $nota = rand(8, 12);
                     }
-                    
+
                     \App\Models\Calificacion::create([
                         'estudiante_id' => $estudiante->id,
                         'materia_id' => $materiaId,
@@ -273,7 +273,7 @@ class DatabaseSeeder extends Seeder
         }
 
         // 12. Crear usuarios de prueba para cada rol
-        
+
         // Usuario Administrador
         User::create([
             'name' => 'Administrador Principal',
@@ -300,7 +300,7 @@ class DatabaseSeeder extends Seeder
             'role' => 'docente',
             'is_active' => true,
         ]);
-        
+
         $docenteTest = \App\Models\Docente::create([
             'nombres' => 'Roberto',
             'apellido_paterno' => 'García',
@@ -312,12 +312,12 @@ class DatabaseSeeder extends Seeder
             'especialidad' => 'Matemáticas',
             'user_id' => $userDocente->id,
         ]);
-        
+
         // Asignar algunas materias al docente test
         $materiasMath = \App\Models\Materia::where('nombre', 'like', '%Matemática%')->take(2)->get();
         $seccionesTest = \App\Models\Seccion::take(2)->get();
         $periodoActual = \App\Models\PeriodoAcademico::first();
-        
+
         foreach ($seccionesTest as $seccion) {
             foreach ($materiasMath as $materia) {
                 \App\Models\AsignacionDocenteMateria::create([
@@ -337,7 +337,7 @@ class DatabaseSeeder extends Seeder
             'role' => 'padre',
             'is_active' => true,
         ]);
-        
+
         $padreTest = \App\Models\Padre::create([
             'nombres' => 'Juan',
             'apellido_paterno' => 'Pérez',
@@ -349,7 +349,7 @@ class DatabaseSeeder extends Seeder
             'ocupacion' => 'Comerciante',
             'user_id' => $userPadre->id,
         ]);
-        
+
         // Asociar algunos estudiantes al padre test
         $estudiantesTest = \App\Models\Estudiante::take(2)->get();
         foreach ($estudiantesTest as $estudiante) {
@@ -369,7 +369,7 @@ class DatabaseSeeder extends Seeder
             'role' => 'estudiante',
             'is_active' => true,
         ]);
-        
+
         $seccionTest = \App\Models\Seccion::first();
         $estudianteTest = \App\Models\Estudiante::create([
             'nombres' => 'Diego',
@@ -389,18 +389,18 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->command->info('✅ Base de datos poblada con datos del sistema educativo peruano');
-        $this->command->info('📊 Grados: ' . \App\Models\Grado::count());
-        $this->command->info('📚 Secciones: ' . \App\Models\Seccion::count());
-        $this->command->info('👨‍🏫 Docentes: ' . \App\Models\Docente::count());
-        $this->command->info('👨‍👩‍👧 Padres: ' . \App\Models\Padre::count());
-        $this->command->info('👨‍🎓 Estudiantes: ' . \App\Models\Estudiante::count());
-        $this->command->info('📖 Materias: ' . \App\Models\Materia::count());
-        $this->command->info('📅 Periodos: ' . \App\Models\PeriodoAcademico::count());
-        $this->command->info('📝 Asignaciones: ' . \App\Models\AsignacionDocenteMateria::count());
-        $this->command->info('🕐 Horarios: ' . \App\Models\Horario::count());
-        $this->command->info('✓ Asistencias: ' . \App\Models\Asistencia::count());
-        $this->command->info('📊 Calificaciones: ' . \App\Models\Calificacion::count());
-        $this->command->info('📚 Libros: ' . \App\Models\Libro::count());
-        $this->command->info('🗳️ Elecciones: ' . \App\Models\Eleccion::count());
+        $this->command->info('📊 Grados: '.\App\Models\Grado::count());
+        $this->command->info('📚 Secciones: '.\App\Models\Seccion::count());
+        $this->command->info('👨‍🏫 Docentes: '.\App\Models\Docente::count());
+        $this->command->info('👨‍👩‍👧 Padres: '.\App\Models\Padre::count());
+        $this->command->info('👨‍🎓 Estudiantes: '.\App\Models\Estudiante::count());
+        $this->command->info('📖 Materias: '.\App\Models\Materia::count());
+        $this->command->info('📅 Periodos: '.\App\Models\PeriodoAcademico::count());
+        $this->command->info('📝 Asignaciones: '.\App\Models\AsignacionDocenteMateria::count());
+        $this->command->info('🕐 Horarios: '.\App\Models\Horario::count());
+        $this->command->info('✓ Asistencias: '.\App\Models\Asistencia::count());
+        $this->command->info('📊 Calificaciones: '.\App\Models\Calificacion::count());
+        $this->command->info('📚 Libros: '.\App\Models\Libro::count());
+        $this->command->info('🗳️ Elecciones: '.\App\Models\Eleccion::count());
     }
 }

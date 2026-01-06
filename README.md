@@ -132,7 +132,9 @@ padre15@colegio.pe    - Juan Sánchez Mendoza
 
 #### Seeders Completos
 
--   **~110-140 estudiantes** distribuidos en 22 secciones (4-8 por sección)
+-   **50 secciones** según estructura real del colegio (10-36 por nivel)
+-   **~400-600 estudiantes** distribuidos realísticamente (8-12 por sección)
+-   **Tutores asignados** a cada sección desde docentes disponibles
 -   **Asistencias** (últimos 20 días) con distribución realista (90% presente)
 -   **Calificaciones** para todos los períodos con distribución normal
 -   **15 libros** en biblioteca con categorías
@@ -314,10 +316,14 @@ php artisan migrate
 # Poblar datos de prueba (IMPORTANTE para testing)
 # Genera datos completos con:
 # - 11 grados (Primaria 1-6 | Secundaria 1-5)
-# - 22 secciones (A, B por grado)
+# - 50 secciones (estructura real del colegio)
+#   * Primaria 1-2: A, B, C, D, E (5 secciones)
+#   * Primaria 3-6: A, B, C, D, E, F (6 secciones)
+#   * Secundaria 1-5: A, B, C, D (4 secciones)
 # - 15 docentes con usuarios
 # - 30 padres (10 con usuarios)
-# - ~110-140 estudiantes (4-8 por sección)
+# - ~400-600 estudiantes (8-12 por sección)
+# - Cada sección tiene un docente tutor asignado
 # - 11 materias del Currículo Nacional
 # - 4 períodos académicos (I, II, III, IV Bimestre 2025)
 # - Asignaciones docente-materia por sección
@@ -1370,8 +1376,11 @@ Los factories ahora generan datos más completos y realistas:
 
 Genera un sistema completo y realista:
 
-**Estudiantes**: 110-140 estudiantes (4-8 por sección)  
+**Secciones**: 50 secciones con estructura real del colegio  
+**Estudiantes**: 400-600 estudiantes (8-12 por sección)  
+**Tutores**: Cada sección tiene un docente tutor asignado  
 **Asistencias**: Últimos 20 días laborables con:
+
 -   Observaciones contextuales
 
 **Calificaciones**: Todos los periodos con:
