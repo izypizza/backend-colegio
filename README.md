@@ -132,9 +132,9 @@ padre15@colegio.pe    - Juan Sánchez Mendoza
 
 #### Seeders Completos
 
--   **328 estudiantes** distribuidos en 33 secciones
--   **67,855 asistencias** (últimos 60 días) con distribución realista (90% presente)
--   **7,840 calificaciones** completas para todos los períodos
+-   **~110-140 estudiantes** distribuidos en 22 secciones (4-8 por sección)
+-   **Asistencias** (últimos 20 días) con distribución realista (90% presente)
+-   **Calificaciones** para todos los períodos con distribución normal
 -   **15 libros** en biblioteca con categorías
 -   **2 elecciones** estudiantiles activas
 -   **Relaciones completas** padres-hijos
@@ -313,17 +313,17 @@ php artisan migrate
 
 # Poblar datos de prueba (IMPORTANTE para testing)
 # Genera datos completos con:
-# - 11 grados (Inicial 3, 4, 5 años | Primaria 1-6 | Secundaria 1-5)
-# - 33 secciones (A, B, C por grado)
-# - 16 docentes con usuarios
-# - 51 padres (16 con usuarios)
-# - 328 estudiantes (1 con usuario)
+# - 11 grados (Primaria 1-6 | Secundaria 1-5)
+# - 22 secciones (A, B por grado)
+# - 15 docentes con usuarios
+# - 30 padres (10 con usuarios)
+# - ~110-140 estudiantes (4-8 por sección)
 # - 11 materias del Currículo Nacional
 # - 4 períodos académicos (I, II, III, IV Bimestre 2025)
-# - 199 asignaciones docente-materia por sección
+# - Asignaciones docente-materia por sección
 # - 50 horarios completos
-# - 67,855 asistencias de últimos 60 días
-# - 7,840 calificaciones para todos los períodos
+# - Asistencias de últimos 20 días
+# - Calificaciones para todos los períodos
 # - 15 libros en biblioteca
 # - 2 elecciones estudiantiles
 php artisan db:seed
@@ -1370,12 +1370,8 @@ Los factories ahora generan datos más completos y realistas:
 
 Genera un sistema completo y realista:
 
-**Estudiantes**: 264-396 estudiantes (8-12 por sección)
-**Asistencias**: Últimos 60 días laborables con:
-
--   83% presente
--   8% tardanza
--   8% ausente
+**Estudiantes**: 110-140 estudiantes (4-8 por sección)  
+**Asistencias**: Últimos 20 días laborables con:
 -   Observaciones contextuales
 
 **Calificaciones**: Todos los periodos con:
