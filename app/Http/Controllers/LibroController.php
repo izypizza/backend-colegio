@@ -41,7 +41,12 @@ class LibroController extends Controller
         $validator = Validator::make($request->all(), [
             'titulo' => 'required|string|max:255',
             'autor' => 'nullable|string|max:255',
+            'isbn' => 'nullable|string|max:50',
+            'editorial' => 'nullable|string|max:255',
+            'anio_publicacion' => 'nullable|integer|min:1000|max:9999',
+            'cantidad_total' => 'required|integer|min:1',
             'categoria_id' => 'required|exists:categorias_libros,id',
+            'disponible' => 'boolean',
         ]);
 
         if ($validator->fails()) {
@@ -71,6 +76,10 @@ class LibroController extends Controller
         $validator = Validator::make($request->all(), [
             'titulo' => 'string|max:255',
             'autor' => 'nullable|string|max:255',
+            'isbn' => 'nullable|string|max:50',
+            'editorial' => 'nullable|string|max:255',
+            'anio_publicacion' => 'nullable|integer|min:1000|max:9999',
+            'cantidad_total' => 'integer|min:1',
             'categoria_id' => 'exists:categorias_libros,id',
             'disponible' => 'boolean',
         ]);

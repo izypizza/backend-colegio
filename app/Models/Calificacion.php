@@ -19,6 +19,8 @@ class Calificacion extends Model
         'nota' => 'decimal:2'
     ];
 
+    protected $appends = ['periodo'];
+
     public function estudiante()
     {
         return $this->belongsTo(Estudiante::class);
@@ -32,5 +34,13 @@ class Calificacion extends Model
     public function periodoAcademico()
     {
         return $this->belongsTo(PeriodoAcademico::class);
+    }
+
+    /**
+     * Accessor para compatibilidad con frontend
+     */
+    public function getPeriodoAttribute()
+    {
+        return $this->periodoAcademico;
     }
 }

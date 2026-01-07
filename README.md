@@ -47,6 +47,121 @@ padre15@colegio.pe    - Juan Sánchez Mendoza
 
 ## Características Recientes (Enero 2026)
 
+### 🆕 Mejoras en Portal de Estudiante (7 de Enero 2026)
+
+#### Endpoint de Horario para Estudiantes
+
+-   **GET /api/estudiante/mi-horario**: Nuevo endpoint que permite a los estudiantes consultar su horario de clases
+    -   Filtra automáticamente por la sección del estudiante autenticado
+    -   Ordena por día y hora de inicio
+    -   Incluye relaciones: materia, docente, sección y grado
+    -   Retorna información completa del estudiante y total de horarios
+
+**Respuesta de ejemplo**:
+
+```json
+{
+    "estudiante": {
+        "id": 1,
+        "nombres": "Juan",
+        "apellido_paterno": "Pérez",
+        "apellido_materno": "López",
+        "seccion": {
+            "id": 5,
+            "nombre": "A",
+            "grado": {
+                "nombre": "3° Primaria"
+            }
+        }
+    },
+    "horarios": [
+        {
+            "id": 1,
+            "dia": "lunes",
+            "hora_inicio": "08:00:00",
+            "hora_fin": "09:00:00",
+            "materia": {
+                "nombre": "Matemática"
+            },
+            "docente": {
+                "nombres": "María",
+                "apellido_paterno": "García"
+            }
+        }
+    ],
+    "total": 30
+}
+```
+
+#### Sistema de Votación - Mensajes de Error Mejorados
+
+-   **Mensajes descriptivos** que indican claramente por qué no se puede votar:
+    -   **Votación pendiente**: Muestra fecha y hora de inicio
+    -   **Votación cerrada**: Muestra fecha de cierre y si los resultados están publicados
+    -   **Ya votó**: Indica que solo puede votar una vez por elección
+-   **Información contextual** en cada respuesta de error:
+    -   Estado actual de la elección (pendiente/activa/cerrada)
+    -   Fechas de inicio y cierre formateadas
+    -   Resultados publicados (true/false)
+
+**Ejemplo de error descriptivo**:
+
+```json
+{
+    "error": "La votación aún no ha comenzado",
+    "mensaje": "Esta elección comenzará el 15/01/2026 08:00",
+    "estado": "pendiente",
+    "fecha_inicio": "2026-01-15T08:00:00",
+    "fecha_cierre": "2026-01-20T18:00:00"
+}
+```
+
+#### Sistema de Préstamos de Biblioteca - Validaciones Estrictas
+
+-   **Control de stock**: Valida disponibilidad con información detallada de copias
+-   **Límite de 3 préstamos activos** por usuario con mensaje claro
+-   **Bloqueo por préstamos vencidos**: Impide nuevos préstamos si hay libros sin devolver
+-   **Validación de libro duplicado**: Evita préstamos del mismo libro dos veces
+-   **Respuestas informativas** con:
+    -   Stock total y copias disponibles
+    -   Cantidad de préstamos activos y vencidos
+    -   Fecha esperada de devolución
+    -   Límites del sistema
+
+**Validaciones implementadas**:
+
+1. ✅ Verificar stock disponible del libro
+2. ✅ Verificar que el usuario no tenga préstamos vencidos
+3. ✅ Verificar límite de 3 préstamos activos
+4. ✅ Verificar que no tenga el mismo libro prestado
+
+**Ejemplo de error con detalles**:
+
+```json
+{
+    "error": "Límite de préstamos alcanzado",
+    "mensaje": "Solo puedes tener máximo 3 libros prestados al mismo tiempo",
+    "prestamos_activos": 3,
+    "limite_maximo": 3
+}
+```
+
+**Respuesta exitosa de préstamo**:
+
+```json
+{
+    "message": "Préstamo registrado exitosamente",
+    "prestamo": {
+        /* datos del préstamo */
+    },
+    "fecha_devolucion": "22/01/2026",
+    "dias_prestamo": 15,
+    "prestamos_activos_totales": 2
+}
+```
+
+---
+
 ### 🆕 Nuevas Funcionalidades Implementadas (5 de Enero 2026)
 
 #### Sistema de Configuraciones y Accesibilidad

@@ -10,9 +10,38 @@ class HorarioController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $horarios = Horario::with(['seccion.grado', 'materia'])->get();
+        $user = $request->user();
+        $query = Horario::with(['seccion.grado', 'materia']);
+
+        // Si es estudiante, solo mostrar horarios de su sección
+        if ($user->role === 'estudiante' && $user->estudiante) {
+            $query->where('seccion_id', $user->estudiante->seccion_id);
+        }
+
+        // Si es padre, mostrar horarios de las secciones de sus hijos
+        if ($user->role === 'padre' && $user->padre) {
+            $seccionesHijos = $user->padre->estudiantes()->pluck('seccion_id')->unique();
+            $query->whereIn('seccion_id', $seccionesHijos);
+        }
+
+        // Si es docente, mostrar horarios de sus asignaciones
+        if ($user->role === 'docente' && $user->docente) {
+            $seccionesDocente = $user->docente->asignaciones()->pluck('seccion_id')->unique();
+            $query->whereIn('seccion_id', $seccionesDocente);
+        }
+
+        // Filtros opcionales por parámetros
+        if ($request->has('seccion_id')) {
+            $query->where('seccion_id', $request->seccion_id);
+        }
+
+        if ($request->has('dia')) {
+            $query->where('dia', $request->dia);
+        }
+
+        $horarios = $query->orderBy('dia')->orderBy('hora_inicio')->get();
         return response()->json($horarios);
     }
 
