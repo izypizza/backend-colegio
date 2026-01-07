@@ -5,10 +5,48 @@ namespace App\Http\Controllers;
 use App\Models\Calificacion;
 use App\Models\Estudiante;
 use App\Models\Asistencia;
+use App\Models\Horario;
 use Illuminate\Http\Request;
 
 class EstudiantePortalController extends Controller
 {
+    /**
+     * Ver mi horario de clases
+     */
+    public function miHorario(Request $request)
+    {
+        $user = $request->user();
+        
+        if (!$user->estudiante) {
+            return response()->json(['message' => 'Usuario no es estudiante'], 403);
+        }
+
+        $estudiante = Estudiante::with('seccion.grado')->find($user->estudiante->id);
+        
+        if (!$estudiante || !$estudiante->seccion_id) {
+            return response()->json([
+                'message' => 'No tienes una sección asignada',
+                'horarios' => []
+            ], 200);
+        }
+
+        $horarios = Horario::where('seccion_id', $estudiante->seccion_id)
+            ->with(['materia', 'docente', 'seccion.grado'])
+            ->orderBy('dia')
+            ->orderBy('hora_inicio')
+            ->get();
+
+        return response()->json([
+            'estudiante' => [
+                'nombre_completo' => $estudiante->nombre_completo,
+                'seccion' => $estudiante->seccion->nombre ?? 'Sin sección',
+                'grado' => $estudiante->seccion->grado->nombre ?? 'Sin grado',
+            ],
+            'horarios' => $horarios,
+            'total' => $horarios->count()
+        ]);
+    }
+
     /**
      * Ver mis calificaciones
      */
