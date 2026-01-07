@@ -1,31 +1,31 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\SeccionController;
-use App\Http\Controllers\DocenteController;
-use App\Http\Controllers\MateriaController;
-use App\Http\Controllers\EstudianteController;
-use App\Http\Controllers\HorarioController;
-use App\Http\Controllers\PeriodoAcademicoController;
 use App\Http\Controllers\AsignacionDocenteMateriaController;
 use App\Http\Controllers\AsistenciaController;
-use App\Http\Controllers\CalificacionController;
-use App\Http\Controllers\PadreController;
-use App\Http\Controllers\GradoController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\LibroController;
-use App\Http\Controllers\CategoriaLibroController;
-use App\Http\Controllers\PrestamoLibroController;
-use App\Http\Controllers\EleccionController;
-use App\Http\Controllers\VotoController;
-use App\Http\Controllers\DocentePortalController;
-use App\Http\Controllers\EstudiantePortalController;
-use App\Http\Controllers\PadrePortalController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AuxiliarPermisoController;
-use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\CalificacionController;
+use App\Http\Controllers\CategoriaLibroController;
 use App\Http\Controllers\ConfiguracionController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocenteController;
+use App\Http\Controllers\DocentePortalController;
+use App\Http\Controllers\EleccionController;
+use App\Http\Controllers\EstudianteController;
+use App\Http\Controllers\EstudiantePortalController;
+use App\Http\Controllers\GradoController;
+use App\Http\Controllers\HorarioController;
+use App\Http\Controllers\LibroController;
+use App\Http\Controllers\MateriaController;
+use App\Http\Controllers\PadreController;
+use App\Http\Controllers\PadrePortalController;
+use App\Http\Controllers\PeriodoAcademicoController;
+use App\Http\Controllers\PrestamoLibroController;
+use App\Http\Controllers\SeccionController;
+use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\VotoController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 // Rutas de autenticación (públicas)
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -35,7 +35,7 @@ Route::post('/auth/register', [AuthController::class, 'register']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
-    
+
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
@@ -84,21 +84,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware(['role:admin,auxiliar'])->group(function () {
         Route::apiResource('estudiantes', EstudianteController::class);
         Route::apiResource('asistencias', AsistenciaController::class);
-        
+
         // Reportes de asistencias (ANTES de apiResource para evitar conflictos)
         Route::get('/asistencias/reporte/estudiante/{estudiante_id}', [AsistenciaController::class, 'reportePorEstudiante']);
         Route::get('/asistencias/reporte/seccion/{seccion_id}', [AsistenciaController::class, 'reportePorSeccion']);
-        
+
         // Calificaciones - Protegido por módulo activo
         Route::middleware(['modulo.activo:modulo_calificaciones_activo'])->group(function () {
             // Reportes de calificaciones (ANTES de apiResource para evitar conflictos)
             Route::get('/calificaciones/estadisticas-avanzadas', [CalificacionController::class, 'estadisticasAvanzadas']);
             Route::get('/calificaciones/boletin/{estudiante_id}/{periodo_id}', [CalificacionController::class, 'boletin']);
             Route::get('/calificaciones/reporte/materia/{materia_id}', [CalificacionController::class, 'reportePorMateria']);
-            
+
             Route::apiResource('calificaciones', CalificacionController::class);
         });
-        
+
         Route::apiResource('secciones', SeccionController::class)->except(['index', 'show']);
         Route::apiResource('horarios', HorarioController::class)->except(['index', 'show']);
         Route::apiResource('grados', GradoController::class)->except(['index', 'show']);
@@ -108,7 +108,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin, Auxiliar o Docente - Gestión académica
     Route::middleware(['role:admin,auxiliar,docente'])->group(function () {
         Route::apiResource('docentes', DocenteController::class);
-        Route::apiResource('horarios', HorarioController::class);
         Route::apiResource('asignaciones', AsignacionDocenteMateriaController::class);
     });
 
@@ -133,12 +132,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // SISTEMA DE BIBLIOTECA
     // ========================================
-    
+
     // Admin y Bibliotecario - Gestión completa de biblioteca
     Route::middleware(['role:admin,bibliotecario'])->group(function () {
         Route::apiResource('categorias-libros', CategoriaLibroController::class);
         Route::apiResource('libros', LibroController::class);
         Route::get('/prestamos', [PrestamoLibroController::class, 'index']);
+        Route::post('/prestamos/{id}/aprobar', [PrestamoLibroController::class, 'aprobar']);
+        Route::post('/prestamos/{id}/rechazar', [PrestamoLibroController::class, 'rechazar']);
         Route::post('/prestamos/{id}/devolver', [PrestamoLibroController::class, 'devolver']);
         Route::get('/biblioteca/reportes', [PrestamoLibroController::class, 'reportes']);
     });
@@ -151,10 +152,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // SISTEMA DE ELECCIONES ESCOLARES
     // ========================================
-    
+
+    // Todos pueden ver elecciones y resultados (solo si están publicados)
+    Route::get('/elecciones', [EleccionController::class, 'index']);
+    Route::get('/elecciones/{id}', [EleccionController::class, 'show']);
+    Route::get('/elecciones/{id}/resultados', [EleccionController::class, 'resultados']);
+    Route::get('/elecciones/{id}/ya-vote', [EleccionController::class, 'yaVote']);
+
     // Admin - Gestión completa de elecciones (solo supervisión, no manipula votos)
     Route::middleware(['role:admin'])->group(function () {
-        Route::apiResource('elecciones', EleccionController::class);
+        Route::post('/elecciones', [EleccionController::class, 'store']);
+        Route::put('/elecciones/{id}', [EleccionController::class, 'update']);
+        Route::delete('/elecciones/{id}', [EleccionController::class, 'destroy']);
         Route::post('/elecciones/{id}/activar', [EleccionController::class, 'activar']);
         Route::post('/elecciones/{id}/cerrar', [EleccionController::class, 'cerrar']);
         Route::post('/elecciones/{id}/publicar-resultados', [EleccionController::class, 'publicarResultados']);
@@ -166,16 +175,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/mis-votos', [VotoController::class, 'misVotos']);
     });
 
-    // Todos pueden ver elecciones y resultados (solo si están publicados)
-    Route::get('/elecciones', [EleccionController::class, 'index']);
-    Route::get('/elecciones/{id}', [EleccionController::class, 'show']);
-    Route::get('/elecciones/{id}/resultados', [EleccionController::class, 'resultados']);
-    Route::get('/elecciones/{id}/ya-vote', [EleccionController::class, 'yaVote']);
-
     // ========================================
     // SISTEMA DE PERMISOS ESPECIALES PARA AUXILIARES
     // ========================================
-    
+
     // Admin - Gestión de permisos especiales
     Route::middleware(['role:admin'])->group(function () {
         Route::get('/auxiliares', [AuxiliarPermisoController::class, 'getAuxiliares']);
@@ -193,7 +196,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // GESTIÓN DE USUARIOS Y PERSONAS
     // ========================================
-    
+
     // Admin - Gestión completa de usuarios
     Route::middleware(['role:admin'])->group(function () {
         Route::get('/users', [UserManagementController::class, 'index']);

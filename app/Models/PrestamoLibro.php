@@ -13,15 +13,21 @@ class PrestamoLibro extends Model
 
     protected $fillable = [
         'libro_id',
+        'estudiante_id',
         'user_id',
         'fecha_prestamo',
         'fecha_devolucion',
         'devuelto',
+        'estado',
+        'aprobado_por',
+        'fecha_respuesta',
+        'motivo_rechazo',
     ];
 
     protected $casts = [
         'fecha_prestamo' => 'date',
         'fecha_devolucion' => 'date',
+        'fecha_respuesta' => 'datetime',
         'devuelto' => 'boolean',
     ];
 
@@ -34,11 +40,27 @@ class PrestamoLibro extends Model
     }
 
     /**
+     * Relación: Un préstamo pertenece a un estudiante
+     */
+    public function estudiante()
+    {
+        return $this->belongsTo(Estudiante::class, 'estudiante_id');
+    }
+
+    /**
      * Relación: Un préstamo pertenece a un usuario
      */
     public function usuario()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Relación: Usuario que aprobó/rechazó
+     */
+    public function aprobador()
+    {
+        return $this->belongsTo(User::class, 'aprobado_por');
     }
 
     /**

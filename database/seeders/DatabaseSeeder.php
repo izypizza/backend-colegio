@@ -381,6 +381,47 @@ class DatabaseSeeder extends Seeder
             'user_id' => $userEstudiante->id,
         ]);
 
+        // Asignar padres al estudiante test
+        $padreTest->estudiantes()->attach($estudianteTest->id);
+
+        // Crear calificaciones para el estudiante test en todos los períodos
+        $materiasEstudianteTest = $asignaciones->where('seccion_id', $seccionTest->id)
+            ->pluck('materia_id')->unique();
+
+        if ($materiasEstudianteTest->isEmpty()) {
+            $materiasEstudianteTest = $materiasCreadas->pluck('id')->take(7);
+        }
+
+        foreach ($periodosCreados as $periodo) {
+            foreach ($materiasEstudianteTest as $materiaId) {
+                $notaBase = rand(13, 17);
+                \App\Models\Calificacion::create([
+                    'estudiante_id' => $estudianteTest->id,
+                    'materia_id' => $materiaId,
+                    'periodo_academico_id' => $periodo->id,
+                    'nota' => $notaBase,
+                ]);
+            }
+        }
+
+        // Crear asistencias para el estudiante test (últimos 20 días)
+        for ($i = 0; $i < 20; $i++) {
+            $fecha = now()->subDays($i);
+
+            if ($fecha->dayOfWeek >= 1 && $fecha->dayOfWeek <= 5) {
+                foreach ($materiasEstudianteTest->random(min(5, $materiasEstudianteTest->count())) as $materiaId) {
+                    $presente = fake()->boolean(92);
+
+                    \App\Models\Asistencia::create([
+                        'estudiante_id' => $estudianteTest->id,
+                        'materia_id' => $materiaId,
+                        'fecha' => $fecha->format('Y-m-d'),
+                        'presente' => $presente,
+                    ]);
+                }
+            }
+        }
+
         // Ejecutar seeders adicionales
         $this->call([
             BibliotecaSeeder::class,

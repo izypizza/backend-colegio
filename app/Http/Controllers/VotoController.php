@@ -24,16 +24,43 @@ class VotoController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $eleccion = Eleccion::findOrFail($request->eleccion_id);
+        $eleccion = Eleccion::with('candidatos')->findOrFail($request->eleccion_id);
         
-        // Verificar si la elección está activa
-        if (!$eleccion->activa) {
-            return response()->json(['error' => 'La elección no está activa'], 400);
+        // Verificar estado de la elección con mensajes detallados
+        if ($eleccion->estado === 'pendiente') {
+            return response()->json([
+                'error' => 'La votación aún no ha comenzado',
+                'mensaje' => 'Esta elección comenzará el ' . $eleccion->fecha_inicio->format('d/m/Y H:i'),
+                'estado' => 'pendiente',
+                'fecha_inicio' => $eleccion->fecha_inicio,
+                'fecha_cierre' => $eleccion->fecha_cierre
+            ], 400);
+        }
+
+        if ($eleccion->estado === 'cerrada') {
+            return response()->json([
+                'error' => 'La votación ha finalizado',
+                'mensaje' => 'Esta elección cerró el ' . $eleccion->fecha_cierre->format('d/m/Y H:i'),
+                'estado' => 'cerrada',
+                'resultados_publicados' => $eleccion->resultados_publicados
+            ], 400);
+        }
+
+        if ($eleccion->estado !== 'activa') {
+            return response()->json([
+                'error' => 'No se puede votar en esta elección',
+                'mensaje' => 'La elección no está disponible para votar',
+                'estado' => $eleccion->estado
+            ], 400);
         }
 
         // Verificar si el usuario ya votó
         if ($eleccion->usuarioYaVoto($request->user())) {
-            return response()->json(['error' => 'Ya has votado en esta elección'], 400);
+            return response()->json([
+                'error' => 'Ya has votado en esta elección',
+                'mensaje' => 'Solo puedes votar una vez por elección',
+                'estado' => 'ya_voto'
+            ], 400);
         }
 
         // Verificar que el candidato pertenece a la elección

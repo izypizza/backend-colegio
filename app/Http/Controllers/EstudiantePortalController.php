@@ -18,7 +18,10 @@ class EstudiantePortalController extends Controller
         $user = $request->user();
         
         if (!$user->estudiante) {
-            return response()->json(['message' => 'Usuario no es estudiante'], 403);
+            return response()->json([
+                'error' => 'Usuario no es estudiante',
+                'message' => 'No tienes un perfil de estudiante asociado'
+            ], 403);
         }
 
         $estudiante = Estudiante::with('seccion.grado')->find($user->estudiante->id);
@@ -26,18 +29,20 @@ class EstudiantePortalController extends Controller
         if (!$estudiante || !$estudiante->seccion_id) {
             return response()->json([
                 'message' => 'No tienes una sección asignada',
-                'horarios' => []
+                'horarios' => [],
+                'total' => 0
             ], 200);
         }
 
         $horarios = Horario::where('seccion_id', $estudiante->seccion_id)
-            ->with(['materia', 'docente', 'seccion.grado'])
+            ->with(['materia', 'seccion.grado'])
             ->orderBy('dia')
             ->orderBy('hora_inicio')
             ->get();
 
         return response()->json([
             'estudiante' => [
+                'id' => $estudiante->id,
                 'nombre_completo' => $estudiante->nombre_completo,
                 'seccion' => $estudiante->seccion->nombre ?? 'Sin sección',
                 'grado' => $estudiante->seccion->grado->nombre ?? 'Sin grado',
@@ -60,13 +65,14 @@ class EstudiantePortalController extends Controller
 
         $calificaciones = Calificacion::where('estudiante_id', $user->estudiante->id)
             ->with(['materia', 'periodoAcademico'])
+            ->orderBy('periodo_academico_id')
             ->get();
 
         $promedio = $calificaciones->avg('nota');
 
         return response()->json([
             'calificaciones' => $calificaciones,
-            'promedio' => round($promedio, 2),
+            'promedio' => round($promedio ?? 0, 2),
         ]);
     }
 

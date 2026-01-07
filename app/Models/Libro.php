@@ -12,13 +12,35 @@ class Libro extends Model
     protected $fillable = [
         'titulo',
         'autor',
+        'isbn',
+        'editorial',
+        'anio_publicacion',
+        'cantidad_total',
         'categoria_id',
         'disponible',
     ];
 
     protected $casts = [
         'disponible' => 'boolean',
+        'anio_publicacion' => 'integer',
+        'cantidad_total' => 'integer',
     ];
+
+    protected $appends = ['cantidad_disponible'];
+
+    /**
+     * Calcular la cantidad disponible basado en préstamos activos APROBADOS
+     */
+    public function getCantidadDisponibleAttribute()
+    {
+        $cantidadTotal = $this->cantidad_total ?? 1;
+        // Solo contar préstamos aprobados y no devueltos
+        $prestamosActivos = $this->prestamos()
+            ->where('estado', 'aprobado')
+            ->where('devuelto', false)
+            ->count();
+        return max(0, $cantidadTotal - $prestamosActivos);
+    }
 
     /**
      * Relación: Un libro pertenece a una categoría
