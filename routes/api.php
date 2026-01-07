@@ -220,6 +220,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // PORTAL ESTUDIANTE
     // ========================================
     Route::middleware(['role:estudiante'])->group(function () {
+        Route::get('/estudiante/mi-horario', [EstudiantePortalController::class, 'miHorario']);
         Route::get('/estudiante/mis-calificaciones', [EstudiantePortalController::class, 'misCalificaciones']);
         Route::get('/estudiante/mis-asistencias', [EstudiantePortalController::class, 'misAsistencias']);
         Route::get('/estudiante/mi-perfil', [EstudiantePortalController::class, 'miPerfil']);
