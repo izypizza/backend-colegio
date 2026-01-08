@@ -8,40 +8,81 @@ API REST desarrollada con **Laravel 12** para la gestión integral de la I.E. N�
 
 ### Usuarios Principales
 
-| Rol               | Email                    | Contraseña    | Total Usuarios |
-| ----------------- | ------------------------ | ------------- | -------------- |
-| **Admin**         | admin@colegio.pe         | admin123      | 1              |
-| **Auxiliar**      | auxiliar@colegio.pe      | auxiliar123   | 1              |
-| **Bibliotecario** | bibliotecario@colegio.pe | biblio123     | 1              |
-| **Docente**       | docente@colegio.pe       | docente123    | 16             |
-| **Padre**         | padre@colegio.pe         | padre123      | 16             |
-| **Estudiante**    | estudiante@colegio.pe    | estudiante123 | 1              |
+| Rol               | Email                    | Contraseña      | Total Usuarios |
+| ----------------- | ------------------------ | --------------- | -------------- |
+| **Admin**         | admin@colegio.pe         | admin123        | 1              |
+| **Auxiliar**      | auxiliar@colegio.pe      | auxiliar123     | 1              |
+| **Bibliotecario** | bibliotecario@colegio.pe | biblioteca2025  | 1              |
+| **Docente**       | docente@colegio.pe       | docente123      | 16             |
+| **Padre**         | padre@colegio.pe         | padre123        | 31             |
+| **Estudiante**    | estudiante@colegio.pe    | estudiante123   | 523            |
 
 ### Docentes Adicionales (docente1-15)
 
-Todos con contraseña: `docente123`
+Todos con contraseña: `docente{número}`
 
 ```
-docente1@colegio.pe   - Luis Ramírez Ortiz
-docente2@colegio.pe   - Carmen Rodríguez Morales
-docente3@colegio.pe   - Fernando García Silva
+docente1@colegio.pe   - Contraseña: docente1
+docente2@colegio.pe   - Contraseña: docente2
+docente3@colegio.pe   - Contraseña: docente3
 ...
-docente15@colegio.pe  - Claudia López Ríos
+docente15@colegio.pe  - Contraseña: docente15
 ```
 
-### Padres Adicionales (padre1-15)
+### Padres Adicionales (padre1-10)
 
-Todos con contraseña: `padre123`
+Todos con contraseña: `padre{número}`
 
 ```
-padre1@colegio.pe     - Isabel Martínez Vargas
-padre2@colegio.pe     - Isabel Rodríguez Mendoza
-padre3@colegio.pe     - Elena Torres Vega
+padre1@colegio.pe     - Contraseña: padre1
+padre2@colegio.pe     - Contraseña: padre2
+padre3@colegio.pe     - Contraseña: padre3
 ...
-padre15@colegio.pe    - Juan Sánchez Mendoza
+padre10@colegio.pe    - Contraseña: padre10
+```
+
+### Estudiantes (estudiante1-523)
+
+Todos con contraseña: `estudiante{número}`
+
+```
+estudiante1@colegio.pe   - Contraseña: estudiante1
+estudiante2@colegio.pe   - Contraseña: estudiante2
+estudiante3@colegio.pe   - Contraseña: estudiante3
+...
+estudiante523@colegio.pe - Contraseña: estudiante523
 ```
 
 > **IMPORTANTE:** Estas credenciales son para desarrollo. Cambiar en producción.
+
+---
+
+## 📊 Estadísticas de la Base de Datos
+
+Después de ejecutar `php artisan migrate:fresh --seed`, el sistema genera:
+
+### Estructura Académica
+- **11 Grados**: 6 de Primaria + 5 de Secundaria
+- **54 Secciones**: Distribuidas según estructura real del colegio
+- **11 Materias**: Según Currículo Nacional Peruano
+- **4 Períodos**: Bimestres del año escolar 2025
+
+### Personal y Usuarios
+- **16 Docentes**: Cada uno con usuario y perfil completo
+- **31 Padres**: 10 con acceso al sistema
+- **523 Estudiantes**: Todos con usuario para acceso al portal
+
+### Datos Académicos
+- **331 Asignaciones**: Docente-Materia por Sección
+- **810 Horarios**: Clases distribuidas en la semana
+- **35,520 Asistencias**: Últimos 20 días (90% asistencia promedio)
+- **12,728 Calificaciones**: Todos los estudiantes en 4 períodos
+
+### Biblioteca y Más
+- **15 Libros**: Con ISBN, editorial, año y sistema de préstamos
+- **2 Elecciones**: Sistema electoral estudiantil completo
+
+> ✅ **Calidad de Datos**: Todas las relaciones están validadas sin valores NULL, garantizando integridad referencial completa.
 
 ---
 
@@ -429,32 +470,48 @@ DB_PASSWORD=
 php artisan migrate
 
 # Poblar datos de prueba (IMPORTANTE para testing)
-# Genera datos completos con:
+# Genera datos completos del sistema educativo peruano:
+#
+# 📊 Estructura Académica:
 # - 11 grados (Primaria 1-6 | Secundaria 1-5)
-# - 50 secciones (estructura real del colegio)
-#   * Primaria 1-2: A, B, C, D, E (5 secciones)
-#   * Primaria 3-6: A, B, C, D, E, F (6 secciones)
-#   * Secundaria 1-5: A, B, C, D (4 secciones)
-# - 15 docentes con usuarios
-# - 30 padres (10 con usuarios)
-# - ~400-600 estudiantes (8-12 por sección)
-# - Cada sección tiene un docente tutor asignado
-# - 11 materias del Currículo Nacional
+# - 54 secciones (estructura real del colegio I.E. 51006):
+#   * Primaria 1-2: A, B, C, D, E (5 secciones cada grado)
+#   * Primaria 3-6: A, B, C, D, E, F (6 secciones cada grado)
+#   * Secundaria 1-5: A, B, C, D (4 secciones cada grado)
+# - 11 materias del Currículo Nacional Peruano:
+#   (Matemática, Comunicación, Ciencias Sociales, Ciencia y Tecnología,
+#    Educación Física, Arte y Cultura, Inglés, Educación Religiosa,
+#    Tutoría, Educación para el Trabajo, DPCC)
 # - 4 períodos académicos (I, II, III, IV Bimestre 2025)
-# - Asignaciones docente-materia por sección
-# - 50 horarios completos
-# - Asistencias de últimos 20 días
-# - Calificaciones para todos los períodos
-# - 15 libros en biblioteca
-# - 2 elecciones estudiantiles
+#
+# 👥 Personal y Estudiantes:
+# - 16 docentes con usuarios (docente@colegio.pe, docente1-15@colegio.pe)
+# - 31 padres (10 con usuarios: padre1-10@colegio.pe)
+# - 523 estudiantes con usuarios (estudiante1-523@colegio.pe)
+# - Cada sección tiene un docente tutor asignado
+# - Relaciones padres-hijos configuradas (1-2 padres por estudiante)
+#
+# 📚 Datos Académicos:
+# - 331 asignaciones docente-materia por sección
+# - 810 horarios semanales (2-3 clases por materia)
+# - 35,520 asistencias (últimos 20 días, 90% presente)
+# - 12,728 calificaciones (todos los estudiantes en 4 períodos)
+#   * Distribución realista: mayoría 11-18 puntos
+#   * 20% estudiantes destacados (17-20)
+#   * 10% con dificultades (8-12)
+# - Todas las relaciones validadas sin valores NULL
+#
+# 📖 Biblioteca y Elecciones:
+# - 15 libros con ISBN, editorial, año y stock
+# - Sistema de préstamos con estados (pendiente/aprobado/rechazado/devuelto)
+# - 2 elecciones estudiantiles con candidatos
+#
+# ✅ Validaciones Aplicadas:
+# - Todos los estudiantes tienen user_id
+# - Todas las calificaciones tienen estudiante_id, materia_id y periodo_id
+# - Todas las asistencias vinculadas a materias existentes
+# - Horarios sin conflictos por sección
 php artisan db:seed
-
-# Los datos generados incluyen:
-# ✅ Relaciones padres-hijos
-# ✅ Asistencias realistas (90% presente, 10% ausente)
-# ✅ Calificaciones con distribución normal (11-18 puntos)
-# ✅ Datos completos de contacto
-# ✅ 6 roles con permisos específicos
 ```
 
 ### Paso 5: Iniciar Servidor

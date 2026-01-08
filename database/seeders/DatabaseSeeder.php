@@ -133,6 +133,7 @@ class DatabaseSeeder extends Seeder
         $secciones = \App\Models\Seccion::all();
         $estudiantesCreados = [];
         $docentesDisponibles = \App\Models\Docente::all();
+        $estudianteCounter = 1;
 
         foreach ($secciones as $index => $seccion) {
             // Asignar un tutor único a cada sección
@@ -145,11 +146,24 @@ class DatabaseSeeder extends Seeder
                 $estudiante = \App\Models\Estudiante::factory()->create([
                     'seccion_id' => $seccion->id,
                 ]);
+                
+                // Crear usuario para cada estudiante
+                $nombreCompleto = $estudiante->nombres.' '.$estudiante->apellido_paterno.' '.$estudiante->apellido_materno;
+                $userEstudiante = User::create([
+                    'name' => $nombreCompleto,
+                    'email' => 'estudiante'.$estudianteCounter.'@colegio.pe',
+                    'password' => bcrypt('estudiante'.$estudianteCounter),
+                    'role' => 'estudiante',
+                    'is_active' => true,
+                ]);
+                
+                $estudiante->update(['user_id' => $userEstudiante->id]);
                 $estudiantesCreados[] = $estudiante;
+                $estudianteCounter++;
 
                 // Asignar 1-2 padres a cada estudiante
-                $padres = \App\Models\Padre::inRandomOrder()->limit(rand(1, 2))->get();
-                $estudiante->padres()->attach($padres);
+                $padresDisponibles = \App\Models\Padre::inRandomOrder()->limit(rand(1, 2))->get();
+                $estudiante->padres()->attach($padresDisponibles);
             }
         }
 
@@ -175,7 +189,7 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        // 9. Crear Horarios
+        // 9. Crear Horarios (más completo)
         $dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
         $horas = [
             ['08:00', '08:45'],
@@ -183,28 +197,55 @@ class DatabaseSeeder extends Seeder
             ['09:30', '10:15'],
             ['10:30', '11:15'],
             ['11:15', '12:00'],
+            ['12:00', '12:45'],
         ];
 
         $asignaciones = \App\Models\AsignacionDocenteMateria::all();
-        foreach ($asignaciones->take(50) as $asignacion) { // Solo algunas asignaciones para no saturar
-            $dia = $dias[array_rand($dias)];
-            $hora = $horas[array_rand($horas)];
-
-            \App\Models\Horario::create([
-                'seccion_id' => $asignacion->seccion_id,
-                'materia_id' => $asignacion->materia_id,
-                'dia' => $dia,
-                'hora_inicio' => $hora[0],
-                'hora_fin' => $hora[1],
-            ]);
+        
+        // Crear horarios para cada sección de forma organizada
+        foreach ($secciones as $seccion) {
+            $asignacionesSeccion = $asignaciones->where('seccion_id', $seccion->id);
+            
+            if ($asignacionesSeccion->isEmpty()) {
+                continue;
+            }
+            
+            // Distribuir las materias en la semana
+            $horariosCreados = [];
+            foreach ($asignacionesSeccion as $index => $asignacion) {
+                // Cada materia aparece 2-3 veces por semana
+                $vecesEnSemana = rand(2, 3);
+                
+                for ($i = 0; $i < $vecesEnSemana; $i++) {
+                    $intentos = 0;
+                    do {
+                        $dia = $dias[array_rand($dias)];
+                        $hora = $horas[array_rand($horas)];
+                        $key = $seccion->id . '-' . $dia . '-' . $hora[0];
+                        $intentos++;
+                    } while (isset($horariosCreados[$key]) && $intentos < 10);
+                    
+                    if (!isset($horariosCreados[$key])) {
+                        \App\Models\Horario::create([
+                            'seccion_id' => $asignacion->seccion_id,
+                            'materia_id' => $asignacion->materia_id,
+                            'dia' => $dia,
+                            'hora_inicio' => $hora[0],
+                            'hora_fin' => $hora[1],
+                        ]);
+                        $horariosCreados[$key] = true;
+                    }
+                }
+            }
         }
 
         // 10. Crear Asistencias (últimos 20 días - desarrollo rápido)
         $estudiantes = \App\Models\Estudiante::all();
+        $asignacionesAll = \App\Models\AsignacionDocenteMateria::all();
 
         foreach ($estudiantes as $estudiante) {
             // Obtener las materias de su sección
-            $materiasSeccion = $asignaciones->where('seccion_id', $estudiante->seccion_id)
+            $materiasSeccion = $asignacionesAll->where('seccion_id', $estudiante->seccion_id)
                 ->pluck('materia_id')->unique();
 
             if ($materiasSeccion->isEmpty()) {
@@ -217,8 +258,17 @@ class DatabaseSeeder extends Seeder
 
                 // Solo crear asistencias de lunes a viernes
                 if ($fecha->dayOfWeek >= 1 && $fecha->dayOfWeek <= 5) {
-                    // Asistencia por cada materia
-                    foreach ($materiasSeccion->random(rand(4, min(6, $materiasSeccion->count()))) as $materiaId) {
+                    // Asistencia por cada materia (4-6 materias por día)
+                    $materiasDia = $materiasSeccion->count() > 0 
+                        ? $materiasSeccion->random(rand(4, min(6, $materiasSeccion->count()))) 
+                        : collect();
+                        
+                    foreach ($materiasDia as $materiaId) {
+                        // Validar que la materia existe
+                        if (!\App\Models\Materia::find($materiaId)) {
+                            continue;
+                        }
+                        
                         // 90% presente, 10% ausente
                         $presente = fake()->boolean(90);
 
@@ -233,31 +283,39 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        // 11. Crear Calificaciones (para todos los estudiantes en todos los per\u00edodos)
+        // 11. Crear Calificaciones (para todos los estudiantes en todos los períodos)
+        $estudiantes = \App\Models\Estudiante::all();
+        $asignacionesAll = \App\Models\AsignacionDocenteMateria::all();
 
         foreach ($estudiantes as $estudiante) {
-            // Obtener las materias de su secci\u00f3n
-            $materiasSeccion = $asignaciones->where('seccion_id', $estudiante->seccion_id)
+            // Obtener las materias de su sección a través de asignaciones
+            $materiasSeccion = $asignacionesAll->where('seccion_id', $estudiante->seccion_id)
                 ->pluck('materia_id')->unique();
 
+            // Si no hay asignaciones, asignar materias básicas manualmente
             if ($materiasSeccion->isEmpty()) {
                 $materiasSeccion = $materiasCreadas->pluck('id')->take(7);
             }
 
-            // Crear calificaciones para cada per\u00edodo
+            // Crear calificaciones para cada período
             foreach ($periodosCreados as $periodo) {
                 foreach ($materiasSeccion as $materiaId) {
-                    // Generar notas de manera m\u00e1s realista (distribuci\u00f3n normal)
+                    // Validar que la materia existe
+                    if (!\App\Models\Materia::find($materiaId)) {
+                        continue;
+                    }
+
+                    // Generar notas de manera más realista (distribución normal)
                     $notaBase = rand(11, 18);
                     $variacion = rand(-2, 2);
                     $nota = max(0, min(20, $notaBase + $variacion));
 
-                    // Algunos estudiantes destacados
+                    // Algunos estudiantes destacados (20%)
                     if (rand(1, 10) > 8) {
                         $nota = rand(17, 20);
                     }
 
-                    // Algunos estudiantes con dificultades
+                    // Algunos estudiantes con dificultades (10%)
                     if (rand(1, 10) > 9) {
                         $nota = rand(8, 12);
                     }
