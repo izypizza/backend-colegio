@@ -46,7 +46,11 @@ class PadrePortalController extends Controller
             ])
             ->get();
 
-        return response()->json(['hijos' => $hijos]);
+        // Formatear respuesta para que sea consistente
+        return response()->json([
+            'hijos' => $hijos,
+            'total_hijos' => $hijos->count()
+        ]);
     }
 
     /**
