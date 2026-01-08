@@ -8,14 +8,14 @@ API REST desarrollada con **Laravel 12** para la gestión integral de la I.E. N�
 
 ### Usuarios Principales
 
-| Rol               | Email                    | Contraseña      | Total Usuarios |
-| ----------------- | ------------------------ | --------------- | -------------- |
-| **Admin**         | admin@colegio.pe         | admin123        | 1              |
-| **Auxiliar**      | auxiliar@colegio.pe      | auxiliar123     | 1              |
-| **Bibliotecario** | bibliotecario@colegio.pe | biblioteca2025  | 1              |
-| **Docente**       | docente@colegio.pe       | docente123      | 16             |
-| **Padre**         | padre@colegio.pe         | padre123        | 31             |
-| **Estudiante**    | estudiante@colegio.pe    | estudiante123   | 523            |
+| Rol               | Email                    | Contraseña     | Total Usuarios |
+| ----------------- | ------------------------ | -------------- | -------------- |
+| **Admin**         | admin@colegio.pe         | admin123       | 1              |
+| **Auxiliar**      | auxiliar@colegio.pe      | auxiliar123    | 1              |
+| **Bibliotecario** | bibliotecario@colegio.pe | biblioteca2025 | 1              |
+| **Docente**       | docente@colegio.pe       | docente123     | 16             |
+| **Padre**         | padre@colegio.pe         | padre123       | 31             |
+| **Estudiante**    | estudiante@colegio.pe    | estudiante123  | 523            |
 
 ### Docentes Adicionales (docente1-15)
 
@@ -62,25 +62,29 @@ estudiante523@colegio.pe - Contraseña: estudiante523
 Después de ejecutar `php artisan migrate:fresh --seed`, el sistema genera:
 
 ### Estructura Académica
-- **11 Grados**: 6 de Primaria + 5 de Secundaria
-- **54 Secciones**: Distribuidas según estructura real del colegio
-- **11 Materias**: Según Currículo Nacional Peruano
-- **4 Períodos**: Bimestres del año escolar 2025
+
+-   **11 Grados**: 6 de Primaria + 5 de Secundaria
+-   **54 Secciones**: Distribuidas según estructura real del colegio
+-   **11 Materias**: Según Currículo Nacional Peruano
+-   **4 Períodos**: Bimestres del año escolar 2025
 
 ### Personal y Usuarios
-- **16 Docentes**: Cada uno con usuario y perfil completo
-- **31 Padres**: 10 con acceso al sistema
-- **523 Estudiantes**: Todos con usuario para acceso al portal
+
+-   **16 Docentes**: Cada uno con usuario y perfil completo
+-   **31 Padres**: 10 con acceso al sistema
+-   **523 Estudiantes**: Todos con usuario para acceso al portal
 
 ### Datos Académicos
-- **331 Asignaciones**: Docente-Materia por Sección
-- **810 Horarios**: Clases distribuidas en la semana
-- **35,520 Asistencias**: Últimos 20 días (90% asistencia promedio)
-- **12,728 Calificaciones**: Todos los estudiantes en 4 períodos
+
+-   **331 Asignaciones**: Docente-Materia por Sección
+-   **810 Horarios**: Clases distribuidas en la semana
+-   **35,520 Asistencias**: Últimos 20 días (90% asistencia promedio)
+-   **12,728 Calificaciones**: Todos los estudiantes en 4 períodos
 
 ### Biblioteca y Más
-- **15 Libros**: Con ISBN, editorial, año y sistema de préstamos
-- **2 Elecciones**: Sistema electoral estudiantil completo
+
+-   **15 Libros**: Con ISBN, editorial, año y sistema de préstamos
+-   **2 Elecciones**: Sistema electoral estudiantil completo
 
 > ✅ **Calidad de Datos**: Todas las relaciones están validadas sin valores NULL, garantizando integridad referencial completa.
 
