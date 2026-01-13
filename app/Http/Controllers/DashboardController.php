@@ -365,28 +365,119 @@ class DashboardController extends Controller
             })->sortByDesc('nota')->values();
         }
 
-        // Recordatorios
-        $stats['recordatorios'] = [
-            [
-                'titulo' => 'Asistencia',
-                'mensaje' => $asistenciasMes->where('presente', false)->count() >= 3 
-                    ? '⚠️ Tienes varias faltas este mes. Intenta no faltar más.'
-                    : '✅ Tu asistencia está bien. ¡Sigue así!',
-                'tipo' => $asistenciasMes->where('presente', false)->count() >= 3 ? 'warning' : 'success'
-            ],
-        ];
+        // Recordatorios con frases motivacionales variadas
+        $stats['recordatorios'] = [];
+        
+        // Mensaje de asistencia
+        $faltas = $asistenciasMes->where('presente', false)->count();
+        if ($faltas >= 5) {
+            $mensajes = [
+                '⚠️ Has faltado muchas veces este mes. Tu presencia es importante, ¡esperamos verte en clases!',
+                '⚠️ Tus faltas son preocupantes. Recuerda que cada día cuenta para tu aprendizaje.',
+                '⚠️ Has acumulado varias inasistencias. No dejes que se conviertan en obstáculo para tu éxito.',
+            ];
+            $stats['recordatorios'][] = [
+                'titulo' => 'Asistencia - Necesita Atención',
+                'mensaje' => $mensajes[array_rand($mensajes)],
+                'tipo' => 'warning'
+            ];
+        } elseif ($faltas >= 3) {
+            $mensajes = [
+                '📌 Tienes algunas faltas este mes. Intenta no faltar más, ¡te necesitamos en clase!',
+                '📌 Cuidado con las inasistencias. Cada clase es una oportunidad de aprender algo nuevo.',
+                '📌 Has faltado un par de veces. Recuerda que la constancia es clave para el éxito.',
+            ];
+            $stats['recordatorios'][] = [
+                'titulo' => 'Asistencia - Ten Cuidado',
+                'mensaje' => $mensajes[array_rand($mensajes)],
+                'tipo' => 'info'
+            ];
+        } else {
+            $mensajes = [
+                '✅ ¡Excelente asistencia! Tu compromiso es admirable. ¡Sigue así!',
+                '✅ Tu puntualidad y asistencia son ejemplares. ¡Eres un gran ejemplo!',
+                '✅ ¡Perfecto! Tu presencia constante demuestra tu dedicación. ¡Continúa con ese entusiasmo!',
+                '✅ ¡Maravilloso! No has faltado mucho. Tu perseverancia te llevará lejos.',
+            ];
+            $stats['recordatorios'][] = [
+                'titulo' => '🎯 Asistencia - ¡Fantástico!',
+                'mensaje' => $mensajes[array_rand($mensajes)],
+                'tipo' => 'success'
+            ];
+        }
 
         if ($periodoActual && isset($stats['calificaciones'])) {
             $promedio = $stats['calificaciones']['promedio'];
-            $stats['recordatorios'][] = [
-                'titulo' => 'Promedio',
-                'mensaje' => $promedio >= 14 
-                    ? '🌟 ¡Excelente promedio! Continúa con tu esfuerzo.'
-                    : ($promedio >= 11 
-                        ? '👍 Promedio aprobatorio. Puedes mejorar más.'
-                        : '⚠️ Tu promedio está bajo. Ponte al día con tus estudios.'),
-                'tipo' => $promedio >= 14 ? 'success' : ($promedio >= 11 ? 'info' : 'warning')
+            
+            if ($promedio >= 17) {
+                $mensajes = [
+                    '🌟 ¡Eres una estrella brillante! Tu rendimiento es sobresaliente. ¡Sigue iluminando con tu conocimiento!',
+                    '🌟 ¡Increíble! Estás en el nivel más alto. Tu esfuerzo y dedicación son inspiradores.',
+                    '🌟 ¡Extraordinario! Tus calificaciones son excepcionales. ¡Estás demostrando tu verdadero potencial!',
+                    '🌟 ¡Wow! Eres un ejemplo a seguir. Tu excelencia académica es admirable.',
+                ];
+                $stats['recordatorios'][] = [
+                    'titulo' => '⭐ Promedio - ¡Excelencia Académica!',
+                    'mensaje' => $mensajes[array_rand($mensajes)],
+                    'tipo' => 'success'
+                ];
+            } elseif ($promedio >= 14) {
+                $mensajes = [
+                    '🎉 ¡Muy buen trabajo! Tu promedio es destacable. Con un poco más de esfuerzo alcanzarás la excelencia.',
+                    '🎉 ¡Genial! Estás en buen camino. Tu dedicación está dando frutos. ¡Sigue adelante!',
+                    '🎉 ¡Excelente desempeño! Tus notas reflejan tu compromiso. ¡Estás cerca de la cima!',
+                    '🎉 ¡Felicitaciones! Tu rendimiento es muy bueno. ¡Un pequeño esfuerzo más y serás imparable!',
+                ];
+                $stats['recordatorios'][] = [
+                    'titulo' => '💫 Promedio - ¡Muy Bien!',
+                    'mensaje' => $mensajes[array_rand($mensajes)],
+                    'tipo' => 'success'
+                ];
+            } elseif ($promedio >= 11) {
+                $mensajes = [
+                    '👍 Vas aprobando, ¡eso es positivo! Pero puedes dar mucho más. ¡Esfuérzate un poco más!',
+                    '👍 Tu promedio es aprobatorio, pero sabemos que puedes mejorar. ¡Tú puedes lograrlo!',
+                    '👍 Estás en el camino correcto. Con más dedicación, verás mejores resultados. ¡Ánimo!',
+                    '👍 Promedio aprobado, pero no te conformes. ¡Tienes potencial para brillar aún más!',
+                ];
+                $stats['recordatorios'][] = [
+                    'titulo' => '💪 Promedio - Puedes Mejorar',
+                    'mensaje' => $mensajes[array_rand($mensajes)],
+                    'tipo' => 'info'
+                ];
+            } else {
+                $mensajes = [
+                    '⚠️ Tu promedio necesita atención urgente. No te rindas, busca apoyo y ponte al día. ¡Tú puedes salir adelante!',
+                    '⚠️ Es momento de actuar. Pide ayuda a tus profesores y compañeros. Cada día es una nueva oportunidad.',
+                    '⚠️ Sabemos que puedes mejorar. No estás solo, estamos aquí para apoyarte. ¡Juntos lo lograremos!',
+                    '⚠️ Tu promedio está bajo, pero aún hay tiempo. Con esfuerzo y dedicación, puedes recuperarte. ¡No te des por vencido!',
+                ];
+                $stats['recordatorios'][] = [
+                    'titulo' => '🆘 Promedio - Necesitas Ayuda',
+                    'mensaje' => $mensajes[array_rand($mensajes)],
+                    'tipo' => 'warning'
+                ];
+            }
+            
+            // Mensaje adicional motivacional general (aleatorio)
+            $mensajesGenerales = [
+                '💡 Recuerda: "El éxito es la suma de pequeños esfuerzos repetidos día tras día."',
+                '💡 "La educación es el arma más poderosa que puedes usar para cambiar el mundo." - Nelson Mandela',
+                '💡 Cada día es una oportunidad para aprender algo nuevo. ¡Aprovéchalo al máximo!',
+                '💡 "El aprendizaje es un tesoro que seguirá contigo toda la vida." - Proverbio chino',
+                '💡 No te compares con otros, compite contigo mismo y supera tus propios récords.',
+                '💡 "La única forma de hacer un gran trabajo es amar lo que haces." - Steve Jobs',
+                '💡 Los errores son pruebas de que lo estás intentando. ¡Sigue aprendiendo!',
+                '💡 "El éxito no es definitivo, el fracaso no es fatal: lo que cuenta es el coraje para continuar."',
             ];
+            
+            if (rand(1, 2) === 1) { // 50% de probabilidad de mostrar mensaje general
+                $stats['recordatorios'][] = [
+                    'titulo' => '💭 Pensamiento del Día',
+                    'mensaje' => $mensajesGenerales[array_rand($mensajesGenerales)],
+                    'tipo' => 'info'
+                ];
+            }
         }
 
         return response()->json($stats);

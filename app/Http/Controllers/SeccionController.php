@@ -30,13 +30,30 @@ class SeccionController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'grado_id' => 'required|exists:grados,id'
-        ]);
+        try {
+            $validated = $request->validate([
+                'nombre' => 'required|string|max:255',
+                'grado_id' => 'required|exists:grados,id',
+                'capacidad' => 'nullable|integer|min:1|max:100',
+                'turno' => 'nullable|in:Mañana,Tarde'
+            ], [
+                'nombre.required' => 'El nombre de la sección es obligatorio',
+                'grado_id.required' => 'El grado es obligatorio',
+                'grado_id.exists' => 'El grado seleccionado no existe',
+                'capacidad.min' => 'La capacidad debe ser al menos 1',
+                'capacidad.max' => 'La capacidad no puede ser mayor a 100'
+            ]);
 
-        $seccion = Seccion::create($validated);
-        return response()->json($seccion->load(['grado']), 201);
+            $seccion = Seccion::create($validated);
+            return response()->json($seccion->load(['grado']), 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al crear la sección',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -53,15 +70,32 @@ class SeccionController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $seccion = Seccion::findOrFail($id);
-        
-        $validated = $request->validate([
-            'nombre' => 'sometimes|required|string|max:255',
-            'grado_id' => 'sometimes|required|exists:grados,id'
-        ]);
+        try {
+            $seccion = Seccion::findOrFail($id);
+            
+            $validated = $request->validate([
+                'nombre' => 'sometimes|required|string|max:255',
+                'grado_id' => 'sometimes|required|exists:grados,id',
+                'capacidad' => 'nullable|integer|min:1|max:100',
+                'turno' => 'nullable|in:Mañana,Tarde'
+            ], [
+                'nombre.required' => 'El nombre de la sección es obligatorio',
+                'grado_id.exists' => 'El grado seleccionado no existe',
+                'capacidad.min' => 'La capacidad debe ser al menos 1'
+            ]);
 
-        $seccion->update($validated);
-        return response()->json($seccion->load(['grado']));
+            $seccion->update($validated);
+            return response()->json($seccion->load(['grado']));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Sección no encontrada'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al actualizar la sección',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -69,8 +103,27 @@ class SeccionController extends Controller
      */
     public function destroy(string $id)
     {
-        $seccion = Seccion::findOrFail($id);
-        $seccion->delete();
-        return response()->json(['message' => 'Sección eliminada correctamente'], 200);
+        try {
+            $seccion = Seccion::findOrFail($id);
+            
+            // Verificar que no tenga estudiantes asociados
+            $estudiantesCount = $seccion->estudiantes()->count();
+            if ($estudiantesCount > 0) {
+                return response()->json([
+                    'message' => 'No se puede eliminar la sección porque tiene estudiantes asociados',
+                    'estudiantes_count' => $estudiantesCount
+                ], 422);
+            }
+            
+            $seccion->delete();
+            return response()->json(['message' => 'Sección eliminada correctamente'], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Sección no encontrada'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar la sección',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -21,12 +21,26 @@ class GradoController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:255'
-        ]);
+        try {
+            $validated = $request->validate([
+                'nombre' => 'required|string|max:255',
+                'nivel' => 'required|in:primaria,secundaria'
+            ], [
+                'nombre.required' => 'El nombre del grado es obligatorio',
+                'nivel.required' => 'El nivel es obligatorio',
+                'nivel.in' => 'El nivel debe ser primaria o secundaria'
+            ]);
 
-        $grado = Grado::create($validated);
-        return response()->json($grado, 201);
+            $grado = Grado::create($validated);
+            return response()->json($grado, 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al crear el grado',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -43,14 +57,29 @@ class GradoController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $grado = Grado::findOrFail($id);
-        
-        $validated = $request->validate([
-            'nombre' => 'sometimes|required|string|max:255'
-        ]);
+        try {
+            $grado = Grado::findOrFail($id);
+            
+            $validated = $request->validate([
+                'nombre' => 'sometimes|required|string|max:255',
+                'nivel' => 'sometimes|required|in:primaria,secundaria'
+            ], [
+                'nombre.required' => 'El nombre del grado es obligatorio',
+                'nivel.in' => 'El nivel debe ser primaria o secundaria'
+            ]);
 
-        $grado->update($validated);
-        return response()->json($grado);
+            $grado->update($validated);
+            return response()->json($grado);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Grado no encontrado'], 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al actualizar el grado',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -58,8 +87,27 @@ class GradoController extends Controller
      */
     public function destroy(string $id)
     {
-        $grado = Grado::findOrFail($id);
-        $grado->delete();
-        return response()->json(['message' => 'Grado eliminado correctamente'], 200);
+        try {
+            $grado = Grado::findOrFail($id);
+            
+            // Verificar que no tenga secciones asociadas
+            $seccionesCount = $grado->secciones()->count();
+            if ($seccionesCount > 0) {
+                return response()->json([
+                    'message' => 'No se puede eliminar el grado porque tiene secciones asociadas',
+                    'secciones_count' => $seccionesCount
+                ], 422);
+            }
+            
+            $grado->delete();
+            return response()->json(['message' => 'Grado eliminado correctamente'], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Grado no encontrado'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar el grado',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

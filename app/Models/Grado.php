@@ -12,7 +12,8 @@ class Grado extends Model
     protected $table = 'grados';
 
     protected $fillable = [
-        'nombre'
+        'nombre',
+        'nivel'
     ];
 
     public function secciones()

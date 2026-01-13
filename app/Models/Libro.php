@@ -64,6 +64,7 @@ class Libro extends Model
     public function prestamoActivo()
     {
         return $this->hasOne(PrestamoLibro::class, 'libro_id')
-                    ->whereNull('fecha_devolucion');
+                    ->where('devuelto', false)
+                    ->where('estado', 'aprobado');
     }
 }

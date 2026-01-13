@@ -97,8 +97,31 @@ class LibroController extends Controller
      */
     public function destroy($id)
     {
-        $libro = Libro::findOrFail($id);
-        $libro->delete();
-        return response()->json(['message' => 'Libro eliminado correctamente']);
+        try {
+            $libro = Libro::findOrFail($id);
+            
+            // Verificar que no tenga préstamos activos
+            $prestamosActivos = $libro->prestamos()
+                ->where('devuelto', false)
+                ->where('estado', 'aprobado')
+                ->count();
+                
+            if ($prestamosActivos > 0) {
+                return response()->json([
+                    'message' => 'No se puede eliminar el libro porque tiene préstamos activos',
+                    'prestamos_activos' => $prestamosActivos
+                ], 422);
+            }
+            
+            $libro->delete();
+            return response()->json(['message' => 'Libro eliminado correctamente'], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Libro no encontrado'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar el libro',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
