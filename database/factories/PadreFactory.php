@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use Database\Factories\Traits\RemoveAccents;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class PadreFactory extends Factory
 {
+    use RemoveAccents;
     /**
      * Define the model's default state.
      *
@@ -38,12 +40,5 @@ class PadreFactory extends Factory
             'direccion' => fake()->address(),
             'ocupacion' => fake()->randomElement($ocupaciones),
         ];
-    }
-    
-    private function removeAccents($string)
-    {
-        $unwanted = ['á'=>'a', 'é'=>'e', 'í'=>'i', 'ó'=>'o', 'ú'=>'u', 'ñ'=>'n',
-                     'Á'=>'A', 'É'=>'E', 'Í'=>'I', 'Ó'=>'O', 'Ú'=>'U', 'Ñ'=>'N'];
-        return strtr($string, $unwanted);
     }
 }

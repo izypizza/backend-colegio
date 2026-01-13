@@ -68,6 +68,6 @@ class PrestamoLibro extends Model
      */
     public function estaActivo()
     {
-        return is_null($this->fecha_devolucion);
+        return !$this->devuelto && $this->estado === 'aprobado';
     }
 }

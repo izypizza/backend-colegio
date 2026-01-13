@@ -54,6 +54,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/sistema/info', [ConfiguracionController::class, 'infoSistema']);
     });
 
+    // Obtener módulos activos - Disponible para todos los autenticados
+    Route::get('/sistema/modulos-activos', [ConfiguracionController::class, 'modulosActivos']);
+
     // ========================================
     // RUTAS CON CONTROL DE ACCESO POR ROLES
     // ========================================
@@ -134,7 +137,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
 
     // Admin y Bibliotecario - Gestión completa de biblioteca
-    Route::middleware(['role:admin,bibliotecario'])->group(function () {
+    Route::middleware(['role:admin,bibliotecario', 'modulo.activo:modulos_biblioteca'])->group(function () {
         Route::apiResource('categorias-libros', CategoriaLibroController::class);
         Route::apiResource('libros', LibroController::class);
         Route::get('/prestamos', [PrestamoLibroController::class, 'index']);
@@ -145,15 +148,18 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Todos los usuarios autenticados pueden consultar libros, solicitar préstamos y ver sus préstamos
-    Route::get('/libros-disponibles', [LibroController::class, 'index']);
-    Route::post('/prestamos', [PrestamoLibroController::class, 'store']);
-    Route::get('/mis-prestamos', [PrestamoLibroController::class, 'misPrestamos']);
+    Route::middleware(['modulo.activo:modulos_biblioteca'])->group(function () {
+        Route::get('/libros-disponibles', [LibroController::class, 'index']);
+        Route::post('/prestamos', [PrestamoLibroController::class, 'store']);
+        Route::get('/mis-prestamos', [PrestamoLibroController::class, 'misPrestamos']);
+    });
 
     // ========================================
     // SISTEMA DE ELECCIONES ESCOLARES
     // ========================================
 
     // Todos pueden ver elecciones y resultados (solo si están publicados)
+    Route::middleware(['modulo.activo:modulos_elecciones'])->group(function () {
     Route::get('/elecciones', [EleccionController::class, 'index']);
     Route::get('/elecciones/{id}', [EleccionController::class, 'show']);
     Route::get('/elecciones/{id}/resultados', [EleccionController::class, 'resultados']);
@@ -170,17 +176,18 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Estudiantes - Votar en elecciones activas
-    Route::middleware(['role:estudiante'])->group(function () {
+    Route::middleware(['role:estudiante', 'modulo.activo:modulos_elecciones'])->group(function () {
         Route::post('/votos', [VotoController::class, 'store']);
         Route::get('/mis-votos', [VotoController::class, 'misVotos']);
     });
+    }); // Fin grupo módulo elecciones
 
     // ========================================
     // SISTEMA DE PERMISOS ESPECIALES PARA AUXILIARES
     // ========================================
 
     // Admin - Gestión de permisos especiales
-    Route::middleware(['role:admin'])->group(function () {
+    Route::middleware(['role:admin', 'modulo.activo:modulos_permisos'])->group(function () {
         Route::get('/auxiliares', [AuxiliarPermisoController::class, 'getAuxiliares']);
         Route::get('/auxiliar-permisos', [AuxiliarPermisoController::class, 'index']);
         Route::post('/auxiliar-permisos', [AuxiliarPermisoController::class, 'store']);
@@ -189,7 +196,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Auxiliar - Ver sus propios permisos
-    Route::middleware(['role:auxiliar'])->group(function () {
+    Route::middleware(['role:auxiliar', 'modulo.activo:modulos_permisos'])->group(function () {
         Route::get('/mi-permiso-especial', [AuxiliarPermisoController::class, 'miPermiso']);
     });
 

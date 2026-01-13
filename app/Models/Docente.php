@@ -42,4 +42,24 @@ class Docente extends Model
     {
         return $this->hasMany(AsignacionDocenteMateria::class);
     }
+
+    /**
+     * Relación: Materias que enseña el docente
+     */
+    public function materias()
+    {
+        return $this->belongsToMany(Materia::class, 'asignacion_docente_materia')
+                    ->withPivot('seccion_id', 'periodo_academico_id')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Relación: Secciones donde enseña el docente
+     */
+    public function secciones()
+    {
+        return $this->belongsToMany(Seccion::class, 'asignacion_docente_materia')
+                    ->withPivot('materia_id', 'periodo_academico_id')
+                    ->withTimestamps();
+    }
 }

@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Eleccion;
 use App\Models\Candidato;
-use App\Models\Estudiante;
 use Illuminate\Database\Seeder;
 
 class EleccionSeeder extends Seeder
@@ -14,48 +13,45 @@ class EleccionSeeder extends Seeder
      */
     public function run(): void
     {
-        // Crear elecciones (solo con campos de la migración)
-        $elecciones = [
+        // Definir elecciones con sus candidatos
+        $eleccionesData = [
             [
                 'titulo' => 'Elecciones Municipio Escolar 2025',
                 'fecha' => now()->addDays(7)->format('Y-m-d'),
+                'candidatos' => [
+                    'Lista 1 - Unidos por el Cambio',
+                    'Lista 2 - Por Una Escuela Mejor',
+                    'Lista 3 - Juntos por Nuestra Escuela',
+                ],
             ],
             [
                 'titulo' => 'Elecciones Policía Escolar 2025',
                 'fecha' => now()->addDays(12)->format('Y-m-d'),
+                'candidatos' => [
+                    'Lista A - Disciplina y Respeto',
+                    'Lista B - Orden y Seguridad',
+                ],
             ],
         ];
 
-        foreach ($elecciones as $eleccionData) {
+        foreach ($eleccionesData as $eleccionData) {
+            $candidatos = $eleccionData['candidatos'];
+            unset($eleccionData['candidatos']);
+            
             $eleccion = Eleccion::create($eleccionData);
 
-            // Crear candidatos para cada elección
-            if ($eleccion->titulo === 'Elecciones Municipio Escolar 2025') {
-                $candidatosData = [
-                    ['nombre' => 'Lista 1 - Unidos por el Cambio'],
-                    ['nombre' => 'Lista 2 - Por Una Escuela Mejor'],
-                    ['nombre' => 'Lista 3 - Juntos por Nuestra Escuela'],
+            // Crear candidatos en batch
+            $candidatosData = [];
+            foreach ($candidatos as $nombreCandidato) {
+                $candidatosData[] = [
+                    'eleccion_id' => $eleccion->id,
+                    'nombre' => $nombreCandidato,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
-
-                foreach ($candidatosData as $candidato) {
-                    Candidato::create([
-                        'eleccion_id' => $eleccion->id,
-                        'nombre' => $candidato['nombre'],
-                    ]);
-                }
-            } elseif ($eleccion->titulo === 'Elecciones Policía Escolar 2025') {
-                $candidatosData = [
-                    ['nombre' => 'Lista A - Disciplina y Respeto'],
-                    ['nombre' => 'Lista B - Orden y Seguridad'],
-                ];
-
-                foreach ($candidatosData as $candidato) {
-                    Candidato::create([
-                        'eleccion_id' => $eleccion->id,
-                        'nombre' => $candidato['nombre'],
-                    ]);
-                }
             }
+            
+            Candidato::insert($candidatosData);
         }
     }
 }

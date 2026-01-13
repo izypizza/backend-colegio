@@ -21,10 +21,32 @@ class PadrePortalController extends Controller
         }
 
         $hijos = $user->padre->estudiantes()
-            ->with(['seccion.grado'])
-            ->get();
+            ->with(['seccion.grado', 'user'])
+            ->get()
+            ->map(function ($hijo) {
+                return [
+                    'id' => $hijo->id,
+                    'nombre' => $hijo->nombre,
+                    'apellido' => $hijo->apellido,
+                    'codigo' => $hijo->codigo,
+                    'email' => $hijo->user ? $hijo->user->email : null,
+                    'seccion_id' => $hijo->seccion_id,
+                    'seccion' => $hijo->seccion ? [
+                        'id' => $hijo->seccion->id,
+                        'nombre' => $hijo->seccion->nombre,
+                        'grado' => [
+                            'id' => $hijo->seccion->grado->id,
+                            'nombre' => $hijo->seccion->grado->nombre,
+                            'nivel' => $hijo->seccion->grado->nivel,
+                        ]
+                    ] : null,
+                ];
+            });
 
-        return response()->json(['hijos' => $hijos]);
+        return response()->json([
+            'hijos' => $hijos,
+            'total_hijos' => $hijos->count()
+        ]);
     }
 
     /**
@@ -44,7 +66,41 @@ class PadrePortalController extends Controller
                 'calificaciones.periodoAcademico',
                 'seccion.grado'
             ])
-            ->get();
+            ->get()
+            ->map(function ($hijo) {
+                // Asegurar que calificaciones siempre sea un array
+                return [
+                    'id' => $hijo->id,
+                    'nombre' => $hijo->nombre,
+                    'apellido' => $hijo->apellido,
+                    'codigo' => $hijo->codigo,
+                    'email' => $hijo->user ? $hijo->user->email : null,
+                    'seccion_id' => $hijo->seccion_id,
+                    'seccion' => $hijo->seccion ? [
+                        'id' => $hijo->seccion->id,
+                        'nombre' => $hijo->seccion->nombre,
+                        'grado' => [
+                            'id' => $hijo->seccion->grado->id,
+                            'nombre' => $hijo->seccion->grado->nombre,
+                            'nivel' => $hijo->seccion->grado->nivel,
+                        ]
+                    ] : null,
+                    'calificaciones' => $hijo->calificaciones->map(function ($calif) {
+                        return [
+                            'id' => $calif->id,
+                            'nota' => $calif->nota,
+                            'materia' => [
+                                'id' => $calif->materia->id,
+                                'nombre' => $calif->materia->nombre,
+                            ],
+                            'periodo' => [
+                                'id' => $calif->periodoAcademico->id,
+                                'nombre' => $calif->periodoAcademico->nombre,
+                            ]
+                        ];
+                    })
+                ];
+            });
 
         // Formatear respuesta para que sea consistente
         return response()->json([

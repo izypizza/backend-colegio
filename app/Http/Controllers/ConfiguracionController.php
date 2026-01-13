@@ -101,4 +101,21 @@ class ConfiguracionController extends Controller
             'timezone' => config('app.timezone'),
         ]);
     }
+
+    /**
+     * Obtener configuración de módulos activos
+     */
+    public function modulosActivos()
+    {
+        $modulos = [
+            'biblioteca' => Configuracion::obtener('modulos_biblioteca', true),
+            'elecciones' => Configuracion::obtener('modulos_elecciones', true),
+            'permisos' => Configuracion::obtener('modulos_permisos', true),
+            'calificaciones' => Configuracion::obtener('modulos_calificaciones', true),
+            'asistencias' => Configuracion::obtener('modulos_asistencias', true),
+            'horarios' => Configuracion::obtener('modulos_horarios', true),
+        ];
+
+        return response()->json($modulos);
+    }
 }

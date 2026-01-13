@@ -322,93 +322,94 @@ class CalificacionController extends Controller
     }
 
     /**
-     * Estadísticas avanzadas por grado y nivel
+     * Estadísticas avanzadas por grado y nivel (OPTIMIZADO con SQL agregado)
      */
     public function estadisticasAvanzadas(Request $request)
     {
-        // Obtener filtro de período si se proporciona
         $periodo_id = $request->input('periodo_academico_id');
         
-        $query = Calificacion::with([
-            'estudiante.seccion.grado',
-            'materia',
-            'periodoAcademico'
-        ]);
-
+        // Estadísticas generales usando agregaciones SQL
+        $generalQuery = \DB::table('calificaciones');
         if ($periodo_id) {
-            $query->where('periodo_academico_id', $periodo_id);
+            $generalQuery->where('periodo_academico_id', $periodo_id);
         }
-
-        $calificaciones = $query->get();
-
-        // Estadísticas generales
-        $total = $calificaciones->count();
-        $promedioGeneral = round($calificaciones->avg('nota'), 2);
-        $aprobados = $calificaciones->where('nota', '>=', 11)->count();
-        $desaprobados = $calificaciones->where('nota', '<', 11)->count();
-
-        // Agrupar por nivel educativo
-        $porNivel = [];
-        $niveles = ['Inicial', 'Primaria', 'Secundaria'];
         
-        foreach ($niveles as $nivel) {
-            $calificacionesNivel = $calificaciones->filter(function($cal) use ($nivel) {
-                $nombreGrado = $cal->estudiante->seccion->grado->nombre ?? '';
-                return stripos($nombreGrado, $nivel) !== false;
-            });
+        $general = $generalQuery->selectRaw('
+            COUNT(*) as total,
+            ROUND(AVG(nota), 2) as promedio,
+            SUM(CASE WHEN nota >= 11 THEN 1 ELSE 0 END) as aprobados,
+            SUM(CASE WHEN nota < 11 THEN 1 ELSE 0 END) as desaprobados,
+            SUM(CASE WHEN nota >= 16 THEN 1 ELSE 0 END) as excelentes,
+            SUM(CASE WHEN nota >= 14 AND nota < 16 THEN 1 ELSE 0 END) as buenos,
+            SUM(CASE WHEN nota >= 11 AND nota < 14 THEN 1 ELSE 0 END) as regulares,
+            SUM(CASE WHEN nota < 11 THEN 1 ELSE 0 END) as deficientes
+        ')->first();
 
-            if ($calificacionesNivel->count() > 0) {
-                $porNivel[$nivel] = [
-                    'total' => $calificacionesNivel->count(),
-                    'promedio' => round($calificacionesNivel->avg('nota'), 2),
-                    'aprobados' => $calificacionesNivel->where('nota', '>=', 11)->count(),
-                    'desaprobados' => $calificacionesNivel->where('nota', '<', 11)->count(),
-                    'excelentes' => $calificacionesNivel->where('nota', '>=', 16)->count(),
-                    'buenos' => $calificacionesNivel->where('nota', '>=', 14)->where('nota', '<', 16)->count(),
-                    'regulares' => $calificacionesNivel->where('nota', '>=', 11)->where('nota', '<', 14)->count(),
-                ];
-            }
+        // Estadísticas por nivel (usando el campo nivel de grados)
+        $porNivelQuery = \DB::table('calificaciones')
+            ->join('estudiantes', 'calificaciones.estudiante_id', '=', 'estudiantes.id')
+            ->join('secciones', 'estudiantes.seccion_id', '=', 'secciones.id')
+            ->join('grados', 'secciones.grado_id', '=', 'grados.id');
+            
+        if ($periodo_id) {
+            $porNivelQuery->where('calificaciones.periodo_academico_id', $periodo_id);
         }
+        
+        $porNivel = $porNivelQuery
+            ->selectRaw('
+                grados.nivel,
+                COUNT(*) as total,
+                ROUND(AVG(calificaciones.nota), 2) as promedio,
+                SUM(CASE WHEN calificaciones.nota >= 11 THEN 1 ELSE 0 END) as aprobados,
+                SUM(CASE WHEN calificaciones.nota < 11 THEN 1 ELSE 0 END) as desaprobados,
+                SUM(CASE WHEN calificaciones.nota >= 16 THEN 1 ELSE 0 END) as excelentes,
+                SUM(CASE WHEN calificaciones.nota >= 14 AND calificaciones.nota < 16 THEN 1 ELSE 0 END) as buenos,
+                SUM(CASE WHEN calificaciones.nota >= 11 AND calificaciones.nota < 14 THEN 1 ELSE 0 END) as regulares
+            ')
+            ->groupBy('grados.nivel')
+            ->get()
+            ->keyBy('nivel');
 
-        // Agrupar por grado
-        $porGrado = [];
-        $grados = $calificaciones->groupBy(function($cal) {
-            return $cal->estudiante->seccion->grado->nombre ?? 'Sin Grado';
-        });
-
-        foreach ($grados as $nombreGrado => $calificacionesGrado) {
-            $porGrado[] = [
-                'grado' => $nombreGrado,
-                'total' => $calificacionesGrado->count(),
-                'promedio' => round($calificacionesGrado->avg('nota'), 2),
-                'aprobados' => $calificacionesGrado->where('nota', '>=', 11)->count(),
-                'desaprobados' => $calificacionesGrado->where('nota', '<', 11)->count(),
-                'excelentes' => $calificacionesGrado->where('nota', '>=', 16)->count(),
-                'buenos' => $calificacionesGrado->where('nota', '>=', 14)->where('nota', '<', 16)->count(),
-                'regulares' => $calificacionesGrado->where('nota', '>=', 11)->where('nota', '<', 14)->count(),
-            ];
+        // Estadísticas por grado
+        $porGradoQuery = \DB::table('calificaciones')
+            ->join('estudiantes', 'calificaciones.estudiante_id', '=', 'estudiantes.id')
+            ->join('secciones', 'estudiantes.seccion_id', '=', 'secciones.id')
+            ->join('grados', 'secciones.grado_id', '=', 'grados.id');
+            
+        if ($periodo_id) {
+            $porGradoQuery->where('calificaciones.periodo_academico_id', $periodo_id);
         }
-
-        // Ordenar por nombre de grado
-        usort($porGrado, function($a, $b) {
-            return strcmp($a['grado'], $b['grado']);
-        });
+        
+        $porGrado = $porGradoQuery
+            ->selectRaw('
+                grados.nombre as grado,
+                COUNT(*) as total,
+                ROUND(AVG(calificaciones.nota), 2) as promedio,
+                SUM(CASE WHEN calificaciones.nota >= 11 THEN 1 ELSE 0 END) as aprobados,
+                SUM(CASE WHEN calificaciones.nota < 11 THEN 1 ELSE 0 END) as desaprobados,
+                SUM(CASE WHEN calificaciones.nota >= 16 THEN 1 ELSE 0 END) as excelentes,
+                SUM(CASE WHEN calificaciones.nota >= 14 AND calificaciones.nota < 16 THEN 1 ELSE 0 END) as buenos,
+                SUM(CASE WHEN calificaciones.nota >= 11 AND calificaciones.nota < 14 THEN 1 ELSE 0 END) as regulares
+            ')
+            ->groupBy('grados.id', 'grados.nombre')
+            ->orderBy('grados.nombre')
+            ->get();
 
         // Distribución de notas
         $distribucion = [
-            'excelente' => $calificaciones->where('nota', '>=', 16)->count(),
-            'bueno' => $calificaciones->where('nota', '>=', 14)->where('nota', '<', 16)->count(),
-            'regular' => $calificaciones->where('nota', '>=', 11)->where('nota', '<', 14)->count(),
-            'deficiente' => $calificaciones->where('nota', '<', 11)->count(),
+            'excelente' => (int) $general->excelentes,
+            'bueno' => (int) $general->buenos,
+            'regular' => (int) $general->regulares,
+            'deficiente' => (int) $general->deficientes,
         ];
 
         return response()->json([
             'general' => [
-                'total' => $total,
-                'promedio' => $promedioGeneral,
-                'aprobados' => $aprobados,
-                'desaprobados' => $desaprobados,
-                'porcentaje_aprobados' => $total > 0 ? round(($aprobados / $total) * 100, 2) : 0,
+                'total' => (int) $general->total,
+                'promedio' => (float) $general->promedio,
+                'aprobados' => (int) $general->aprobados,
+                'desaprobados' => (int) $general->desaprobados,
+                'porcentaje_aprobados' => $general->total > 0 ? round(($general->aprobados / $general->total) * 100, 2) : 0,
             ],
             'por_nivel' => $porNivel,
             'por_grado' => $porGrado,
