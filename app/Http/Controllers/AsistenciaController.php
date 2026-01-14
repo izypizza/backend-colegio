@@ -64,15 +64,17 @@ class AsistenciaController extends Controller
         $asistencias = $query->get();
         
         $total = $asistencias->count();
-        $presentes = $asistencias->where('presente', true)->count();
-        $ausentes = $asistencias->where('presente', false)->count();
-        $porcentaje_asistencia = $total > 0 ? round(($presentes / $total) * 100, 2) : 0;
+        $presentes = $asistencias->where('estado', 'presente')->count();
+        $tardes = $asistencias->where('estado', 'tarde')->count();
+        $ausentes = $asistencias->where('estado', 'ausente')->count();
+        $porcentaje_asistencia = $total > 0 ? round((($presentes + $tardes) / $total) * 100, 2) : 0;
 
         return response()->json([
             'asistencias' => $asistencias,
             'estadisticas' => [
                 'total' => $total,
                 'presentes' => $presentes,
+                'tardes' => $tardes,
                 'ausentes' => $ausentes,
                 'porcentaje_asistencia' => $porcentaje_asistencia
             ]
@@ -94,8 +96,9 @@ class AsistenciaController extends Controller
             ->get();
 
         $total = $asistencias->count();
-        $presentes = $asistencias->where('presente', true)->count();
-        $ausentes = $asistencias->where('presente', false)->count();
+        $presentes = $asistencias->where('estado', 'presente')->count();
+        $tardes = $asistencias->where('estado', 'tarde')->count();
+        $ausentes = $asistencias->where('estado', 'ausente')->count();
 
         return response()->json([
             'fecha' => $fecha,
@@ -103,8 +106,9 @@ class AsistenciaController extends Controller
             'estadisticas' => [
                 'total' => $total,
                 'presentes' => $presentes,
+                'tardes' => $tardes,
                 'ausentes' => $ausentes,
-                'porcentaje_asistencia' => $total > 0 ? round(($presentes / $total) * 100, 2) : 0
+                'porcentaje_asistencia' => $total > 0 ? round((($presentes + $tardes) / $total) * 100, 2) : 0
             ]
         ]);
     }
@@ -119,7 +123,7 @@ class AsistenciaController extends Controller
                 'estudiante_id' => 'required|exists:estudiantes,id',
                 'materia_id' => 'required|exists:materias,id',
                 'fecha' => 'required|date|before_or_equal:today',
-                'presente' => 'required|boolean',
+                'estado' => 'required|in:presente,tarde,ausente',
                 'observaciones' => 'nullable|string|max:500'
             ], [
                 'estudiante_id.required' => 'Debe seleccionar un estudiante',
@@ -129,8 +133,8 @@ class AsistenciaController extends Controller
                 'fecha.required' => 'La fecha es obligatoria',
                 'fecha.date' => 'El formato de fecha no es válido',
                 'fecha.before_or_equal' => 'No se puede registrar asistencia para fechas futuras',
-                'presente.required' => 'Debe indicar si el estudiante estuvo presente o ausente',
-                'presente.boolean' => 'El valor de asistencia no es válido',
+                'estado.required' => 'Debe indicar el estado de asistencia',
+                'estado.in' => 'El estado debe ser: presente, tarde o ausente',
                 'observaciones.max' => 'Las observaciones no deben exceder 500 caracteres'
             ]);
 
@@ -224,14 +228,14 @@ class AsistenciaController extends Controller
                 'estudiante_id' => 'sometimes|required|exists:estudiantes,id',
                 'materia_id' => 'sometimes|required|exists:materias,id',
                 'fecha' => 'sometimes|required|date|before_or_equal:today',
-                'presente' => 'sometimes|required|boolean',
+                'estado' => 'sometimes|required|in:presente,tarde,ausente',
                 'observaciones' => 'nullable|string|max:500'
             ], [
                 'estudiante_id.exists' => 'El estudiante seleccionado no existe',
                 'materia_id.exists' => 'La materia seleccionada no existe',
                 'fecha.date' => 'El formato de fecha no es válido',
                 'fecha.before_or_equal' => 'No se puede registrar asistencia para fechas futuras',
-                'presente.boolean' => 'El valor de asistencia no es válido',
+                'estado.in' => 'El estado debe ser: presente, tarde o ausente',
                 'observaciones.max' => 'Las observaciones no deben exceder 500 caracteres'
             ]);
 

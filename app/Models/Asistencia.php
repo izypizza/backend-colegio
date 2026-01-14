@@ -12,13 +12,28 @@ class Asistencia extends Model
         'estudiante_id',
         'materia_id',
         'fecha',
-        'presente'
+        'estado',
+        'observaciones'
     ];
 
     protected $casts = [
         'fecha' => 'date',
-        'presente' => 'boolean'
     ];
+
+    /**
+     * Estados válidos de asistencia
+     */
+    const ESTADO_PRESENTE = 'presente';
+    const ESTADO_TARDE = 'tarde';
+    const ESTADO_AUSENTE = 'ausente';
+
+    /**
+     * Accessor para compatibilidad con código anterior
+     */
+    public function getPresenteAttribute()
+    {
+        return $this->estado === self::ESTADO_PRESENTE || $this->estado === self::ESTADO_TARDE;
+    }
 
     public function estudiante()
     {
@@ -28,5 +43,13 @@ class Asistencia extends Model
     public function materia()
     {
         return $this->belongsTo(Materia::class);
+    }
+
+    /**
+     * Scope para filtrar por estado
+     */
+    public function scopeEstado($query, $estado)
+    {
+        return $query->where('estado', $estado);
     }
 }

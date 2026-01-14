@@ -59,18 +59,21 @@ class DocentePortalController extends Controller
             'estudiante_id' => 'required|exists:estudiantes,id',
             'materia_id' => 'required|exists:materias,id',
             'fecha' => 'required|date',
-            'presente' => 'required|boolean',
+            'estado' => 'required|in:presente,tarde,ausente',
+            'observaciones' => 'nullable|string|max:500'
         ]);
 
         $user = $request->user();
 
         // Verificar que el docente enseña esta materia
+        $estudiante = Estudiante::findOrFail($validated['estudiante_id']);
         $asignacion = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
             ->where('materia_id', $validated['materia_id'])
+            ->where('seccion_id', $estudiante->seccion_id)
             ->first();
 
         if (! $asignacion) {
-            return response()->json(['message' => 'No tiene permiso para esta materia'], 403);
+            return response()->json(['message' => 'No tiene permiso para registrar asistencia en esta materia o sección'], 403);
         }
 
         $asistencia = Asistencia::updateOrCreate(
@@ -80,7 +83,8 @@ class DocentePortalController extends Controller
                 'fecha' => $validated['fecha'],
             ],
             [
-                'presente' => $validated['presente'],
+                'estado' => $validated['estado'],
+                'observaciones' => $validated['observaciones'] ?? null,
             ]
         );
 

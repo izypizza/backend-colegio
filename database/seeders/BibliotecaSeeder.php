@@ -28,9 +28,6 @@ class BibliotecaSeeder extends Seeder
         CategoriaLibro::insert($categoriasData);
         $categorias = CategoriaLibro::all()->keyBy('nombre');
 
-        CategoriaLibro::insert($categoriasData);
-        $categorias = CategoriaLibro::all()->keyBy('nombre');
-
         // Crear libros en batch
         $librosData = [
             // Literatura Peruana

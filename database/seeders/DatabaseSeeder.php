@@ -381,12 +381,15 @@ class DatabaseSeeder extends Seeder
                         : collect();
                         
                     foreach ($materiasDia as $materiaId) {
-                        // 90% presente, 10% ausente
+                        // 85% presente, 10% tarde, 5% ausente
+                        $rand = rand(1, 100);
+                        $estado = $rand <= 85 ? 'presente' : ($rand <= 95 ? 'tarde' : 'ausente');
+                        
                         $asistenciasData[] = [
                             'estudiante_id' => $estudiante->id,
                             'materia_id' => $materiaId,
                             'fecha' => $fecha->format('Y-m-d'),
-                            'presente' => fake()->boolean(90),
+                            'estado' => $estado,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ];
@@ -440,105 +443,121 @@ class DatabaseSeeder extends Seeder
     private function crearUsuariosPrueba($periodo): void
     {
         // Usuario Administrador
-        User::create([
-            'name' => 'Administrador Principal',
-            'email' => 'admin@colegio.pe',
-            'password' => bcrypt('admin123'),
-            'role' => 'admin',
-            'is_active' => true,
-        ]);
+        if (!User::where('email', 'admin@colegio.pe')->exists()) {
+            User::create([
+                'name' => 'Administrador Principal',
+                'email' => 'admin@colegio.pe',
+                'password' => bcrypt('admin123'),
+                'role' => 'admin',
+                'is_active' => true,
+            ]);
+        }
 
         // Usuario Auxiliar
-        User::create([
-            'name' => 'Personal Auxiliar',
-            'email' => 'auxiliar@colegio.pe',
-            'password' => bcrypt('auxiliar123'),
-            'role' => 'auxiliar',
-            'is_active' => true,
-        ]);
+        if (!User::where('email', 'auxiliar@colegio.pe')->exists()) {
+            User::create([
+                'name' => 'Personal Auxiliar',
+                'email' => 'auxiliar@colegio.pe',
+                'password' => bcrypt('auxiliar123'),
+                'role' => 'auxiliar',
+                'is_active' => true,
+            ]);
+        }
 
         // Usuario Docente Test
-        $userDocente = User::create([
-            'name' => 'Roberto García López',
-            'email' => 'docente@colegio.pe',
-            'password' => bcrypt('docente123'),
-            'role' => 'docente',
-            'is_active' => true,
-        ]);
+        $userDocente = User::where('email', 'docente@colegio.pe')->first();
+        if (!$userDocente) {
+            $userDocente = User::create([
+                'name' => 'Roberto García López',
+                'email' => 'docente@colegio.pe',
+                'password' => bcrypt('docente123'),
+                'role' => 'docente',
+                'is_active' => true,
+            ]);
 
-        $docenteTest = Docente::create([
-            'nombres' => 'Roberto',
-            'apellido_paterno' => 'García',
-            'apellido_materno' => 'López',
-            'dni' => '12345678',
-            'email' => 'roberto.garcia@colegio.pe',
-            'telefono' => '987654321',
-            'direccion' => 'Av. Los Maestros 123, Cusco',
-            'especialidad' => 'Matemáticas',
-            'user_id' => $userDocente->id,
-        ]);
+            $docenteTest = Docente::create([
+                'nombres' => 'Roberto',
+                'apellido_paterno' => 'García',
+                'apellido_materno' => 'López',
+                'dni' => '12345678',
+                'email' => 'roberto.garcia@colegio.pe',
+                'telefono' => '987654321',
+                'direccion' => 'Av. Los Maestros 123, Cusco',
+                'especialidad' => 'Matemáticas',
+                'user_id' => $userDocente->id,
+            ]);
 
-        // Asignar materias al docente test
-        $materiasMath = Materia::where('nombre', 'like', '%Matemática%')->take(2)->get();
-        $seccionesTest = Seccion::take(2)->get();
+            // Asignar materias al docente test
+            $materiasMath = Materia::where('nombre', 'like', '%Matemática%')->take(2)->get();
+            $seccionesTest = Seccion::take(2)->get();
 
-        foreach ($seccionesTest as $seccion) {
-            foreach ($materiasMath as $materia) {
-                AsignacionDocenteMateria::create([
-                    'docente_id' => $docenteTest->id,
-                    'materia_id' => $materia->id,
-                    'seccion_id' => $seccion->id,
-                    'periodo_academico_id' => $periodo->id,
-                ]);
+            foreach ($seccionesTest as $seccion) {
+                foreach ($materiasMath as $materia) {
+                    AsignacionDocenteMateria::create([
+                        'docente_id' => $docenteTest->id,
+                        'materia_id' => $materia->id,
+                        'seccion_id' => $seccion->id,
+                        'periodo_academico_id' => $periodo->id,
+                    ]);
+                }
             }
         }
 
         // Usuario Padre Test
-        $userPadre = User::create([
-            'name' => 'Juan Pérez Rojas',
-            'email' => 'padre@colegio.pe',
-            'password' => bcrypt('padre123'),
-            'role' => 'padre',
-            'is_active' => true,
-        ]);
+        $userPadre = User::where('email', 'padre@colegio.pe')->first();
+        if (!$userPadre) {
+            $userPadre = User::create([
+                'name' => 'Juan Pérez Rojas',
+                'email' => 'padre@colegio.pe',
+                'password' => bcrypt('padre123'),
+                'role' => 'padre',
+                'is_active' => true,
+            ]);
 
-        $padreTest = Padre::create([
-            'nombres' => 'Juan',
-            'apellido_paterno' => 'Pérez',
-            'apellido_materno' => 'Rojas',
-            'dni' => '87654321',
-            'email' => 'juan.perez@gmail.com',
-            'telefono' => '999888777',
-            'direccion' => 'Jr. Las Flores 456, Cusco',
-            'ocupacion' => 'Comerciante',
-            'user_id' => $userPadre->id,
-        ]);
+            $padreTest = Padre::create([
+                'nombres' => 'Juan',
+                'apellido_paterno' => 'Pérez',
+                'apellido_materno' => 'Rojas',
+                'dni' => '87654321',
+                'email' => 'juan.perez@gmail.com',
+                'telefono' => '999888777',
+                'direccion' => 'Jr. Las Flores 456, Cusco',
+                'ocupacion' => 'Comerciante',
+                'user_id' => $userPadre->id,
+            ]);
 
-        // Asociar estudiantes al padre test
-        $estudiantesTest = Estudiante::take(2)->get();
-        $padreTest->estudiantes()->attach($estudiantesTest->pluck('id'));
+            // Asociar estudiantes al padre test
+            $estudiantesTest = Estudiante::take(2)->get();
+            $padreTest->estudiantes()->attach($estudiantesTest->pluck('id'));
+        }
 
         // Usuario Estudiante Test
-        $userEstudiante = User::create([
-            'name' => 'Diego Martínez Silva',
-            'email' => 'estudiante@colegio.pe',
-            'password' => bcrypt('estudiante123'),
-            'role' => 'estudiante',
-            'is_active' => true,
-        ]);
+        $userEstudiante = User::where('email', 'estudiante@colegio.pe')->first();
+        if (!$userEstudiante) {
+            $userEstudiante = User::create([
+                'name' => 'Diego Martínez Silva',
+                'email' => 'estudiante@colegio.pe',
+                'password' => bcrypt('estudiante123'),
+                'role' => 'estudiante',
+                'is_active' => true,
+            ]);
 
-        $seccionTest = Seccion::first();
-        $estudianteTest = Estudiante::create([
-            'nombres' => 'Diego',
-            'apellido_paterno' => 'Martínez',
-            'apellido_materno' => 'Silva',
-            'dni' => '11223344',
-            'fecha_nacimiento' => '2010-01-01',
-            'seccion_id' => $seccionTest->id,
-            'user_id' => $userEstudiante->id,
-        ]);
+            $seccionTest = Seccion::first();
+            $estudianteTest = Estudiante::create([
+                'nombres' => 'Diego',
+                'apellido_paterno' => 'Martínez',
+                'apellido_materno' => 'Silva',
+                'dni' => '11223344',
+                'fecha_nacimiento' => '2010-01-01',
+                'seccion_id' => $seccionTest->id,
+                'user_id' => $userEstudiante->id,
+            ]);
 
-        $padreTest->estudiantes()->attach($estudianteTest->id);
+            $padreTest = Padre::where('user_id', User::where('email', 'padre@colegio.pe')->first()?->id)->first();
+            if ($padreTest) {
+                $padreTest->estudiantes()->syncWithoutDetaching($estudianteTest->id);
+            }
+        }
     }
 
     /**

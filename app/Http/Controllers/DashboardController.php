@@ -68,7 +68,7 @@ class DashboardController extends Controller
         // Asistencias de hoy
         $asistenciasHoy = Asistencia::whereDate('fecha', $hoy)->count();
         $estudiantesPresentes = Asistencia::whereDate('fecha', $hoy)
-            ->where('presente', true)
+            ->where('estado', 'presente')
             ->count();
         
         $stats['asistencias_hoy'] = [
@@ -246,9 +246,9 @@ class DashboardController extends Controller
 
             $datosHijo['asistencia'] = [
                 'total' => $asistenciasMes->count(),
-                'presentes' => $asistenciasMes->where('presente', true)->count(),
-                'tardanzas' => 0, // No hay distinción de tardanzas en la tabla actual
-                'faltas' => $asistenciasMes->where('presente', false)->count(),
+                'presentes' => $asistenciasMes->where('estado', 'presente')->count(),
+                'tardanzas' => $asistenciasMes->where('estado', 'tarde')->count(),
+                'faltas' => $asistenciasMes->where('estado', 'ausente')->count(),
             ];
 
             // Promedio de calificaciones
@@ -282,7 +282,7 @@ class DashboardController extends Controller
                 ->whereMonth('fecha', $hoy->month)
                 ->get();
             
-            $faltas = $asistenciasMes->where('presente', false)->count();
+            $faltas = $asistenciasMes->where('estado', 'ausente')->count();
             if ($faltas >= 3) {
                 $stats['alertas'][] = [
                     'tipo' => 'asistencia',
@@ -329,11 +329,11 @@ class DashboardController extends Controller
 
         $stats['asistencia_mes'] = [
             'total' => $asistenciasMes->count(),
-            'presentes' => $asistenciasMes->where('presente', true)->count(),
-            'tardanzas' => 0, // No hay distinción de tardanzas en la tabla actual
-            'faltas' => $asistenciasMes->where('presente', false)->count(),
+            'presentes' => $asistenciasMes->where('estado', 'presente')->count(),
+            'tardanzas' => $asistenciasMes->where('estado', 'tarde')->count(),
+            'faltas' => $asistenciasMes->where('estado', 'ausente')->count(),
             'porcentaje' => $asistenciasMes->count() > 0 
-                ? round(($asistenciasMes->where('presente', true)->count() / $asistenciasMes->count()) * 100, 1)
+                ? round(($asistenciasMes->where('estado', 'presente')->count() / $asistenciasMes->count()) * 100, 1)
                 : 0
         ];
 
@@ -369,7 +369,7 @@ class DashboardController extends Controller
         $stats['recordatorios'] = [];
         
         // Mensaje de asistencia
-        $faltas = $asistenciasMes->where('presente', false)->count();
+        $faltas = $asistenciasMes->where('estado', 'ausente')->count();
         if ($faltas >= 5) {
             $mensajes = [
                 '⚠️ Has faltado muchas veces este mes. Tu presencia es importante, ¡esperamos verte en clases!',
