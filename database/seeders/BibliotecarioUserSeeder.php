@@ -14,6 +14,12 @@ class BibliotecarioUserSeeder extends Seeder
      */
     public function run(): void
     {
+        // Verificar si ya existe el usuario bibliotecario
+        if (User::where('email', 'bibliotecario@colegio.pe')->exists()) {
+            $this->command->info('ℹ️  Usuario bibliotecario ya existe');
+            return;
+        }
+
         // Crear usuario bibliotecario
         User::create([
             'name' => 'Carmen Rosa Bibliotecaria',

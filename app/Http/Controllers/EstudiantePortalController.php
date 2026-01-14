@@ -98,8 +98,8 @@ class EstudiantePortalController extends Controller
         $asistencias = $query->orderBy('fecha', 'desc')->get();
 
         $total = $asistencias->count();
-        $presentes = $asistencias->where('presente', true)->count();
-        $ausentes = $asistencias->where('presente', false)->count();
+        $presentes = $asistencias->where('estado', 'presente')->count();
+        $ausentes = $asistencias->where('estado', 'ausente')->count();
         $porcentaje = $total > 0 ? round(($presentes / $total) * 100, 2) : 0;
 
         return response()->json([

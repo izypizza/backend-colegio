@@ -92,7 +92,7 @@ Después de ejecutar `php artisan migrate:fresh --seed`:
 
 -   **Asignaciones**: Docente-Materia por Sección
 -   **Horarios**: Clases distribuidas en la semana
--   **Asistencias**: Últimos días con asistencia realista
+-   **Asistencias**: Últimos días con estados realistas (presente/tarde/ausente)
 -   **Calificaciones**: Todos los estudiantes en todos los períodos
     -   Distribución realista según rendimiento
     -   Incluye estudiantes destacados y con dificultades
@@ -186,15 +186,44 @@ GET    /padre/calificaciones-hijos     # Calificaciones de todos los hijos
 ### Asistencias (Admin/Auxiliar/Docente)
 
 ```http
-GET    /asistencias              # Listar con filtros
-POST   /asistencias              # Registrar
-PUT    /asistencias/{id}         # Actualizar
-DELETE /asistencias/{id}         # Eliminar
+GET    /asistencias                            # Listar con filtros
+POST   /asistencias                            # Registrar (Admin/Auxiliar/Docente)
+PUT    /asistencias/{id}                       # Actualizar (Admin/Auxiliar/Docente)
+DELETE /asistencias/{id}                       # Eliminar (Admin/Auxiliar)
+GET    /asistencias/reporte/estudiante/{id}   # Reporte por estudiante
+GET    /asistencias/reporte/seccion/{id}      # Reporte por sección
 
 # Portales
 GET    /estudiante/mis-asistencias       # Asistencias del estudiante
 GET    /padre/asistencias-hijo/{hijo_id} # Asistencias de un hijo
+GET    /docente/mis-asistencias          # Asistencias de materias asignadas
+POST   /docente/registrar-asistencia     # Registrar (alternativa)
 ```
+
+**Campos de Asistencia:**
+
+```json
+{
+    "estudiante_id": 1,
+    "materia_id": 2,
+    "fecha": "2026-01-14",
+    "estado": "presente|tarde|ausente", // ✅ 3 estados disponibles
+    "observaciones": "Opcional, máx 500 caracteres"
+}
+```
+
+**Estados:**
+
+-   🟢 `presente`: Asistió puntualmente
+-   🟡 `tarde`: Llegó tarde
+-   🔴 `ausente`: No asistió
+
+**Validaciones:**
+
+-   ✅ No registrar con más de 60 días de antigüedad
+-   ✅ No registrar fechas futuras
+-   ✅ No duplicar (estudiante + materia + fecha)
+-   ✅ Docentes: verificación automática de asignación de materia y sección
 
 ### Biblioteca
 
@@ -484,10 +513,15 @@ php artisan migrate                  # Ejecutar migraciones
 php artisan migrate:rollback         # Revertir última migración
 php artisan db:seed                  # Ejecutar seeders
 
+# Cache y optimización
+php artisan config:clear             # Limpiar cache de configuración
+php artisan cache:clear              # Limpiar cache de aplicación
+php artisan route:clear              # Limpiar cache de rutas
+php artisan optimize:clear           # Limpiar todos los caches
+
 # Depuración
 php artisan route:list               # Listar todas las rutas
 php artisan tinker                   # REPL de Laravel
-php artisan optimize:clear           # Limpiar cache
 
 # Tests
 php artisan test                     # Ejecutar tests
@@ -523,6 +557,88 @@ php artisan test                     # Ejecutar tests
 -   **Causa**: No tiene asignaciones en `asignacion_docente_materia`
 -   **Solución**: Crear asignaciones desde el admin
 
+### Error "No tiene permisos para acceder a este recurso"
+
+#### Diagnóstico Rápido
+
+**En el navegador (F12 - Consola):**
+
+```javascript
+JSON.parse(localStorage.getItem("user_data"));
+```
+
+**En Laravel:**
+
+```bash
+php artisan tinker
+User::where('email', 'usuario@example.com')->first(['id', 'name', 'email', 'role']);
+```
+
+#### Soluciones Implementadas (Frontend)
+
+1. **Validación de Rol**: Verifica permisos antes de hacer peticiones API
+2. **Manejo de Errores Detallado**: Mensajes claros con rol actual y requerido
+3. **UI de Acceso Denegado**: Pantallas informativas cuando no hay permisos
+4. **Logging Mejorado**: Logs detallados de errores 403 en consola
+
+#### Roles y Permisos - Asistencias
+
+**Roles autorizados:**
+
+-   `admin` - Acceso completo
+-   `auxiliar` - Acceso completo (eliminar solo admin/auxiliar)
+-   `docente` - Ver y registrar asistencias de sus estudiantes
+
+**Roles NO autorizados:**
+
+-   `estudiante` - Solo puede ver sus propias asistencias
+-   `padre` - Solo puede ver asistencias de sus hijos
+-   `bibliotecario` - Sin acceso a asistencias
+
+#### Soluciones Según el Problema
+
+**Usuario con rol incorrecto:**
+
+```bash
+php artisan tinker
+$user = User::where('email', 'usuario@example.com')->first();
+$user->role = 'auxiliar'; // o 'admin' o 'docente'
+$user->save();
+```
+
+**Sesión expirada:**
+
+1. Cerrar sesión
+2. Iniciar sesión nuevamente
+
+**Token corrupto (en consola del navegador):**
+
+```javascript
+localStorage.removeItem("auth_token");
+localStorage.removeItem("refresh_token");
+localStorage.removeItem("user_data");
+window.location.href = "/login";
+```
+
+#### Verificar Logs
+
+**Backend:**
+
+```bash
+tail -f storage/logs/laravel.log
+```
+
+**Frontend (consola navegador):**
+
+```
+Error de permisos: {
+  status: 403,
+  requiredRoles: ["admin", "auxiliar", "docente"],
+  userRole: "estudiante",
+  url: "http://localhost:8000/api/asistencias"
+}
+```
+
 ## 📝 Próximas Funcionalidades
 
 -   [ ] Notificaciones por email/SMS
@@ -548,8 +664,20 @@ php artisan test --coverage
 php artisan test --filter=AuthTest
 ```
 
-## 📄 Licencia
+## 🔄 Historial de Actualizaciones
 
+### Versión 1.1.0 (14 Enero 2026)
+
+-   ✅ **Sistema de Asistencias Mejorado**: 3 estados (presente/tarde/ausente)
+-   ✅ **Campo Observaciones**: Agregado en asistencias (500 caracteres)
+-   ✅ **Validaciones Mejoradas**: Control de fechas antigüedad y futuras
+-   ✅ **Lógica de Roles Corregida**: Todos los roles funcionan correctamente
+-   ✅ **Rutas API Reorganizadas**: Endpoints específicos antes de apiResource
+-   ✅ **Reportes Actualizados**: Estadísticas con tardanzas diferenciadas
+
+---
+
+**Última actualización**: 14 Enero 2026 | **Versión**: 1.1
 Proyecto privado para I.E. N° 51006 "TÚPAC AMARU" - Cusco, Perú
 
 ---

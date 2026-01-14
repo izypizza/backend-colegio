@@ -83,46 +83,65 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/horarios/{horario}', [HorarioController::class, 'show']);
     });
 
-    // Admin o Auxiliar - Personal administrativo
-    Route::middleware(['role:admin,auxiliar'])->group(function () {
-        Route::apiResource('estudiantes', EstudianteController::class);
-        Route::apiResource('asistencias', AsistenciaController::class);
+    // ========================================
+    // ASISTENCIAS - Admin, Auxiliar y Docentes
+    // ========================================
+    Route::middleware(['role:admin,auxiliar,docente'])->group(function () {
+        Route::get('/asistencias', [AsistenciaController::class, 'index']);
+        Route::post('/asistencias', [AsistenciaController::class, 'store']);
+        Route::get('/asistencias/{id}', [AsistenciaController::class, 'show']);
+        Route::put('/asistencias/{id}', [AsistenciaController::class, 'update']);
 
-        // Reportes de asistencias (ANTES de apiResource para evitar conflictos)
-        Route::get('/asistencias/reporte/estudiante/{estudiante_id}', [AsistenciaController::class, 'reportePorEstudiante']);
-        Route::get('/asistencias/reporte/seccion/{seccion_id}', [AsistenciaController::class, 'reportePorSeccion']);
+        // Solo admin y auxiliar pueden eliminar
+        Route::middleware(['role:admin,auxiliar'])->group(function () {
+            Route::delete('/asistencias/{id}', [AsistenciaController::class, 'destroy']);
 
-        // Calificaciones - Protegido por módulo activo
-        Route::middleware(['modulo.activo:modulo_calificaciones_activo'])->group(function () {
-            // Reportes de calificaciones (ANTES de apiResource para evitar conflictos)
+            // Reportes de asistencias
+            Route::get('/asistencias/reporte/estudiante/{estudiante_id}', [AsistenciaController::class, 'reportePorEstudiante']);
+            Route::get('/asistencias/reporte/seccion/{seccion_id}', [AsistenciaController::class, 'reportePorSeccion']);
+        });
+    });
+
+    // ========================================
+    // CALIFICACIONES - Admin, Auxiliar y Docentes
+    // ========================================
+    Route::middleware(['role:admin,auxiliar,docente', 'modulo.activo:modulo_calificaciones_activo'])->group(function () {
+        Route::get('/calificaciones', [CalificacionController::class, 'index']);
+        Route::post('/calificaciones', [CalificacionController::class, 'store']);
+        Route::get('/calificaciones/{id}', [CalificacionController::class, 'show']);
+        Route::put('/calificaciones/{id}', [CalificacionController::class, 'update']);
+
+        // Solo admin y auxiliar pueden eliminar y ver estadísticas avanzadas
+        Route::middleware(['role:admin,auxiliar'])->group(function () {
+            Route::delete('/calificaciones/{id}', [CalificacionController::class, 'destroy']);
             Route::get('/calificaciones/estadisticas-avanzadas', [CalificacionController::class, 'estadisticasAvanzadas']);
             Route::get('/calificaciones/boletin/{estudiante_id}/{periodo_id}', [CalificacionController::class, 'boletin']);
             Route::get('/calificaciones/reporte/materia/{materia_id}', [CalificacionController::class, 'reportePorMateria']);
-
-            Route::apiResource('calificaciones', CalificacionController::class);
         });
+    });
 
+    // ========================================
+    // GESTIÓN ACADÉMICA - Admin y Auxiliar
+    // ========================================
+    Route::middleware(['role:admin,auxiliar'])->group(function () {
+        Route::apiResource('estudiantes', EstudianteController::class);
         Route::apiResource('secciones', SeccionController::class)->except(['index', 'show']);
         Route::apiResource('horarios', HorarioController::class)->except(['index', 'show']);
         Route::apiResource('grados', GradoController::class)->except(['index', 'show']);
         Route::apiResource('materias', MateriaController::class)->except(['index', 'show']);
     });
 
-    // Admin, Auxiliar o Docente - Gestión académica
+    // ========================================
+    // DOCENTES Y ASIGNACIONES - Admin, Auxiliar y Docentes
+    // ========================================
     Route::middleware(['role:admin,auxiliar,docente'])->group(function () {
         Route::apiResource('docentes', DocenteController::class);
         Route::apiResource('asignaciones', AsignacionDocenteMateriaController::class);
     });
 
-    // Docentes - Registrar asistencias y calificaciones de SUS estudiantes
-    Route::middleware(['role:docente'])->group(function () {
-        Route::post('/docente/asistencias', [AsistenciaController::class, 'store']);
-        Route::put('/docente/asistencias/{id}', [AsistenciaController::class, 'update']);
-        Route::post('/docente/calificaciones', [CalificacionController::class, 'store']);
-        Route::put('/docente/calificaciones/{id}', [CalificacionController::class, 'update']);
-    });
-
-    // Admin, Auxiliar, Docente o Padre - Información general
+    // ========================================
+    // PADRES - Admin, Auxiliar, Docente y Padres
+    // ========================================
     Route::middleware(['role:admin,auxiliar,docente,padre'])->group(function () {
         Route::apiResource('padres', PadreController::class);
     });
@@ -160,26 +179,26 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Todos pueden ver elecciones y resultados (solo si están publicados)
     Route::middleware(['modulo.activo:modulos_elecciones'])->group(function () {
-    Route::get('/elecciones', [EleccionController::class, 'index']);
-    Route::get('/elecciones/{id}', [EleccionController::class, 'show']);
-    Route::get('/elecciones/{id}/resultados', [EleccionController::class, 'resultados']);
-    Route::get('/elecciones/{id}/ya-vote', [EleccionController::class, 'yaVote']);
+        Route::get('/elecciones', [EleccionController::class, 'index']);
+        Route::get('/elecciones/{id}', [EleccionController::class, 'show']);
+        Route::get('/elecciones/{id}/resultados', [EleccionController::class, 'resultados']);
+        Route::get('/elecciones/{id}/ya-vote', [EleccionController::class, 'yaVote']);
 
-    // Admin - Gestión completa de elecciones (solo supervisión, no manipula votos)
-    Route::middleware(['role:admin'])->group(function () {
-        Route::post('/elecciones', [EleccionController::class, 'store']);
-        Route::put('/elecciones/{id}', [EleccionController::class, 'update']);
-        Route::delete('/elecciones/{id}', [EleccionController::class, 'destroy']);
-        Route::post('/elecciones/{id}/activar', [EleccionController::class, 'activar']);
-        Route::post('/elecciones/{id}/cerrar', [EleccionController::class, 'cerrar']);
-        Route::post('/elecciones/{id}/publicar-resultados', [EleccionController::class, 'publicarResultados']);
-    });
+        // Admin - Gestión completa de elecciones (solo supervisión, no manipula votos)
+        Route::middleware(['role:admin'])->group(function () {
+            Route::post('/elecciones', [EleccionController::class, 'store']);
+            Route::put('/elecciones/{id}', [EleccionController::class, 'update']);
+            Route::delete('/elecciones/{id}', [EleccionController::class, 'destroy']);
+            Route::post('/elecciones/{id}/activar', [EleccionController::class, 'activar']);
+            Route::post('/elecciones/{id}/cerrar', [EleccionController::class, 'cerrar']);
+            Route::post('/elecciones/{id}/publicar-resultados', [EleccionController::class, 'publicarResultados']);
+        });
 
-    // Estudiantes - Votar en elecciones activas
-    Route::middleware(['role:estudiante', 'modulo.activo:modulos_elecciones'])->group(function () {
-        Route::post('/votos', [VotoController::class, 'store']);
-        Route::get('/mis-votos', [VotoController::class, 'misVotos']);
-    });
+        // Estudiantes - Votar en elecciones activas
+        Route::middleware(['role:estudiante', 'modulo.activo:modulos_elecciones'])->group(function () {
+            Route::post('/votos', [VotoController::class, 'store']);
+            Route::get('/mis-votos', [VotoController::class, 'misVotos']);
+        });
     }); // Fin grupo módulo elecciones
 
     // ========================================
@@ -246,4 +265,4 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/padre/asistencias-hijo/{hijo_id}', [PadrePortalController::class, 'asistenciasHijo']);
         Route::get('/padre/boletin-hijo/{hijo_id}/{periodo_id}', [PadrePortalController::class, 'boletinHijo']);
     });
-});
+}); // Fin middleware auth:sanctum
