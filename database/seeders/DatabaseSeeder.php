@@ -140,14 +140,16 @@ class DatabaseSeeder extends Seeder
 
         // Períodos Académicos 2025
         $periodosData = [
-            ['nombre' => 'I Bimestre 2025', 'anio' => 2025, 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => 'II Bimestre 2025', 'anio' => 2025, 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => 'III Bimestre 2025', 'anio' => 2025, 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => 'IV Bimestre 2025', 'anio' => 2025, 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => 'I Bimestre 2025', 'anio' => 2025, 'estado' => 'activo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => 'II Bimestre 2025', 'anio' => 2025, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => 'III Bimestre 2025', 'anio' => 2025, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => 'IV Bimestre 2025', 'anio' => 2025, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => 'I Bimestre 2026', 'anio' => 2026, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => 'II Bimestre 2026', 'anio' => 2026, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => 'III Bimestre 2026', 'anio' => 2026, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => 'IV Bimestre 2026', 'anio' => 2026, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
         ];
         
-        PeriodoAcademico::insert($periodosData);
-
         PeriodoAcademico::insert($periodosData);
     }
 

@@ -12,11 +12,15 @@ class Calificacion extends Model
         'estudiante_id',
         'materia_id',
         'periodo_academico_id',
-        'nota'
+        'nota',
+        'observaciones',
+        'modificaciones_count',
+        'ultima_modificacion'
     ];
 
     protected $casts = [
-        'nota' => 'decimal:2'
+        'nota' => 'decimal:2',
+        'ultima_modificacion' => 'datetime'
     ];
 
     protected $appends = ['periodo'];

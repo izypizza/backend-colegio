@@ -13,7 +13,8 @@ class PeriodoAcademico extends Model
 
     protected $fillable = [
         'nombre',
-        'anio'
+        'anio',
+        'estado'
     ];
 
     public function asignaciones()
