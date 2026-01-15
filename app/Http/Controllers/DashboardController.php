@@ -52,83 +52,99 @@ class DashboardController extends Controller
      */
     private function getAdminStats()
     {
-        $periodoActual = PeriodoAcademico::orderBy('anio', 'desc')->first();
+        $periodoActual = PeriodoAcademico::where('estado', 'activo')->first();
         $hoy = Carbon::today();
 
-        // Estadísticas básicas
+        // Usar queries optimizadas con selectRaw para reducir carga
         $stats = [
-            'estudiantes' => Estudiante::count(),
-            'docentes' => Docente::count(),
-            'padres' => Padre::count(),
-            'materias' => Materia::count(),
-            'secciones' => Seccion::count(),
-            'grados' => Grado::count(),
+            'estudiantes' => DB::table('estudiantes')->count(),
+            'docentes' => DB::table('docentes')->count(),
+            'padres' => DB::table('padres')->count(),
+            'materias' => DB::table('materias')->count(),
+            'secciones' => DB::table('secciones')->count(),
+            'grados' => DB::table('grados')->count(),
         ];
 
-        // Asistencias de hoy
-        $asistenciasHoy = Asistencia::whereDate('fecha', $hoy)->count();
-        $estudiantesPresentes = Asistencia::whereDate('fecha', $hoy)
-            ->where('estado', 'presente')
-            ->count();
+        // Asistencias de hoy con query optimizada
+        $asistenciasHoyStats = DB::table('asistencias')
+            ->whereDate('fecha', $hoy)
+            ->selectRaw('
+                COUNT(*) as total,
+                SUM(CASE WHEN estado = "presente" THEN 1 ELSE 0 END) as presentes,
+                SUM(CASE WHEN estado = "tarde" THEN 1 ELSE 0 END) as tardes,
+                SUM(CASE WHEN estado = "ausente" THEN 1 ELSE 0 END) as ausentes
+            ')
+            ->first();
+        
+        $totalAsistencias = $asistenciasHoyStats->total ?? 0;
+        $presentes = $asistenciasHoyStats->presentes ?? 0;
+        $tardes = $asistenciasHoyStats->tardes ?? 0;
         
         $stats['asistencias_hoy'] = [
-            'total' => $asistenciasHoy,
-            'presentes' => $estudiantesPresentes,
-            'ausentes' => $asistenciasHoy - $estudiantesPresentes,
-            'porcentaje_asistencia' => $asistenciasHoy > 0 
-                ? round(($estudiantesPresentes / $asistenciasHoy) * 100, 1) 
+            'total' => $totalAsistencias,
+            'presentes' => $presentes,
+            'tardes' => $tardes,
+            'ausentes' => $asistenciasHoyStats->ausentes ?? 0,
+            'porcentaje_asistencia' => $totalAsistencias > 0 
+                ? round((($presentes + $tardes) / $totalAsistencias) * 100, 1) 
                 : 0
         ];
 
-        // Calificaciones por periodo actual
+        // Calificaciones por periodo actual - OPTIMIZADO
         if ($periodoActual) {
-            $promedioGeneral = Calificacion::where('periodo_academico_id', $periodoActual->id)
-                ->avg('nota');
+            $calificacionesStats = DB::table('calificaciones')
+                ->where('periodo_academico_id', $periodoActual->id)
+                ->selectRaw('
+                    COUNT(*) as total,
+                    ROUND(AVG(nota), 2) as promedio,
+                    SUM(CASE WHEN nota >= 11 THEN 1 ELSE 0 END) as aprobados,
+                    SUM(CASE WHEN nota < 11 THEN 1 ELSE 0 END) as desaprobados
+                ')
+                ->first();
             
             $stats['calificaciones'] = [
-                'promedio_general' => $promedioGeneral ? round($promedioGeneral, 2) : 0,
-                'total_calificaciones' => Calificacion::where('periodo_academico_id', $periodoActual->id)->count(),
-                'aprobados' => Calificacion::where('periodo_academico_id', $periodoActual->id)
-                    ->where('nota', '>=', 11)->count(),
-                'desaprobados' => Calificacion::where('periodo_academico_id', $periodoActual->id)
-                    ->where('nota', '<', 11)->count(),
+                'promedio_general' => $calificacionesStats->promedio ?? 0,
+                'total_calificaciones' => $calificacionesStats->total ?? 0,
+                'aprobados' => $calificacionesStats->aprobados ?? 0,
+                'desaprobados' => $calificacionesStats->desaprobados ?? 0,
             ];
         }
 
-        // Biblioteca
-        $fechaLimite = Carbon::today()->subDays(15); // Préstamos de hace más de 15 días
+        // Biblioteca - OPTIMIZADO
+        $fechaLimite = Carbon::today()->subDays(15);
+        $bibliotecaStats = DB::table('prestamos_libros')
+            ->selectRaw('
+                SUM(CASE WHEN fecha_devolucion IS NULL THEN 1 ELSE 0 END) as activos,
+                SUM(CASE WHEN fecha_devolucion IS NULL AND fecha_prestamo < ? THEN 1 ELSE 0 END) as vencidos,
+                SUM(CASE WHEN MONTH(fecha_prestamo) = ? AND YEAR(fecha_prestamo) = ? THEN 1 ELSE 0 END) as mes_actual
+            ', [$fechaLimite, $hoy->month, $hoy->year])
+            ->first();
+        
         $stats['biblioteca'] = [
-            'prestamos_activos' => PrestamoLibro::whereNull('fecha_devolucion')->count(),
-            'prestamos_vencidos' => PrestamoLibro::whereNull('fecha_devolucion')
-                ->whereDate('fecha_prestamo', '<', $fechaLimite)
-                ->count(),
-            'total_prestamos_mes' => PrestamoLibro::whereMonth('fecha_prestamo', $hoy->month)
-                ->whereYear('fecha_prestamo', $hoy->year)
-                ->count(),
+            'prestamos_activos' => $bibliotecaStats->activos ?? 0,
+            'prestamos_vencidos' => $bibliotecaStats->vencidos ?? 0,
+            'total_prestamos_mes' => $bibliotecaStats->mes_actual ?? 0,
         ];
 
-        // Elecciones activas
+        // Elecciones activas - OPTIMIZADO
         $stats['elecciones'] = [
-            'activas' => Eleccion::where('estado', 'activa')->count(),
-            'proximas' => Eleccion::where('estado', 'pendiente')
+            'activas' => DB::table('elecciones')->where('estado', 'activa')->count(),
+            'proximas' => DB::table('elecciones')
+                ->where('estado', 'pendiente')
                 ->whereDate('fecha_inicio', '>', $hoy)
                 ->count(),
         ];
 
-        // Distribución por grado
-        $stats['distribucion_grados'] = Grado::withCount('secciones', 'estudiantes')
-            ->orderBy('nombre')
-            ->get()
-            ->map(function($grado) {
-                return [
-                    'grado' => $grado->nombre,
-                    'secciones' => $grado->secciones_count,
-                    'estudiantes' => $grado->estudiantes_count ?? 0
-                ];
-            });
-
-        // Actividades recientes
-        $stats['actividad_reciente'] = $this->getActividadReciente();
+        // Distribución por grado - OPTIMIZADO con joins
+        $stats['distribucion_grados'] = DB::table('grados')
+            ->leftJoin('secciones', 'grados.id', '=', 'secciones.grado_id')
+            ->leftJoin('estudiantes', 'secciones.id', '=', 'estudiantes.seccion_id')
+            ->select('grados.nombre as grado')
+            ->selectRaw('COUNT(DISTINCT secciones.id) as secciones')
+            ->selectRaw('COUNT(DISTINCT estudiantes.id) as estudiantes')
+            ->groupBy('grados.id', 'grados.nombre')
+            ->orderBy('grados.nombre')
+            ->get();
 
         return response()->json($stats);
     }
@@ -138,58 +154,80 @@ class DashboardController extends Controller
      */
     private function getDocenteStats($user)
     {
-        $docente = Docente::where('user_id', $user->id)->with(['asignaciones.materia', 'asignaciones.seccion.grado'])->first();
+        $docente = Docente::where('user_id', $user->id)->first();
         
         if (!$docente) {
             return response()->json(['error' => 'Docente no encontrado'], 404);
         }
 
-        $periodoActual = PeriodoAcademico::orderBy('anio', 'desc')->first();
+        $periodoActual = PeriodoAcademico::where('estado', 'activo')->first();
         $hoy = Carbon::today();
 
-        $seccionesIds = $docente->asignaciones->pluck('seccion_id')->unique();
-        $materiasIds = $docente->asignaciones->pluck('materia_id')->unique();
+        // Obtener IDs de secciones y materias de manera eficiente
+        $asignaciones = DB::table('asignacion_docente_materias')
+            ->where('docente_id', $docente->id)
+            ->when($periodoActual, function($q) use ($periodoActual) {
+                return $q->where('periodo_academico_id', $periodoActual->id);
+            })
+            ->get();
+
+        $seccionesIds = $asignaciones->pluck('seccion_id')->unique();
+        $materiasIds = $asignaciones->pluck('materia_id')->unique();
 
         $stats = [
-            'mis_clases' => $docente->asignaciones->count(),
-            'mis_estudiantes' => Estudiante::whereIn('seccion_id', $seccionesIds)->count(),
+            'mis_clases' => $asignaciones->count(),
+            'mis_estudiantes' => DB::table('estudiantes')
+                ->whereIn('seccion_id', $seccionesIds)
+                ->count(),
             'mis_materias' => $materiasIds->count(),
             'mis_secciones' => $seccionesIds->count(),
         ];
 
-        // Clases detalladas
-        $stats['clases_detalle'] = $docente->asignaciones->map(function($asignacion) {
-            return [
-                'materia' => $asignacion->materia->nombre,
-                'seccion' => $asignacion->seccion->nombre,
-                'grado' => $asignacion->seccion->grado->nombre,
-                'estudiantes' => $asignacion->seccion->estudiantes_count ?? 0
-            ];
-        });
+        // Clases detalladas - OPTIMIZADO con joins
+        $stats['clases_detalle'] = DB::table('asignacion_docente_materias as adm')
+            ->join('materias as m', 'adm.materia_id', '=', 'm.id')
+            ->join('secciones as s', 'adm.seccion_id', '=', 's.id')
+            ->join('grados as g', 's.grado_id', '=', 'g.id')
+            ->leftJoin('estudiantes as e', 's.id', '=', 'e.seccion_id')
+            ->where('adm.docente_id', $docente->id)
+            ->when($periodoActual, function($q) use ($periodoActual) {
+                return $q->where('adm.periodo_academico_id', $periodoActual->id);
+            })
+            ->select('m.nombre as materia', 's.nombre as seccion', 'g.nombre as grado')
+            ->selectRaw('COUNT(DISTINCT e.id) as estudiantes')
+            ->groupBy('m.id', 'm.nombre', 's.id', 's.nombre', 'g.nombre')
+            ->get();
 
-        // Asistencias registradas hoy en las materias del docente
-        $asistenciasHoy = Asistencia::whereDate('fecha', $hoy)
+        // Asistencias registradas hoy
+        $stats['asistencias_hoy'] = DB::table('asistencias')
+            ->whereDate('fecha', $hoy)
             ->whereIn('materia_id', $materiasIds)
-            ->whereHas('estudiante', function($q) use ($seccionesIds) {
-                $q->whereIn('seccion_id', $seccionesIds);
+            ->whereIn('estudiante_id', function($query) use ($seccionesIds) {
+                $query->select('id')
+                    ->from('estudiantes')
+                    ->whereIn('seccion_id', $seccionesIds);
             })
             ->count();
 
-        $stats['asistencias_hoy'] = $asistenciasHoy;
-
-        // Calificaciones pendientes (estudiantes sin nota en el periodo actual)
-        if ($periodoActual) {
-            $totalEstudiantes = Estudiante::whereIn('seccion_id', $seccionesIds)->count();
-            $calificacionesRegistradas = Calificacion::where('periodo_academico_id', $periodoActual->id)
+        // Calificaciones pendientes
+        if ($periodoActual && $materiasIds->count() > 0 && $seccionesIds->count() > 0) {
+            $totalEstudiantes = DB::table('estudiantes')
+                ->whereIn('seccion_id', $seccionesIds)
+                ->count();
+                
+            $calificacionesRegistradas = DB::table('calificaciones')
+                ->where('periodo_academico_id', $periodoActual->id)
                 ->whereIn('materia_id', $materiasIds)
-                ->whereHas('estudiante', function($q) use ($seccionesIds) {
-                    $q->whereIn('seccion_id', $seccionesIds);
+                ->whereIn('estudiante_id', function($query) use ($seccionesIds) {
+                    $query->select('id')
+                        ->from('estudiantes')
+                        ->whereIn('seccion_id', $seccionesIds);
                 })
                 ->count();
 
             $stats['calificaciones'] = [
                 'registradas' => $calificacionesRegistradas,
-                'pendientes' => ($totalEstudiantes * $materiasIds->count()) - $calificacionesRegistradas,
+                'pendientes' => max(0, ($totalEstudiantes * $materiasIds->count()) - $calificacionesRegistradas),
             ];
         }
 

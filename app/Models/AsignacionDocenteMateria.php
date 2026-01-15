@@ -12,7 +12,14 @@ class AsignacionDocenteMateria extends Model
         'docente_id',
         'materia_id',
         'seccion_id',
-        'periodo_academico_id'
+        'periodo_academico_id',
+        'es_tutor',
+        'tutor_hasta'
+    ];
+
+    protected $casts = [
+        'es_tutor' => 'boolean',
+        'tutor_hasta' => 'datetime'
     ];
 
     public function docente()

@@ -243,6 +243,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/docente/registrar-calificacion', [DocentePortalController::class, 'registrarCalificacion']);
         Route::get('/docente/mis-calificaciones', [DocentePortalController::class, 'misCalificaciones']);
         Route::get('/docente/mis-asistencias', [DocentePortalController::class, 'misAsistencias']);
+        
+        // Rutas de tutor
+        Route::get('/docente/es-tutor', [DocentePortalController::class, 'esTutor']);
+        Route::get('/docente/tutor-calificaciones', [DocentePortalController::class, 'tutorCalificaciones']);
+        Route::get('/docente/tutor-asistencias', [DocentePortalController::class, 'tutorAsistencias']);
     });
 
     // ========================================

@@ -63,10 +63,17 @@ class EstudiantePortalController extends Controller
             return response()->json(['message' => 'Usuario no es estudiante'], 403);
         }
 
-        $calificaciones = Calificacion::where('estudiante_id', $user->estudiante->id)
-            ->with(['materia', 'periodoAcademico'])
-            ->orderBy('periodo_academico_id')
-            ->get();
+        $query = Calificacion::where('estudiante_id', $user->estudiante->id)
+            ->with(['materia:id,nombre', 'periodoAcademico:id,nombre'])
+            ->select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota')
+            ->orderBy('periodo_academico_id');
+
+        // Filtro por periodo si se especifica
+        if ($request->has('periodo_academico_id')) {
+            $query->where('periodo_academico_id', $request->periodo_academico_id);
+        }
+
+        $calificaciones = $query->get();
 
         $promedio = $calificaciones->avg('nota');
 
@@ -88,14 +95,18 @@ class EstudiantePortalController extends Controller
         }
 
         $query = Asistencia::where('estudiante_id', $user->estudiante->id)
-            ->with(['materia']);
+            ->with(['materia:id,nombre'])
+            ->select('id', 'estudiante_id', 'materia_id', 'fecha', 'estado', 'observaciones');
 
         // Filtros opcionales
         if ($request->has('fecha_inicio') && $request->has('fecha_fin')) {
             $query->whereBetween('fecha', [$request->fecha_inicio, $request->fecha_fin]);
+        } else {
+            // Por defecto, últimos 90 días para estudiantes
+            $query->where('fecha', '>=', now()->subDays(90));
         }
 
-        $asistencias = $query->orderBy('fecha', 'desc')->get();
+        $asistencias = $query->orderBy('fecha', 'desc')->limit(500)->get();
 
         $total = $asistencias->count();
         $presentes = $asistencias->where('estado', 'presente')->count();

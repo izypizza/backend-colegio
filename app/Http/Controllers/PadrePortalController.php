@@ -128,14 +128,18 @@ class PadrePortalController extends Controller
         }
 
         $query = Asistencia::where('estudiante_id', $hijo_id)
-            ->with(['materia']);
+            ->with(['materia:id,nombre'])
+            ->select('id', 'estudiante_id', 'materia_id', 'fecha', 'estado', 'observaciones');
 
         // Filtros opcionales
         if ($request->has('fecha_inicio') && $request->has('fecha_fin')) {
             $query->whereBetween('fecha', [$request->fecha_inicio, $request->fecha_fin]);
+        } else {
+            // Por defecto, últimos 90 días
+            $query->where('fecha', '>=', now()->subDays(90));
         }
 
-        $asistencias = $query->orderBy('fecha', 'desc')->get();
+        $asistencias = $query->orderBy('fecha', 'desc')->limit(500)->get();
 
         $total = $asistencias->count();
         $presentes = $asistencias->where('estado', 'presente')->count();
@@ -174,7 +178,8 @@ class PadrePortalController extends Controller
 
         $calificaciones = Calificacion::where('estudiante_id', $hijo_id)
             ->where('periodo_academico_id', $periodo_id)
-            ->with(['materia', 'periodoAcademico'])
+            ->with(['materia:id,nombre', 'periodoAcademico:id,nombre'])
+            ->select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota')
             ->get();
 
         $promedio = $calificaciones->avg('nota');

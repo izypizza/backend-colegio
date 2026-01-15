@@ -139,13 +139,33 @@ class DocentePortalController extends Controller
             return response()->json(['message' => 'Usuario no es docente'], 403);
         }
 
+        // Obtener solo las materias activas del periodo actual
+        $periodoActual = \App\Models\PeriodoAcademico::where('estado', 'activo')->first();
+        
         $materiasIds = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
+            ->when($periodoActual, function($q) use ($periodoActual) {
+                return $q->where('periodo_academico_id', $periodoActual->id);
+            })
             ->pluck('materia_id')
             ->unique();
 
-        $calificaciones = Calificacion::whereIn('materia_id', $materiasIds)
-            ->with(['estudiante.seccion.grado', 'materia', 'periodoAcademico'])
-            ->get();
+        $query = Calificacion::whereIn('materia_id', $materiasIds)
+            ->with(['estudiante:id,nombres,apellido_paterno,apellido_materno,seccion_id', 'estudiante.seccion:id,nombre,grado_id', 'estudiante.seccion.grado:id,nombre', 'materia:id,nombre', 'periodoAcademico:id,nombre'])
+            ->orderBy('created_at', 'desc');
+            
+        // Filtro por periodo
+        if ($request->has('periodo_academico_id')) {
+            $query->where('periodo_academico_id', $request->periodo_academico_id);
+        } elseif ($periodoActual) {
+            $query->where('periodo_academico_id', $periodoActual->id);
+        }
+        
+        // Filtro por materia
+        if ($request->has('materia_id')) {
+            $query->where('materia_id', $request->materia_id);
+        }
+
+        $calificaciones = $query->limit(500)->get();
 
         return response()->json(['calificaciones' => $calificaciones]);
     }
@@ -161,24 +181,189 @@ class DocentePortalController extends Controller
             return response()->json(['message' => 'Usuario no es docente'], 403);
         }
 
+        // Obtener solo las materias del periodo actual
+        $periodoActual = \App\Models\PeriodoAcademico::where('estado', 'activo')->first();
+        
         $materiasIds = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
+            ->when($periodoActual, function($q) use ($periodoActual) {
+                return $q->where('periodo_academico_id', $periodoActual->id);
+            })
             ->pluck('materia_id')
             ->unique();
 
         $query = Asistencia::whereIn('materia_id', $materiasIds)
-            ->with(['estudiante.seccion', 'materia']);
+            ->with(['estudiante:id,nombres,apellido_paterno,apellido_materno,seccion_id', 'estudiante.seccion:id,nombre', 'materia:id,nombre'])
+            ->select('id', 'estudiante_id', 'materia_id', 'fecha', 'estado', 'observaciones');
 
         // Filtros opcionales
         if ($request->has('fecha_inicio') && $request->has('fecha_fin')) {
             $query->whereBetween('fecha', [$request->fecha_inicio, $request->fecha_fin]);
+        } else {
+            // Por defecto, solo últimos 30 días
+            $query->where('fecha', '>=', now()->subDays(30));
         }
 
         if ($request->has('materia_id')) {
             $query->where('materia_id', $request->materia_id);
         }
 
-        $asistencias = $query->orderBy('fecha', 'desc')->get();
+        $asistencias = $query->orderBy('fecha', 'desc')->limit(1000)->get();
 
         return response()->json(['asistencias' => $asistencias]);
+    }
+
+    /**
+     * Verificar si el docente es tutor de alguna sección
+     */
+    public function esTutor(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->docente) {
+            return response()->json(['message' => 'Usuario no es docente'], 403);
+        }
+
+        $asignacionTutor = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
+            ->where('es_tutor', true)
+            ->where(function($query) {
+                $query->whereNull('tutor_hasta')
+                      ->orWhere('tutor_hasta', '>=', now());
+            })
+            ->with(['seccion.grado', 'periodoAcademico'])
+            ->first();
+
+        if (!$asignacionTutor) {
+            return response()->json(['es_tutor' => false]);
+        }
+
+        return response()->json([
+            'es_tutor' => true,
+            'seccion' => $asignacionTutor->seccion,
+            'periodo' => $asignacionTutor->periodoAcademico,
+            'tutor_hasta' => $asignacionTutor->tutor_hasta
+        ]);
+    }
+
+    /**
+     * Ver calificaciones de la sección como tutor
+     */
+    public function tutorCalificaciones(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->docente) {
+            return response()->json(['message' => 'Usuario no es docente'], 403);
+        }
+
+        // Verificar que es tutor activo
+        $asignacionTutor = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
+            ->where('es_tutor', true)
+            ->where(function($query) {
+                $query->whereNull('tutor_hasta')
+                      ->orWhere('tutor_hasta', '>=', now());
+            })
+            ->first();
+
+        if (!$asignacionTutor) {
+            return response()->json(['message' => 'No es tutor activo de ninguna sección'], 403);
+        }
+
+        // Obtener estudiantes de la sección
+        $estudiantesIds = Estudiante::where('seccion_id', $asignacionTutor->seccion_id)
+            ->pluck('id');
+
+        $query = Calificacion::whereIn('estudiante_id', $estudiantesIds)
+            ->with([
+                'estudiante:id,nombres,apellido_paterno,apellido_materno,seccion_id', 
+                'materia:id,nombre', 
+                'periodoAcademico:id,nombre'
+            ])
+            ->select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota', 'modificaciones_count', 'ultima_modificacion');
+
+        // Filtro por periodo
+        if ($request->has('periodo_academico_id')) {
+            $query->where('periodo_academico_id', $request->periodo_academico_id);
+        } else {
+            // Por defecto, periodo actual del tutor
+            $query->where('periodo_academico_id', $asignacionTutor->periodo_academico_id);
+        }
+
+        // Filtro por estudiante
+        if ($request->has('estudiante_id')) {
+            $query->where('estudiante_id', $request->estudiante_id);
+        }
+
+        $calificaciones = $query->orderBy('estudiante_id')
+            ->orderBy('materia_id')
+            ->limit(1000)
+            ->get();
+
+        return response()->json([
+            'calificaciones' => $calificaciones,
+            'seccion' => $asignacionTutor->seccion
+        ]);
+    }
+
+    /**
+     * Ver asistencias de la sección como tutor
+     */
+    public function tutorAsistencias(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->docente) {
+            return response()->json(['message' => 'Usuario no es docente'], 403);
+        }
+
+        // Verificar que es tutor activo
+        $asignacionTutor = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
+            ->where('es_tutor', true)
+            ->where(function($query) {
+                $query->whereNull('tutor_hasta')
+                      ->orWhere('tutor_hasta', '>=', now());
+            })
+            ->first();
+
+        if (!$asignacionTutor) {
+            return response()->json(['message' => 'No es tutor activo de ninguna sección'], 403);
+        }
+
+        // Obtener estudiantes de la sección
+        $estudiantesIds = Estudiante::where('seccion_id', $asignacionTutor->seccion_id)
+            ->pluck('id');
+
+        $query = Asistencia::whereIn('estudiante_id', $estudiantesIds)
+            ->with([
+                'estudiante:id,nombres,apellido_paterno,apellido_materno', 
+                'materia:id,nombre'
+            ])
+            ->select('id', 'estudiante_id', 'materia_id', 'fecha', 'estado', 'observaciones');
+
+        // Filtros de fecha
+        if ($request->has('fecha_inicio') && $request->has('fecha_fin')) {
+            $query->whereBetween('fecha', [$request->fecha_inicio, $request->fecha_fin]);
+        } else {
+            // Por defecto, últimos 30 días
+            $query->where('fecha', '>=', now()->subDays(30));
+        }
+
+        // Filtro por estudiante
+        if ($request->has('estudiante_id')) {
+            $query->where('estudiante_id', $request->estudiante_id);
+        }
+
+        // Filtro por materia
+        if ($request->has('materia_id')) {
+            $query->where('materia_id', $request->materia_id);
+        }
+
+        $asistencias = $query->orderBy('fecha', 'desc')
+            ->limit(1000)
+            ->get();
+
+        return response()->json([
+            'asistencias' => $asistencias,
+            'seccion' => $asignacionTutor->seccion
+        ]);
     }
 }

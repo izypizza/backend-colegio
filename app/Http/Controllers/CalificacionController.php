@@ -247,15 +247,30 @@ class CalificacionController extends Controller
                 'observaciones.max' => 'Las observaciones no deben exceder 500 caracteres',
             ]);
 
-            // Si es docente, verificar que tenga asignada esta materia
+            // Si es docente, verificar límite de modificaciones (máximo 3 cambios)
             $user = $request->user();
             if ($user->role === 'docente') {
+                // Verificar que tenga asignada esta materia
                 $docente = \App\Models\Docente::where('user_id', $user->id)->first();
                 
                 if (!$docente) {
                     return response()->json([
                         'message' => 'No se encontró el registro de docente'
                     ], 403);
+                }
+
+                // Si se está modificando la nota, verificar límite
+                if (isset($validated['nota']) && $validated['nota'] != $calificacion->nota) {
+                    if ($calificacion->modificaciones_count >= 3) {
+                        return response()->json([
+                            'message' => 'Ha alcanzado el límite máximo de 3 modificaciones para esta calificación',
+                            'errors' => ['nota' => ['Esta calificación ya fue modificada 3 veces. Contacte al administrador si necesita cambiarla nuevamente.']]
+                        ], 422);
+                    }
+                    
+                    // Incrementar contador de modificaciones
+                    $validated['modificaciones_count'] = $calificacion->modificaciones_count + 1;
+                    $validated['ultima_modificacion'] = now();
                 }
 
                 // Usar la materia actual o la nueva si se está actualizando
@@ -295,6 +310,7 @@ class CalificacionController extends Controller
             return response()->json([
                 'message' => 'Calificación actualizada correctamente',
                 'calificacion' => $calificacion->load(['estudiante', 'materia', 'periodoAcademico']),
+                'modificaciones_restantes' => max(0, 3 - ($calificacion->modificaciones_count ?? 0))
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -328,6 +344,29 @@ class CalificacionController extends Controller
     {
         $periodo_id = $request->input('periodo_academico_id');
         
+        // Verificar si hay calificaciones en el sistema
+        $totalCalificaciones = Calificacion::count();
+        if ($totalCalificaciones === 0) {
+            return response()->json([
+                'general' => [
+                    'total' => 0,
+                    'promedio' => 0,
+                    'aprobados' => 0,
+                    'desaprobados' => 0,
+                    'porcentaje_aprobados' => 0,
+                ],
+                'por_nivel' => [],
+                'por_grado' => [],
+                'distribucion' => [
+                    'excelente' => 0,
+                    'bueno' => 0,
+                    'regular' => 0,
+                    'deficiente' => 0,
+                ],
+                'mensaje' => 'No hay calificaciones registradas en el sistema'
+            ]);
+        }
+        
         // Estadísticas generales usando agregaciones SQL
         $generalQuery = \DB::table('calificaciones');
         if ($periodo_id) {
@@ -344,6 +383,28 @@ class CalificacionController extends Controller
             SUM(CASE WHEN nota >= 11 AND nota < 14 THEN 1 ELSE 0 END) as regulares,
             SUM(CASE WHEN nota < 11 THEN 1 ELSE 0 END) as deficientes
         ')->first();
+        
+        // Si el filtro por periodo no devuelve resultados
+        if (!$general || $general->total == 0) {
+            return response()->json([
+                'general' => [
+                    'total' => 0,
+                    'promedio' => 0,
+                    'aprobados' => 0,
+                    'desaprobados' => 0,
+                    'porcentaje_aprobados' => 0,
+                ],
+                'por_nivel' => [],
+                'por_grado' => [],
+                'distribucion' => [
+                    'excelente' => 0,
+                    'bueno' => 0,
+                    'regular' => 0,
+                    'deficiente' => 0,
+                ],
+                'mensaje' => 'No hay calificaciones para el período seleccionado'
+            ]);
+        }
 
         // Estadísticas por nivel (usando el campo nivel de grados)
         $porNivelQuery = \DB::table('calificaciones')
