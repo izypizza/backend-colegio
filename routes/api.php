@@ -42,6 +42,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Dashboard - Estadísticas según rol
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
+    
+    // Año académico - Disponible para todos los autenticados
+    Route::get('/dashboard/anio-academico', [DashboardController::class, 'anioAcademico']);
 
     // ========================================
     // CONFIGURACIONES DEL SISTEMA (Solo Admin)
@@ -67,6 +70,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('grados', GradoController::class);
         Route::apiResource('materias', MateriaController::class);
         Route::apiResource('periodos', PeriodoAcademicoController::class)->except(['index', 'show']);
+        
+        // Gestión de periodos académicos
+        Route::post('/periodos/{id}/activar', [PeriodoAcademicoController::class, 'activar']);
+        Route::post('/periodos/generar-anio', [PeriodoAcademicoController::class, 'generarAnio']);
     });
 
     // Docentes, Padres y Estudiantes pueden VER períodos, grados, materias y secciones (solo lectura)
@@ -106,18 +113,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // CALIFICACIONES - Admin, Auxiliar y Docentes
     // ========================================
     Route::middleware(['role:admin,auxiliar,docente', 'modulo.activo:modulo_calificaciones_activo'])->group(function () {
+        // Rutas específicas ANTES de las genéricas con {id}
+        Route::middleware(['role:admin,auxiliar'])->group(function () {
+            Route::get('/calificaciones/estadisticas-avanzadas', [CalificacionController::class, 'estadisticasAvanzadas']);
+            Route::get('/calificaciones/boletin/{estudiante_id}/{periodo_id}', [CalificacionController::class, 'boletin']);
+            Route::get('/calificaciones/reporte/materia/{materia_id}', [CalificacionController::class, 'reportePorMateria']);
+            Route::delete('/calificaciones/{id}', [CalificacionController::class, 'destroy']);
+        });
+        
+        // Rutas genéricas de calificaciones
         Route::get('/calificaciones', [CalificacionController::class, 'index']);
         Route::post('/calificaciones', [CalificacionController::class, 'store']);
         Route::get('/calificaciones/{id}', [CalificacionController::class, 'show']);
         Route::put('/calificaciones/{id}', [CalificacionController::class, 'update']);
-
-        // Solo admin y auxiliar pueden eliminar y ver estadísticas avanzadas
-        Route::middleware(['role:admin,auxiliar'])->group(function () {
-            Route::delete('/calificaciones/{id}', [CalificacionController::class, 'destroy']);
-            Route::get('/calificaciones/estadisticas-avanzadas', [CalificacionController::class, 'estadisticasAvanzadas']);
-            Route::get('/calificaciones/boletin/{estudiante_id}/{periodo_id}', [CalificacionController::class, 'boletin']);
-            Route::get('/calificaciones/reporte/materia/{materia_id}', [CalificacionController::class, 'reportePorMateria']);
-        });
     });
 
     // ========================================

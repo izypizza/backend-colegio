@@ -570,4 +570,34 @@ class DashboardController extends Controller
 
         return array_slice($actividades, 0, 5);
     }
-}
+
+    /**
+     * Obtener información del año académico actual
+     */
+    public function anioAcademico(Request $request)
+    {
+        $periodoActivo = PeriodoAcademico::activo();
+        $anioActual = PeriodoAcademico::anioActual();
+        
+        // Obtener todos los periodos del año actual
+        $periodosDelAnio = PeriodoAcademico::delAnioActual();
+        
+        return response()->json([
+            'anio_actual' => $anioActual,
+            'periodo_activo' => $periodoActivo ? [
+                'id' => $periodoActivo->id,
+                'nombre' => $periodoActivo->nombre,
+                'anio' => $periodoActivo->anio,
+                'estado' => $periodoActivo->estado,
+            ] : null,
+            'periodos_disponibles' => $periodosDelAnio->map(function($periodo) {
+                return [
+                    'id' => $periodo->id,
+                    'nombre' => $periodo->nombre,
+                    'anio' => $periodo->anio,
+                    'estado' => $periodo->estado,
+                ];
+            }),
+            'total_periodos' => $periodosDelAnio->count(),
+        ]);
+    }}

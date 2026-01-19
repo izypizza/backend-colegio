@@ -55,4 +55,3 @@ class CheckMaintenanceMode
         return $next($request);
     }
 }
-

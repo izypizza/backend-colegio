@@ -127,6 +127,6 @@ class ConfiguracionSeeder extends Seeder
             );
         }
 
-        $this->command->info('✅ Configuraciones del sistema creadas');
+        $this->command->info('Configuraciones del sistema creadas');
     }
 }

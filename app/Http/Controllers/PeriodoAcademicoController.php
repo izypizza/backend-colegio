@@ -64,4 +64,63 @@ class PeriodoAcademicoController extends Controller
         $periodo->delete();
         return response()->json(['message' => 'Periodo académico eliminado correctamente'], 200);
     }
-}
+
+    /**
+     * Activar un periodo académico (desactiva todos los demás)
+     */
+    public function activar(Request $request, string $id)
+    {
+        $periodo = PeriodoAcademico::findOrFail($id);
+        
+        // Desactivar todos los periodos
+        PeriodoAcademico::query()->update(['estado' => 'inactivo']);
+        
+        // Activar el periodo seleccionado
+        $periodo->estado = 'activo';
+        $periodo->save();
+        
+        return response()->json([
+            'message' => "Periodo '{$periodo->nombre}' activado correctamente",
+            'periodo' => $periodo
+        ]);
+    }
+
+    /**
+     * Generar periodos para un año específico
+     */
+    public function generarAnio(Request $request)
+    {
+        $validated = $request->validate([
+            'anio' => 'required|integer|min:2000|max:2100'
+        ]);
+        
+        $anio = $validated['anio'];
+        
+        // Verificar si ya existen periodos para este año
+        $periodosExistentes = PeriodoAcademico::where('anio', $anio)->get();
+        
+        if ($periodosExistentes->count() > 0) {
+            return response()->json([
+                'message' => "Ya existen periodos para el año {$anio}",
+                'periodos_existentes' => $periodosExistentes
+            ], 400);
+        }
+        
+        // Crear los 4 bimestres
+        $bimestres = [
+            ['nombre' => "I Bimestre {$anio}", 'anio' => $anio, 'estado' => 'inactivo'],
+            ['nombre' => "II Bimestre {$anio}", 'anio' => $anio, 'estado' => 'inactivo'],
+            ['nombre' => "III Bimestre {$anio}", 'anio' => $anio, 'estado' => 'inactivo'],
+            ['nombre' => "IV Bimestre {$anio}", 'anio' => $anio, 'estado' => 'inactivo'],
+        ];
+        
+        $periodosCreados = [];
+        foreach ($bimestres as $bimestre) {
+            $periodosCreados[] = PeriodoAcademico::create($bimestre);
+        }
+        
+        return response()->json([
+            'message' => "Periodos para {$anio} creados correctamente",
+            'periodos' => $periodosCreados
+        ], 201);
+    }}
