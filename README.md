@@ -51,14 +51,14 @@ La API estará disponible en `http://localhost:8000`
 
 ## Credenciales de Prueba
 
-| Rol          | Email                    | Contrasena     |
-| ------------ | ------------------------ | -------------- |
-| Admin        | admin@colegio.pe         | admin123       |
-| Auxiliar     | auxiliar@colegio.pe      | auxiliar123    |
-| Bibliotecario| bibliotecario@colegio.pe | biblioteca2025 |
-| Docente      | docente@colegio.pe       | docente123     |
-| Padre        | padre@colegio.pe         | padre123       |
-| Estudiante   | estudiante@colegio.pe    | estudiante123  |
+| Rol           | Email                    | Contrasena     |
+| ------------- | ------------------------ | -------------- |
+| Admin         | admin@colegio.pe         | admin123       |
+| Auxiliar      | auxiliar@colegio.pe      | auxiliar123    |
+| Bibliotecario | bibliotecario@colegio.pe | biblioteca2025 |
+| Docente       | docente@colegio.pe       | docente123     |
+| Padre         | padre@colegio.pe         | padre123       |
+| Estudiante    | estudiante@colegio.pe    | estudiante123  |
 
 ### Usuarios Adicionales
 
@@ -208,18 +208,18 @@ POST   /docente/registrar-asistencia     # Registrar (alternativa)
 }
 ```
 
-**Estados:**
+Estados:
 
--   🟢 `presente`: Asistió puntualmente
--   🟡 `tarde`: Llegó tarde
--   🔴 `ausente`: No asistió
+- presente: Asistio puntualmente
+- tarde: Llego tarde
+- ausente: No asistio
 
-**Validaciones:**
+Validaciones:
 
--   ✅ No registrar con más de 60 días de antigüedad
--   ✅ No registrar fechas futuras
--   ✅ No duplicar (estudiante + materia + fecha)
--   ✅ Docentes: verificación automática de asignación de materia y sección
+- No registrar con mas de 60 dias de antiguedad
+- No registrar fechas futuras
+- No duplicar (estudiante + materia + fecha)
+- Docentes: verificacion automatica de asignacion de materia y seccion
 
 ### Biblioteca
 
@@ -244,11 +244,11 @@ GET    /estudiante/mis-prestamos   # Préstamos del estudiante
 
 **Validaciones de Préstamos:**
 
--   Stock disponible (cantidad_total - préstamos aprobados activos)
--   Límite 3 préstamos activos por usuario
--   No préstamos vencidos
--   No duplicados del mismo libro
--   Estados: `pendiente` → `aprobado`/`rechazado` → `devuelto`
+- Stock disponible (cantidad_total - préstamos aprobados activos)
+- Límite 3 préstamos activos por usuario
+- No préstamos vencidos
+- No duplicados del mismo libro
+- Estados: `pendiente` → `aprobado`/`rechazado` → `devuelto`
 
 ### Elecciones
 
@@ -272,9 +272,9 @@ GET    /elecciones/{id}/resultados  # Ver resultados (si están publicados)
 
 **Estados de Elección:**
 
--   `pendiente`: No comenzó
--   `activa`: En curso, se puede votar
--   `cerrada`: Finalizada, resultados pueden o no estar publicados
+- `pendiente`: No comenzó
+- `activa`: En curso, se puede votar
+- `cerrada`: Finalizada, resultados pueden o no estar publicados
 
 ### Configuraciones (Admin)
 
@@ -286,9 +286,9 @@ GET    /configuraciones/modo-mantenimiento  # Ver estado mantenimiento
 
 **Configuraciones disponibles:**
 
--   `modo_mantenimiento`: `true`/`false`
--   `mensaje_mantenimiento`: Texto personalizado
--   Preferencias de accesibilidad (frontend)
+- `modo_mantenimiento`: `true`/`false`
+- `mensaje_mantenimiento`: Texto personalizado
+- Preferencias de accesibilidad (frontend)
 
 ### Portales Específicos
 
@@ -321,7 +321,7 @@ GET    /padre/asistencias-hijo/{id}     # Asistencias de un hijo específico
 GET    /padre/boletin-hijo/{hijo_id}/{periodo_id}  # Boletín de un hijo
 ```
 
-## 🔒 Middleware y Autenticación
+## Middleware y Autenticacion
 
 ### Autenticación (Sanctum)
 
@@ -341,18 +341,14 @@ Route::middleware(['auth:sanctum', 'role:admin,auxiliar'])->group(function() {
 });
 ```
 
-**Roles disponibles:**
+Roles disponibles:
 
--   `admin`: Acceso total
--   `auxiliar`: Gestión académica
--   `bibliotecario`: Gestión de biblioteca
--   `docente`: Portal docente
--   `padre`: Portal padre
--   auxiliar: Gestion academica
--   bibliotecario: Gestion de biblioteca
--   docente: Portal docente
--   padre: Portal padre
--   estudiante: Portal estudiante
+- admin: Acceso total
+- auxiliar: Gestion academica
+- bibliotecario: Gestion de biblioteca
+- docente: Portal docente
+- padre: Portal padre
+- estudiante: Portal estudiante
 
 ## Estructura del Proyecto
 
@@ -426,7 +422,7 @@ backend/
 └── README.md
 ```
 
-## 🎯 Modelos Principales
+## Modelos Principales
 
 ### Estudiante
 
@@ -474,7 +470,7 @@ devuelto   // Libro devuelto (campo booleano adicional)
 estudiante(), libro(), usuario(), aprobador()
 ```
 
-## 🔧 Configuración
+## Configuracion
 
 ### Variables de Entorno
 
@@ -501,7 +497,7 @@ SESSION_DOMAIN=localhost
 
 Configurado en `config/cors.php` para aceptar requests de `http://localhost:3000`
 
-## 🚀 Comandos Útiles
+## Comandos Utiles
 
 ```bash
 # Desarrollo
@@ -542,9 +538,9 @@ php artisan test                     # Ejecutar tests
 ### Prestamo no se crea
 
 - Causas:
-  1. Estudiante sin user_id
-  2. Stock agotado
-  3. Limite de 3 alcanzado
+    1. Estudiante sin user_id
+    2. Stock agotado
+    3. Limite de 3 alcanzado
 - Solucion: Verificar seeders, validaciones en consola
 
 ### Padre no ve hijos
@@ -560,16 +556,19 @@ php artisan test                     # Ejecutar tests
 ### Error "No tiene permisos para acceder a este recurso"
 
 Roles autorizados para asistencias:
+
 - admin: Acceso completo
 - auxiliar: Acceso completo (eliminar solo admin/auxiliar)
 - docente: Ver y registrar asistencias de sus estudiantes
 
 Roles NO autorizados:
+
 - estudiante: Solo puede ver sus propias asistencias
 - padre: Solo puede ver asistencias de sus hijos
 - bibliotecario: Sin acceso a asistencias
 
 Usuario con rol incorrecto - En Laravel Tinker:
+
 ```bash
 php artisan tinker
 $user = User::where('email', 'usuario@example.com')->first();
@@ -578,6 +577,7 @@ $user->save();
 ```
 
 Token corrupto - En consola del navegador:
+
 ```javascript
 localStorage.removeItem("auth_token");
 localStorage.removeItem("refresh_token");
@@ -590,6 +590,7 @@ window.location.href = "/login";
 ### Version 1.3.0 (19 Enero 2026) - Consolidacion y Limpieza
 
 Cambios principales:
+
 - Sistema de Grados y Secciones unificado en una sola vista
 - Navegacion directa a Configuraciones (sin dropdown)
 - Campo turno agregado a secciones (Manana/Tarde)
@@ -597,6 +598,7 @@ Cambios principales:
 - READMEs actualizados sin emojis
 
 Archivos modificados:
+
 - app/dashboard/grados/page.tsx: Reescrito con vista dual (grados/secciones)
 - src/components/layout/Sidebar.tsx: Eliminado menu "Secciones"
 - src/components/layout/Navbar.tsx: Configuraciones con link directo
@@ -604,6 +606,7 @@ Archivos modificados:
 - 2026_01_19_164622_add_turno_to_secciones_table.php: Nuevo campo
 
 Base de datos actual:
+
 - Grados: 11 | Secciones: 54 | Docentes: 16
 - Padres: 31 | Estudiantes: ~450 | Materias: 11
 - Calificaciones: ~21000 | Asistencias: ~8000
@@ -615,22 +618,22 @@ Base de datos actual:
 #### Nuevas Funcionalidades
 
 1. Sistema de Tutores para Docentes
-   - Los docentes pueden ser asignados como tutores de una seccion especifica
-   - Vista especial para tutores con acceso a todas las calificaciones y asistencias
-   - Validacion temporal con campo tutor_hasta
-   - 3 nuevos endpoints: /api/docente/es-tutor, /api/docente/tutor-calificaciones, /api/docente/tutor-asistencias
+    - Los docentes pueden ser asignados como tutores de una seccion especifica
+    - Vista especial para tutores con acceso a todas las calificaciones y asistencias
+    - Validacion temporal con campo tutor_hasta
+    - 3 nuevos endpoints: /api/docente/es-tutor, /api/docente/tutor-calificaciones, /api/docente/tutor-asistencias
 
 2. Limite de Modificaciones en Calificaciones
-   - Los docentes pueden modificar una calificacion maximo 3 veces
-   - Tracking de modificaciones con campos modificaciones_count y ultima_modificacion
-   - Admin y auxiliar sin limite de modificaciones
-   - Validacion automatica antes de actualizar notas
+    - Los docentes pueden modificar una calificacion maximo 3 veces
+    - Tracking de modificaciones con campos modificaciones_count y ultima_modificacion
+    - Admin y auxiliar sin limite de modificaciones
+    - Validacion automatica antes de actualizar notas
 
 3. Optimizaciones de Performance
-   - DashboardController: Raw SQL con DB::table() y selectRaw() (~80% mas rapido)
-   - DocentePortalController: Limites de 500 calificaciones y 1000 asistencias con filtros por defecto
-   - EstudiantePortalController: Limite de 500 registros + filtro de 90 dias en asistencias
-   - PadrePortalController: Limite de 500 registros + filtro de 90 dias, carga selectiva de columnas
+    - DashboardController: Raw SQL con DB::table() y selectRaw() (~80% mas rapido)
+    - DocentePortalController: Limites de 500 calificaciones y 1000 asistencias con filtros por defecto
+    - EstudiantePortalController: Limite de 500 registros + filtro de 90 dias en asistencias
+    - PadrePortalController: Limite de 500 registros + filtro de 90 dias, carga selectiva de columnas
 
 ---
 
