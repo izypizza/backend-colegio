@@ -16,7 +16,7 @@ class BibliotecarioUserSeeder extends Seeder
     {
         // Verificar si ya existe el usuario bibliotecario
         if (User::where('email', 'bibliotecario@colegio.pe')->exists()) {
-            $this->command->info('ℹ️  Usuario bibliotecario ya existe');
+            $this->command->info('Usuario bibliotecario ya existe');
             return;
         }
 
@@ -29,8 +29,8 @@ class BibliotecarioUserSeeder extends Seeder
             'email_verified_at' => now(),
         ]);
 
-        $this->command->info('✅ Usuario bibliotecario creado exitosamente');
-        $this->command->info('📧 Email: bibliotecario@colegio.pe');
-        $this->command->info('🔑 Password: biblioteca2025');
+        $this->command->info('Usuario bibliotecario creado exitosamente');
+        $this->command->info('Email: bibliotecario@colegio.pe');
+        $this->command->info('Password: biblioteca2025');
     }
 }

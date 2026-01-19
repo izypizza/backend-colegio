@@ -26,6 +26,13 @@ class DocenteFactory extends Factory
             'Educación Física', 'Arte y Cultura', 'Inglés', 'Educación Religiosa',
             'Tutoría', 'Educación para el Trabajo', 'Desarrollo Personal y Ciudadanía'
         ];
+        $direcciones = [
+            'Av. Los Maestros 123, Cusco',
+            'Jr. Educación 456, Cusco',
+            'Calle Los Profesores 789, Wanchaq',
+            'Av. La Cultura 234, Cusco',
+            'Jr. Pumacurco 567, Cusco'
+        ];
         
         $nombre = fake()->randomElement($nombres);
         $apPaterno = fake()->randomElement($apellidosPaternos);
@@ -41,7 +48,7 @@ class DocenteFactory extends Factory
             'dni' => fake()->unique()->numerify('########'),
             'email' => strtolower($nombreEmail . '.' . $apellidoEmail) . '@colegio.pe',
             'telefono' => '9' . fake()->numerify('########'),
-            'direccion' => fake()->address(),
+            'direccion' => fake()->randomElement($direcciones),
             'especialidad' => fake()->randomElement($especialidades),
         ];
     }

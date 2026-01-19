@@ -13,7 +13,9 @@ class Seccion extends Model
 
     protected $fillable = [
         'nombre',
-        'grado_id'
+        'grado_id',
+        'capacidad_maxima',
+        'turno',
     ];
 
     public function grado()

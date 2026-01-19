@@ -1,25 +1,25 @@
-# Sistema de Gestión Escolar - Backend API
+# Sistema de Gestion Escolar - Backend API
 
-API REST desarrollada con **Laravel 12** para la gestión integral de la I.E. N° 51006 "TÚPAC AMARU". Sistema completo con autenticación JWT, roles, gestión académica, biblioteca digital y sistema electoral.
+API REST desarrollada con Laravel 12 para la gestion integral de la I.E. N° 51006 "TUPAC AMARU". Sistema completo con autenticacion JWT, roles, gestion academica, biblioteca digital y sistema electoral.
 
-## 🚀 Tecnologías
+## Tecnologias
 
--   **Framework**: Laravel 12.0
--   **PHP**: 8.2+
--   **Base de Datos**: MySQL 8.0
--   **Autenticación**: Laravel Sanctum (JWT)
--   **Autorización**: Spatie Laravel Permission
--   **Exportación**: Laravel Excel, DomPDF
--   **Imágenes**: Intervention Image
+- Framework: Laravel 12.0
+- PHP: 8.2+
+- Base de Datos: MySQL 8.0
+- Autenticacion: Laravel Sanctum (JWT)
+- Autorizacion: Spatie Laravel Permission
+- Exportacion: Laravel Excel, DomPDF
+- Imagenes: Intervention Image
 
-## 📋 Requisitos Previos
+## Requisitos Previos
 
--   PHP 8.2 o superior
--   Composer
--   MySQL 8.0 o superior
--   XAMPP/WAMP o servidor web local
+- PHP 8.2 o superior
+- Composer
+- MySQL 8.0 o superior
+- XAMPP/WAMP o servidor web local
 
-## ⚡ Instalación
+## Instalacion
 
 ```bash
 # Clonar repositorio
@@ -49,62 +49,58 @@ php artisan serve
 
 La API estará disponible en `http://localhost:8000`
 
-## 🔐 Credenciales de Prueba
+## Credenciales de Prueba
 
-| Rol               | Email                    | Contraseña     |
-| ----------------- | ------------------------ | -------------- |
-| **Admin**         | admin@colegio.pe         | admin123       |
-| **Auxiliar**      | auxiliar@colegio.pe      | auxiliar123    |
-| **Bibliotecario** | bibliotecario@colegio.pe | biblioteca2025 |
-| **Docente**       | docente@colegio.pe       | docente123     |
-| **Padre**         | padre@colegio.pe         | padre123       |
-| **Estudiante**    | estudiante@colegio.pe    | estudiante123  |
+| Rol          | Email                    | Contrasena     |
+| ------------ | ------------------------ | -------------- |
+| Admin        | admin@colegio.pe         | admin123       |
+| Auxiliar     | auxiliar@colegio.pe      | auxiliar123    |
+| Bibliotecario| bibliotecario@colegio.pe | biblioteca2025 |
+| Docente      | docente@colegio.pe       | docente123     |
+| Padre        | padre@colegio.pe         | padre123       |
+| Estudiante   | estudiante@colegio.pe    | estudiante123  |
 
 ### Usuarios Adicionales
 
--   **Docentes**: `docente{número}@colegio.pe` con contraseña `docente{número}`
--   **Padres**: `padre{número}@colegio.pe` con contraseña `padre{número}`
--   **Estudiantes**: `estudiante{número}@colegio.pe` con contraseña `estudiante{número}`
+- Docentes: docente{numero}@colegio.pe con contrasena docente{numero}
+- Padres: padre{numero}@colegio.pe con contrasena padre{numero}
+- Estudiantes: estudiante{numero}@colegio.pe con contrasena estudiante{numero}
 
-> ⚠️ **Producción**: Cambiar todas las credenciales antes de desplegar
+NOTA: Cambiar todas las credenciales antes de desplegar en produccion
 
-## 📊 Datos Generados por el Seeder
+## Datos Generados por el Seeder
 
-Después de ejecutar `php artisan migrate:fresh --seed`:
+Despues de ejecutar php artisan migrate:fresh --seed:
 
-### Estructura Académica
+### Estructura Academica
 
--   **Grados**: Primaria (1-6) + Secundaria (1-5)
--   **Secciones**: Distribuidas según estructura real del colegio
-    -   Primaria inicial: Secciones A-E
-    -   Primaria avanzada: Secciones A-F
-    -   Secundaria: Secciones A-D
--   **Materias**: Currículo Nacional Peruano completo
--   **Períodos**: Bimestres del año escolar actual
+- Grados: Primaria (1-6) + Secundaria (1-5) = 11 grados
+- Secciones: 54 secciones distribuidas con turnos (Manana/Tarde)
+- Materias: Curriculo Nacional Peruano completo
+- Periodos: 8 periodos academicos (bimestres)
 
 ### Personal y Usuarios
 
--   **Docentes**: Todos con usuario y perfil completo
--   **Padres**: Algunos con acceso al sistema
--   **Estudiantes**: Todos con usuario para acceso al portal
+- Docentes: 16 docentes con usuario y especialidades
+- Padres: 31 padres vinculados
+- Estudiantes: ~450 estudiantes con usuario activo
 
-### Datos Académicos
+### Datos Academicos
 
--   **Asignaciones**: Docente-Materia por Sección
--   **Horarios**: Clases distribuidas en la semana
--   **Asistencias**: Últimos días con estados realistas (presente/tarde/ausente)
--   **Calificaciones**: Todos los estudiantes en todos los períodos
-    -   Distribución realista según rendimiento
-    -   Incluye estudiantes destacados y con dificultades
+- Asignaciones: 327 asignaciones docente-materia-seccion
+- Horarios: ~810 horarios distribuidos en la semana
+- Asistencias: ~8000 registros de asistencia (presente/tarde/ausente)
+- Calificaciones: ~21000 calificaciones en todos los periodos
 
 ### Biblioteca y Elecciones
 
--   **Libros**: Catálogo con ISBN, editorial, año y sistema de stock
--   **Elecciones**: Sistema electoral con candidatos
+- Libros: 15 libros en catalogo con ISBN, editorial y stock
+- Elecciones: 2 elecciones configuradas
+- Configuraciones: Sistema de mantenimiento y preferencias
 
-> ✅ **Calidad de Datos**: Todas las relaciones validadas sin valores NULL, integridad referencial completa
+NOTA: Todas las relaciones validadas sin valores NULL, integridad referencial completa
 
-## 📡 Endpoints API
+## Endpoints API
 
 ### Base URL
 
@@ -352,9 +348,13 @@ Route::middleware(['auth:sanctum', 'role:admin,auxiliar'])->group(function() {
 -   `bibliotecario`: Gestión de biblioteca
 -   `docente`: Portal docente
 -   `padre`: Portal padre
--   `estudiante`: Portal estudiante
+-   auxiliar: Gestion academica
+-   bibliotecario: Gestion de biblioteca
+-   docente: Portal docente
+-   padre: Portal padre
+-   estudiante: Portal estudiante
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 backend/
@@ -527,92 +527,57 @@ php artisan tinker                   # REPL de Laravel
 php artisan test                     # Ejecutar tests
 ```
 
-## 🐛 Resolución de Problemas
+## Resolucion de Problemas
 
 ### Error 500 al hacer login
 
--   **Causa**: Base de datos no migrada o credenciales incorrectas
--   **Solución**: `php artisan migrate:fresh --seed`
+- Causa: Base de datos no migrada o credenciales incorrectas
+- Solucion: php artisan migrate:fresh --seed
 
 ### CORS error en frontend
 
--   **Causa**: URL frontend no en SANCTUM_STATEFUL_DOMAINS
--   **Solución**: Agregar en `.env` y reiniciar servidor
+- Causa: URL frontend no en SANCTUM_STATEFUL_DOMAINS
+- Solucion: Agregar en .env y reiniciar servidor
 
-### Préstamo no se crea
+### Prestamo no se crea
 
--   **Causas**:
-    1. Estudiante sin `user_id`
-    2. Stock agotado
-    3. Límite de 3 alcanzado
--   **Solución**: Verificar seeders, validaciones en consola
+- Causas:
+  1. Estudiante sin user_id
+  2. Stock agotado
+  3. Limite de 3 alcanzado
+- Solucion: Verificar seeders, validaciones en consola
 
 ### Padre no ve hijos
 
--   **Causa**: Usuario padre sin relación en tabla `padres` o sin hijos en `estudiante_padre`
--   **Solución**: Verificar que el padre tenga `user_id` y relaciones en BD
+- Causa: Usuario padre sin relacion en tabla padres o sin hijos en estudiante_padre
+- Solucion: Verificar que el padre tenga user_id y relaciones en BD
 
-### Calificaciones vacías para docente
+### Calificaciones vacias para docente
 
--   **Causa**: No tiene asignaciones en `asignacion_docente_materia`
--   **Solución**: Crear asignaciones desde el admin
+- Causa: No tiene asignaciones en asignacion_docente_materia
+- Solucion: Crear asignaciones desde el admin
 
 ### Error "No tiene permisos para acceder a este recurso"
 
-#### Diagnóstico Rápido
+Roles autorizados para asistencias:
+- admin: Acceso completo
+- auxiliar: Acceso completo (eliminar solo admin/auxiliar)
+- docente: Ver y registrar asistencias de sus estudiantes
 
-**En el navegador (F12 - Consola):**
+Roles NO autorizados:
+- estudiante: Solo puede ver sus propias asistencias
+- padre: Solo puede ver asistencias de sus hijos
+- bibliotecario: Sin acceso a asistencias
 
-```javascript
-JSON.parse(localStorage.getItem("user_data"));
-```
-
-**En Laravel:**
-
-```bash
-php artisan tinker
-User::where('email', 'usuario@example.com')->first(['id', 'name', 'email', 'role']);
-```
-
-#### Soluciones Implementadas (Frontend)
-
-1. **Validación de Rol**: Verifica permisos antes de hacer peticiones API
-2. **Manejo de Errores Detallado**: Mensajes claros con rol actual y requerido
-3. **UI de Acceso Denegado**: Pantallas informativas cuando no hay permisos
-4. **Logging Mejorado**: Logs detallados de errores 403 en consola
-
-#### Roles y Permisos - Asistencias
-
-**Roles autorizados:**
-
--   `admin` - Acceso completo
--   `auxiliar` - Acceso completo (eliminar solo admin/auxiliar)
--   `docente` - Ver y registrar asistencias de sus estudiantes
-
-**Roles NO autorizados:**
-
--   `estudiante` - Solo puede ver sus propias asistencias
--   `padre` - Solo puede ver asistencias de sus hijos
--   `bibliotecario` - Sin acceso a asistencias
-
-#### Soluciones Según el Problema
-
-**Usuario con rol incorrecto:**
-
+Usuario con rol incorrecto - En Laravel Tinker:
 ```bash
 php artisan tinker
 $user = User::where('email', 'usuario@example.com')->first();
-$user->role = 'auxiliar'; // o 'admin' o 'docente'
+$user->role = 'auxiliar';
 $user->save();
 ```
 
-**Sesión expirada:**
-
-1. Cerrar sesión
-2. Iniciar sesión nuevamente
-
-**Token corrupto (en consola del navegador):**
-
+Token corrupto - En consola del navegador:
 ```javascript
 localStorage.removeItem("auth_token");
 localStorage.removeItem("refresh_token");
@@ -620,161 +585,67 @@ localStorage.removeItem("user_data");
 window.location.href = "/login";
 ```
 
-#### Verificar Logs
+## Historial de Actualizaciones
 
-**Backend:**
+### Version 1.3.0 (19 Enero 2026) - Consolidacion y Limpieza
 
-```bash
-tail -f storage/logs/laravel.log
-```
+Cambios principales:
+- Sistema de Grados y Secciones unificado en una sola vista
+- Navegacion directa a Configuraciones (sin dropdown)
+- Campo turno agregado a secciones (Manana/Tarde)
+- Limpieza de migraciones innecesarias
+- READMEs actualizados sin emojis
 
-**Frontend (consola navegador):**
+Archivos modificados:
+- app/dashboard/grados/page.tsx: Reescrito con vista dual (grados/secciones)
+- src/components/layout/Sidebar.tsx: Eliminado menu "Secciones"
+- src/components/layout/Navbar.tsx: Configuraciones con link directo
+- routes/api.php: Reordenadas rutas de calificaciones
+- 2026_01_19_164622_add_turno_to_secciones_table.php: Nuevo campo
 
-```
-Error de permisos: {
-  status: 403,
-  requiredRoles: ["admin", "auxiliar", "docente"],
-  userRole: "estudiante",
-  url: "http://localhost:8000/api/asistencias"
-}
-```
-
-## 📝 Próximas Funcionalidades
-
--   [ ] Notificaciones por email/SMS
--   [ ] API de reportes (PDF, Excel)
--   [ ] Sistema de mensajería
--   [ ] Calendario de eventos
--   [ ] Control de pagos/pensiones
--   [ ] Sistema de tareas y deberes
--   [ ] API para mobile app
--   [ ] WebSockets para notificaciones en tiempo real
--   [ ] Logs de auditoría
-
-## 🧪 Testing
-
-```bash
-# Ejecutar todos los tests
-php artisan test
-
-# Test con cobertura
-php artisan test --coverage
-
-# Test específico
-php artisan test --filter=AuthTest
-```
-
-## 🔄 Historial de Actualizaciones
-
-### Versión 1.2.0 (15 Enero 2026) - Optimización y Nuevas Funcionalidades
-
-#### 🎯 Nuevas Funcionalidades
-
-1. **Sistema de Tutores para Docentes**
-
-    - Los docentes pueden ser asignados como tutores de una sección específica
-    - Vista especial para tutores con acceso a todas las calificaciones y asistencias de su sección
-    - Validación temporal con campo `tutor_hasta`
-    - 3 nuevos endpoints: `/api/docente/es-tutor`, `/api/docente/tutor-calificaciones`, `/api/docente/tutor-asistencias`
-
-2. **Límite de Modificaciones en Calificaciones**
-
-    - Los docentes pueden modificar una calificación máximo 3 veces
-    - Tracking de modificaciones con campos `modificaciones_count` y `ultima_modificacion`
-    - Admin y auxiliar sin límite de modificaciones
-    - Validación automática antes de actualizar notas
-
-3. **Optimizaciones de Performance**
-    - **DashboardController**: Raw SQL con `DB::table()` y `selectRaw()` (~80% más rápido)
-    - **DocentePortalController**: Límites de 500 calificaciones y 1000 asistencias con filtros por defecto
-    - **EstudiantePortalController**: Límite de 500 registros + filtro de 90 días en asistencias
-    - **PadrePortalController**: Límite de 500 registros + filtro de 90 días, carga selectiva de columnas
-
-#### 🔒 Seguridad Mejorada
-
--   ✅ Verificación exhaustiva de filtros en todos los controladores de portales
--   ✅ PadrePortalController: Validación estricta de relación padre-hijo en todos los endpoints
--   ✅ EstudiantePortalController: Acceso solo a datos propios del estudiante
--   ✅ Frontend: Endpoints correctos verificados en todos los componentes
-
-#### 📝 Archivos Modificados
-
-**Backend (7 controladores + 2 modelos):**
-
--   `CalificacionController.php` - Límite de 3 modificaciones, estadísticas avanzadas corregidas
--   `DocentePortalController.php` - Endpoints de tutor, optimizaciones
--   `EstudiantePortalController.php` - Optimizaciones con límites y carga selectiva
--   `PadrePortalController.php` - Optimizaciones con límites y carga selectiva
--   `DashboardController.php` - Raw SQL para estadísticas
--   `Calificacion.php` - Campos de tracking agregados
--   `AsignacionDocenteMateria.php` - Campos de tutor agregados
-
-**Migraciones (2 nuevas):**
-
--   `2026_01_15_000000_add_modificaciones_count_to_calificaciones.php`
--   `2026_01_15_000001_add_es_tutor_to_asignacion_docente_materia.php`
-
-**Frontend (2 archivos):**
-
--   `app/dashboard/page.tsx` - Código corrupto corregido
--   `app/dashboard/docente/tutor/page.tsx` - Nueva vista de tutor (componente completo)
-
-#### 📊 Estado de la Base de Datos (Post-Actualización)
-
-```
-📊 Datos actuales:
+Base de datos actual:
 - Grados: 11 | Secciones: 54 | Docentes: 16
-- Padres: 31 | Estudiantes: 437 | Materias: 11
-- Periodos: 8 | Asignaciones: 325 | Horarios: 789
-- Asistencias: 10,464 | Calificaciones: 20,896
-- Libros: 15 | Elecciones: 2
-- Tutores activos: 3 (válidos hasta 2026-07-15)
-```
-
-#### ⚡ Optimizaciones de Performance
-
-| Controlador                | Antes       | Después          | Mejora            |
-| -------------------------- | ----------- | ---------------- | ----------------- |
-| DashboardController        | N+1 queries | Raw SQL agregado | ~80% más rápido   |
-| DocentePortalController    | Sin límite  | 500/1000 max     | Carga instantánea |
-| EstudiantePortalController | Sin filtro  | 500 + 90 días    | Datos relevantes  |
-| PadrePortalController      | Sin filtro  | 500 + 90 días    | Carga optimizada  |
-
-#### 🧪 Verificación Completa
-
--   ✅ No código corrupto/duplicado encontrado
--   ✅ Todos los controladores sin errores de sintaxis
--   ✅ 43 migraciones ejecutadas correctamente
--   ✅ Base de datos refrescada con seeders
--   ✅ Nuevos campos verificados funcionando
--   ✅ Frontend sin errores de compilación TypeScript
-
-#### ⚠️ Notas de Uso
-
-**Marcar docente como tutor:**
-
-```sql
-UPDATE asignacion_docente_materia
-SET es_tutor = 1, tutor_hasta = '2026-12-31'
-WHERE docente_id = X AND seccion_id = Y;
-```
-
-**Vista de tutor disponible en:** `/dashboard/docente/tutor`
+- Padres: 31 | Estudiantes: ~450 | Materias: 11
+- Calificaciones: ~21000 | Asistencias: ~8000
 
 ---
 
-### Versión 1.1.0 (14 Enero 2026)
+### Version 1.2.0 (15 Enero 2026) - Optimizacion y Nuevas Funcionalidades
 
--   ✅ **Sistema de Asistencias Mejorado**: 3 estados (presente/tarde/ausente)
--   ✅ **Campo Observaciones**: Agregado en asistencias (500 caracteres)
--   ✅ **Validaciones Mejoradas**: Control de fechas antigüedad y futuras
--   ✅ **Lógica de Roles Corregida**: Todos los roles funcionan correctamente
--   ✅ **Rutas API Reorganizadas**: Endpoints específicos antes de apiResource
--   ✅ **Reportes Actualizados**: Estadísticas con tardanzas diferenciadas
+#### Nuevas Funcionalidades
+
+1. Sistema de Tutores para Docentes
+   - Los docentes pueden ser asignados como tutores de una seccion especifica
+   - Vista especial para tutores con acceso a todas las calificaciones y asistencias
+   - Validacion temporal con campo tutor_hasta
+   - 3 nuevos endpoints: /api/docente/es-tutor, /api/docente/tutor-calificaciones, /api/docente/tutor-asistencias
+
+2. Limite de Modificaciones en Calificaciones
+   - Los docentes pueden modificar una calificacion maximo 3 veces
+   - Tracking de modificaciones con campos modificaciones_count y ultima_modificacion
+   - Admin y auxiliar sin limite de modificaciones
+   - Validacion automatica antes de actualizar notas
+
+3. Optimizaciones de Performance
+   - DashboardController: Raw SQL con DB::table() y selectRaw() (~80% mas rapido)
+   - DocentePortalController: Limites de 500 calificaciones y 1000 asistencias con filtros por defecto
+   - EstudiantePortalController: Limite de 500 registros + filtro de 90 dias en asistencias
+   - PadrePortalController: Limite de 500 registros + filtro de 90 dias, carga selectiva de columnas
 
 ---
 
-**Última actualización**: 15 Enero 2026 | **Versión**: 1.2.0
-Proyecto privado para I.E. N° 51006 "TÚPAC AMARU" - Cusco, Perú
+### Version 1.1.0 (14 Enero 2026)
 
-**Laravel**: 12.0 | **PHP**: 8.2+ | **MySQL**: 8.0
+- Sistema de Asistencias Mejorado: 3 estados (presente/tarde/ausente)
+- Campo Observaciones: Agregado en asistencias (500 caracteres)
+- Validaciones Mejoradas: Control de fechas antigüedad y futuras
+- Logica de Roles Corregida: Todos los roles funcionan correctamente
+- Rutas API Reorganizadas: Endpoints especificos antes de apiResource
+- Reportes Actualizados: Estadisticas con tardanzas diferenciadas
+
+---
+
+Ultima actualizacion: 19 Enero 2026 | Version: 1.3.0
+Proyecto para I.E. N 51006 "TUPAC AMARU" - Cusco, Peru
+
+Laravel: 12.0 | PHP: 8.2+ | MySQL: 8.0

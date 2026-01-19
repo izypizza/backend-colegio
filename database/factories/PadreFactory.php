@@ -22,6 +22,14 @@ class PadreFactory extends Factory
         $apellidosPaternos = ['García', 'Rodríguez', 'López', 'Martínez', 'González', 'Pérez', 'Sánchez', 'Ramírez', 'Torres', 'Flores'];
         $apellidosMaternos = ['Rojas', 'Castro', 'Silva', 'Vargas', 'Mendoza', 'Gutiérrez', 'Morales', 'Ortiz', 'Ríos', 'Vega'];
         $ocupaciones = ['Ingeniero', 'Doctor', 'Abogado', 'Comerciante', 'Empresario', 'Contador', 'Profesor', 'Independiente'];
+        $direcciones = [
+            'Av. Los Álamos 123, Cusco',
+            'Jr. Las Flores 456, Wanchaq',
+            'Calle Los Rosales 789, San Sebastián',
+            'Av. Principal 234, Santiago',
+            'Jr. Central 567, San Jerónimo',
+            'Calle Las Palmeras 890, Cusco'
+        ];
         
         $nombre = fake()->randomElement($nombres);
         $apPaterno = fake()->randomElement($apellidosPaternos);
@@ -37,7 +45,7 @@ class PadreFactory extends Factory
             'dni' => fake()->unique()->numerify('########'),
             'email' => strtolower($nombreEmail . '.' . $apellidoEmail . fake()->numerify('##')) . '@gmail.com',
             'telefono' => '9' . fake()->numerify('########'),
-            'direccion' => fake()->address(),
+            'direccion' => fake()->randomElement($direcciones),
             'ocupacion' => fake()->randomElement($ocupaciones),
         ];
     }

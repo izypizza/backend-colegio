@@ -26,12 +26,12 @@ class EstudianteFactory extends Factory
         $apellidosPaternos = ['García', 'Rodríguez', 'López', 'Martínez', 'González', 'Pérez', 'Sánchez', 'Ramírez', 'Torres', 'Flores', 'Vega', 'Díaz', 'Herrera', 'Medina', 'Castillo'];
         $apellidosMaternos = ['Rojas', 'Castro', 'Silva', 'Vargas', 'Mendoza', 'Gutiérrez', 'Morales', 'Ortiz', 'Ríos', 'Vega', 'Ramos', 'Cruz', 'Reyes', 'Salazar', 'Aguilar'];
         $direcciones = [
-            'Av. Los Álamos 123, Lima',
-            'Jr. Las Flores 456, San Isidro',
-            'Calle Los Rosales 789, Miraflores',
-            'Av. Principal 234, Surco',
-            'Jr. Central 567, Pueblo Libre',
-            'Calle Las Palmeras 890, La Molina'
+            'Av. Los Álamos 123, Cusco',
+            'Jr. Las Flores 456, Cusco',
+            'Calle Los Rosales 789, Cusco',
+            'Av. Principal 234, Wanchaq',
+            'Jr. Central 567, San Sebastián',
+            'Calle Las Palmeras 890, Santiago'
         ];
         
         return [

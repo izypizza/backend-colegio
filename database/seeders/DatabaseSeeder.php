@@ -105,6 +105,7 @@ class DatabaseSeeder extends Seeder
 
         $seccionesData = [];
         $grados = Grado::all();
+        $turnos = ['Mañana', 'Tarde'];
         
         foreach ($grados as $grado) {
             $secciones = $estructuraSecciones[$grado->nombre] ?? ['A', 'B', 'C'];
@@ -113,6 +114,7 @@ class DatabaseSeeder extends Seeder
                     'nombre' => $seccion,
                     'grado_id' => $grado->id,
                     'capacidad_maxima' => 40,
+                    'turno' => fake()->randomElement($turnos),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -138,16 +140,19 @@ class DatabaseSeeder extends Seeder
         
         Materia::insert($materiasData);
 
-        // Períodos Académicos 2025
+        // Períodos Académicos - Automáticos basados en el año actual
+        $anioActual = (int) date('Y');
+        $anioSiguiente = $anioActual + 1;
+        
         $periodosData = [
-            ['nombre' => 'I Bimestre 2025', 'anio' => 2025, 'estado' => 'activo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => 'II Bimestre 2025', 'anio' => 2025, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => 'III Bimestre 2025', 'anio' => 2025, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => 'IV Bimestre 2025', 'anio' => 2025, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => 'I Bimestre 2026', 'anio' => 2026, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => 'II Bimestre 2026', 'anio' => 2026, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => 'III Bimestre 2026', 'anio' => 2026, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => 'IV Bimestre 2026', 'anio' => 2026, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => "I Bimestre {$anioActual}", 'anio' => $anioActual, 'estado' => 'activo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => "II Bimestre {$anioActual}", 'anio' => $anioActual, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => "III Bimestre {$anioActual}", 'anio' => $anioActual, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => "IV Bimestre {$anioActual}", 'anio' => $anioActual, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => "I Bimestre {$anioSiguiente}", 'anio' => $anioSiguiente, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => "II Bimestre {$anioSiguiente}", 'anio' => $anioSiguiente, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => "III Bimestre {$anioSiguiente}", 'anio' => $anioSiguiente, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+            ['nombre' => "IV Bimestre {$anioSiguiente}", 'anio' => $anioSiguiente, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
         ];
         
         PeriodoAcademico::insert($periodosData);
@@ -232,10 +237,6 @@ class DatabaseSeeder extends Seeder
         $estudianteCounter = 1;
 
         foreach ($secciones as $index => $seccion) {
-            // Asignar tutor único a cada sección
-            $tutorIndex = $index % $docentes->count();
-            $seccion->update(['tutor_id' => $docentes[$tutorIndex]->id]);
-
             // Crear estudiantes por sección
             $cantidadEstudiantes = rand(...self::ESTUDIANTES_POR_SECCION);
             
@@ -294,6 +295,37 @@ class DatabaseSeeder extends Seeder
 
         // Insertar en batch para mayor eficiencia
         AsignacionDocenteMateria::insert($asignacionesData);
+        
+        // Asignar tutores a algunas secciones (1 tutor por sección)
+        $this->asignarTutores($secciones, $docentes, $periodo);
+    }
+
+    /**
+     * Asignar tutores a secciones
+     */
+    private function asignarTutores($secciones, $docentes, $periodo): void
+    {
+        // Seleccionar 3 secciones aleatorias para tener tutores
+        $seccionesConTutor = $secciones->random(min(3, $secciones->count()));
+        
+        foreach ($seccionesConTutor as $index => $seccion) {
+            $docente = $docentes->random();
+            $materia = Materia::where('nombre', 'Tutoría')->first() ?? Materia::first();
+            
+            // Crear o actualizar asignación como tutor
+            AsignacionDocenteMateria::updateOrCreate(
+                [
+                    'docente_id' => $docente->id,
+                    'seccion_id' => $seccion->id,
+                    'materia_id' => $materia->id,
+                    'periodo_academico_id' => $periodo->id,
+                ],
+                [
+                    'es_tutor' => true,
+                    'tutor_hasta' => now()->addMonths(6)->format('Y-m-d'),
+                ]
+            );
+        }
     }
 
     /**
@@ -567,19 +599,19 @@ class DatabaseSeeder extends Seeder
      */
     private function mostrarEstadisticas(): void
     {
-        $this->command->info('✅ Base de datos poblada con datos del sistema educativo peruano');
-        $this->command->info('📊 Grados: ' . Grado::count());
-        $this->command->info('📚 Secciones: ' . Seccion::count());
-        $this->command->info('👨‍🏫 Docentes: ' . Docente::count());
-        $this->command->info('👨‍👩‍👧 Padres: ' . Padre::count());
-        $this->command->info('👨‍🎓 Estudiantes: ' . Estudiante::count());
-        $this->command->info('📖 Materias: ' . Materia::count());
-        $this->command->info('📅 Periodos: ' . PeriodoAcademico::count());
-        $this->command->info('📝 Asignaciones: ' . AsignacionDocenteMateria::count());
-        $this->command->info('🕐 Horarios: ' . Horario::count());
-        $this->command->info('✓ Asistencias: ' . Asistencia::count());
-        $this->command->info('📊 Calificaciones: ' . Calificacion::count());
-        $this->command->info('📚 Libros: ' . \App\Models\Libro::count());
-        $this->command->info('🗳️ Elecciones: ' . \App\Models\Eleccion::count());
+        $this->command->info('Base de datos poblada con datos del sistema educativo peruano');
+        $this->command->info('Grados: ' . Grado::count());
+        $this->command->info('Secciones: ' . Seccion::count());
+        $this->command->info('Docentes: ' . Docente::count());
+        $this->command->info('Padres: ' . Padre::count());
+        $this->command->info('Estudiantes: ' . Estudiante::count());
+        $this->command->info('Materias: ' . Materia::count());
+        $this->command->info('Periodos: ' . PeriodoAcademico::count());
+        $this->command->info('Asignaciones: ' . AsignacionDocenteMateria::count());
+        $this->command->info('Horarios: ' . Horario::count());
+        $this->command->info('Asistencias: ' . Asistencia::count());
+        $this->command->info('Calificaciones: ' . Calificacion::count());
+        $this->command->info('Libros: ' . \App\Models\Libro::count());
+        $this->command->info('Elecciones: ' . \App\Models\Eleccion::count());
     }
 }
