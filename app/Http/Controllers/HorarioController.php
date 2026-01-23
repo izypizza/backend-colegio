@@ -41,7 +41,15 @@ class HorarioController extends Controller
             $query->where('dia', $request->dia);
         }
 
-        $horarios = $query->orderBy('dia')->orderBy('hora_inicio')->get();
+        // Paginación
+        if ($request->has('all') && $request->all === 'true') {
+            $horarios = $query->orderBy('dia')->orderBy('hora_inicio')->get();
+            return response()->json($horarios);
+        }
+
+        $perPage = $request->get('per_page', 50);
+        $horarios = $query->orderBy('dia')->orderBy('hora_inicio')->paginate($perPage);
+        
         return response()->json($horarios);
     }
 
