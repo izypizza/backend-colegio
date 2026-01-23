@@ -29,7 +29,15 @@ class LibroController extends Controller
             });
         }
 
-        $libros = $query->get();
+        // Paginación
+        if ($request->has('all') && $request->all === 'true') {
+            $libros = $query->get();
+            return response()->json($libros);
+        }
+
+        $perPage = $request->get('per_page', 50);
+        $libros = $query->paginate($perPage);
+        
         return response()->json($libros);
     }
 

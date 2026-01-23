@@ -12,7 +12,8 @@ class PeriodoAcademicoController extends Controller
      */
     public function index()
     {
-        $periodos = PeriodoAcademico::with(['asignaciones', 'calificaciones'])->get();
+        // Sin relaciones para evitar carga pesada (20k+ calificaciones)
+        $periodos = PeriodoAcademico::orderBy('anio', 'desc')->orderBy('id', 'desc')->get();
         return response()->json($periodos);
     }
 
