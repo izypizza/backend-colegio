@@ -130,6 +130,7 @@ class DocentePortalController extends Controller
 
     /**
      * Ver calificaciones de mis estudiantes
+     * Optimizado con paginación y filtros avanzados
      */
     public function misCalificaciones(Request $request)
     {
@@ -139,35 +140,74 @@ class DocentePortalController extends Controller
             return response()->json(['message' => 'Usuario no es docente'], 403);
         }
 
-        // Obtener solo las materias activas del periodo actual
+        // Validar filtros
+        $request->validate([
+            'periodo_academico_id' => 'nullable|exists:periodos_academicos,id',
+            'materia_id' => 'nullable|exists:materias,id',
+            'seccion_id' => 'nullable|exists:secciones,id',
+            'nota_minima' => 'nullable|numeric|min:0|max:20',
+            'per_page' => 'nullable|integer|min:10|max:100',
+        ]);
+
+        // Obtener periodo activo
         $periodoActual = \App\Models\PeriodoAcademico::where('estado', 'activo')->first();
         
-        $materiasIds = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
-            ->when($periodoActual, function($q) use ($periodoActual) {
+        // Obtener materias y secciones del docente
+        $asignaciones = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
+            ->when($periodoActual && !$request->filled('periodo_academico_id'), function($q) use ($periodoActual) {
                 return $q->where('periodo_academico_id', $periodoActual->id);
             })
-            ->pluck('materia_id')
-            ->unique();
+            ->get(['materia_id', 'seccion_id']);
 
-        $query = Calificacion::whereIn('materia_id', $materiasIds)
-            ->with(['estudiante:id,nombres,apellido_paterno,apellido_materno,seccion_id', 'estudiante.seccion:id,nombre,grado_id', 'estudiante.seccion.grado:id,nombre', 'materia:id,nombre', 'periodoAcademico:id,nombre'])
-            ->orderBy('created_at', 'desc');
+        $materiasIds = $asignaciones->pluck('materia_id')->unique();
+        $seccionesIds = $asignaciones->pluck('seccion_id')->unique();
+
+        // Query optimizado
+        $query = Calificacion::select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota', 'observaciones', 'created_at')
+            ->whereIn('materia_id', $materiasIds)
+            ->whereHas('estudiante', function($q) use ($seccionesIds) {
+                $q->whereIn('seccion_id', $seccionesIds);
+            })
+            ->with([
+                'estudiante:id,nombres,apellido_paterno,apellido_materno,seccion_id',
+                'estudiante.seccion:id,nombre,grado_id',
+                'estudiante.seccion.grado:id,nombre',
+                'materia:id,nombre',
+                'periodoAcademico:id,nombre,estado'
+            ]);
             
-        // Filtro por periodo
-        if ($request->has('periodo_academico_id')) {
+        // Filtro por periodo (por defecto el activo)
+        if ($request->filled('periodo_academico_id')) {
             $query->where('periodo_academico_id', $request->periodo_academico_id);
         } elseif ($periodoActual) {
             $query->where('periodo_academico_id', $periodoActual->id);
         }
         
-        // Filtro por materia
-        if ($request->has('materia_id')) {
+        // Filtro por materia específica
+        if ($request->filled('materia_id')) {
             $query->where('materia_id', $request->materia_id);
         }
 
-        $calificaciones = $query->limit(500)->get();
+        // Filtro por sección específica
+        if ($request->filled('seccion_id')) {
+            $query->whereHas('estudiante', function($q) use ($request) {
+                $q->where('seccion_id', $request->seccion_id);
+            });
+        }
 
-        return response()->json(['calificaciones' => $calificaciones]);
+        // Filtro por nota mínima
+        if ($request->filled('nota_minima')) {
+            $query->where('nota', '>=', $request->nota_minima);
+        }
+
+        // Orden por defecto
+        $query->orderBy('created_at', 'desc');
+
+        // Paginación (por defecto 50 registros)
+        $perPage = $request->get('per_page', 50);
+        $calificaciones = $query->paginate($perPage);
+
+        return response()->json($calificaciones);
     }
 
     /**

@@ -62,4 +62,9 @@ class Docente extends Model
                     ->withPivot('materia_id', 'periodo_academico_id')
                     ->withTimestamps();
     }
+
+    public function chatConversaciones()
+    {
+        return $this->hasMany(ChatConversacion::class);
+    }
 }

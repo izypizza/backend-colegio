@@ -55,21 +55,50 @@ class AuthController extends Controller
         // Crear token de acceso
         $token = $user->createToken('auth-token')->plainTextToken;
 
+        // Construir datos del usuario con relaciones
+        $userData = [
+            'id' => (string) $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role ?? 'admin',
+            'avatar' => $user->avatar,
+            'isActive' => $user->is_active ?? true,
+            'createdAt' => $user->created_at->toISOString(),
+        ];
+
+        // Incluir relaciones según el rol
+        if ($user->role === 'docente' && $user->docente) {
+            $userData['docente'] = [
+                'id' => $user->docente->id,
+                'nombres' => $user->docente->nombres,
+                'apellido_paterno' => $user->docente->apellido_paterno,
+                'apellido_materno' => $user->docente->apellido_materno,
+                'especialidad' => $user->docente->especialidad,
+            ];
+        } elseif ($user->role === 'padre' && $user->padre) {
+            $userData['padre'] = [
+                'id' => $user->padre->id,
+                'nombres' => $user->padre->nombres,
+                'apellido_paterno' => $user->padre->apellido_paterno,
+                'apellido_materno' => $user->padre->apellido_materno,
+            ];
+        } elseif ($user->role === 'estudiante' && $user->estudiante) {
+            $userData['estudiante'] = [
+                'id' => $user->estudiante->id,
+                'nombres' => $user->estudiante->nombres,
+                'apellido_paterno' => $user->estudiante->apellido_paterno,
+                'apellido_materno' => $user->estudiante->apellido_materno,
+                'codigo' => $user->estudiante->codigo,
+            ];
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Inicio de sesión exitoso',
             'data' => [
                 'token' => $token,
                 'refreshToken' => $token, // Por ahora usamos el mismo token
-                'user' => [
-                    'id' => (string) $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role ?? 'admin',
-                    'avatar' => $user->avatar,
-                    'isActive' => $user->is_active ?? true,
-                    'createdAt' => $user->created_at->toISOString(),
-                ],
+                'user' => $userData,
             ],
         ]);
     }

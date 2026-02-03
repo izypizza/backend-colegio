@@ -37,7 +37,7 @@ class Libro extends Model
         // Solo contar préstamos aprobados y no devueltos
         $prestamosActivos = $this->prestamos()
             ->where('estado', 'aprobado')
-            ->where('devuelto', false)
+            ->whereNull('fecha_devolucion')
             ->count();
         return max(0, $cantidadTotal - $prestamosActivos);
     }
@@ -64,7 +64,7 @@ class Libro extends Model
     public function prestamoActivo()
     {
         return $this->hasOne(PrestamoLibro::class, 'libro_id')
-                    ->where('devuelto', false)
+                    ->whereNull('fecha_devolucion')
                     ->where('estado', 'aprobado');
     }
 }

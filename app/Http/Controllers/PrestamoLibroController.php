@@ -239,4 +239,45 @@ class PrestamoLibroController extends Controller
             'prestamo' => $prestamo->load(['libro.categoria', 'usuario', 'aprobador'])
         ]);
     }
+
+    /**
+     * Obtener reportes y estadísticas de biblioteca
+     */
+    public function reportes()
+    {
+        $stats = [
+            'total_libros' => Libro::count(),
+            'libros_fisicos' => Libro::where('tipo', 'fisico')->count(),
+            'libros_digitales' => Libro::where('tipo', 'digital')->count(),
+            'total_prestamos' => PrestamoLibro::count(),
+            'prestamos_activos' => PrestamoLibro::where('estado', 'aprobado')
+                ->whereNull('fecha_devolucion')
+                ->count(),
+            'prestamos_pendientes' => PrestamoLibro::where('estado', 'pendiente')->count(),
+            'prestamos_vencidos' => PrestamoLibro::where('estado', 'aprobado')
+                ->whereNull('fecha_devolucion')
+                ->where('fecha_devolucion', '<', now())
+                ->count(),
+            'libros_mas_prestados' => \DB::table('prestamos_libros')
+                ->join('libros', 'prestamos_libros.libro_id', '=', 'libros.id')
+                ->select(
+                    'libros.id',
+                    'libros.titulo',
+                    'libros.autor',
+                    \DB::raw('COUNT(*) as total_prestamos')
+                )
+                ->where('prestamos_libros.estado', 'aprobado')
+                ->groupBy('libros.id', 'libros.titulo', 'libros.autor')
+                ->orderBy('total_prestamos', 'desc')
+                ->limit(5)
+                ->get(),
+            'estudiantes_activos' => PrestamoLibro::where('estado', 'aprobado')
+                ->whereNull('fecha_devolucion')
+                ->distinct('user_id')
+                ->count('user_id'),
+            'categorias_count' => \DB::table('categorias_libros')->count(),
+        ];
+
+        return response()->json($stats);
+    }
 }
