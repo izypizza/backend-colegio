@@ -42,4 +42,9 @@ class Padre extends Model
     {
         return $this->belongsToMany(Estudiante::class, 'estudiante_padre');
     }
+
+    public function chatConversaciones()
+    {
+        return $this->hasMany(ChatConversacion::class);
+    }
 }

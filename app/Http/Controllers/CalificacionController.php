@@ -9,40 +9,80 @@ class CalificacionController extends Controller
 {
     /**
      * Display a listing of the resource.
+     * Consulta optimizada con filtros avanzados y paginación obligatoria
      */
     public function index(Request $request)
     {
-        $query = Calificacion::with(['estudiante.seccion', 'materia', 'periodoAcademico']);
+        // Validar filtros
+        $request->validate([
+            'estudiante_id' => 'nullable|exists:estudiantes,id',
+            'materia_id' => 'nullable|exists:materias,id',
+            'periodo_academico_id' => 'nullable|exists:periodos_academicos,id',
+            'seccion_id' => 'nullable|exists:secciones,id',
+            'grado_id' => 'nullable|exists:grados,id',
+            'nota_minima' => 'nullable|numeric|min:0|max:20',
+            'nota_maxima' => 'nullable|numeric|min:0|max:20',
+            'per_page' => 'nullable|integer|min:10|max:100',
+        ]);
+
+        // Seleccionar solo columnas necesarias
+        $query = Calificacion::select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota', 'observaciones', 'created_at')
+            ->with([
+                'estudiante:id,nombres,apellido_paterno,apellido_materno,seccion_id',
+                'estudiante.seccion:id,nombre,grado_id',
+                'estudiante.seccion.grado:id,nombre,nivel',
+                'materia:id,nombre',
+                'periodoAcademico:id,nombre,fecha_inicio,fecha_fin,estado'
+            ]);
 
         // Filtrar por estudiante
-        if ($request->has('estudiante_id')) {
+        if ($request->filled('estudiante_id')) {
             $query->where('estudiante_id', $request->estudiante_id);
         }
 
         // Filtrar por materia
-        if ($request->has('materia_id')) {
+        if ($request->filled('materia_id')) {
             $query->where('materia_id', $request->materia_id);
         }
 
-        // Filtrar por periodo académico
-        if ($request->has('periodo_academico_id')) {
+        // Filtrar por periodo académico (por defecto el activo)
+        if ($request->filled('periodo_academico_id')) {
             $query->where('periodo_academico_id', $request->periodo_academico_id);
+        } elseif (!$request->has('todos')) {
+            // Si no se especifica periodo y no se pide todos, usar el periodo activo
+            $periodoActivo = \App\Models\PeriodoAcademico::where('estado', 'activo')->first();
+            if ($periodoActivo) {
+                $query->where('periodo_academico_id', $periodoActivo->id);
+            }
         }
 
         // Filtrar por sección
-        if ($request->has('seccion_id')) {
-            $query->whereHas('estudiante.seccion', function ($q) use ($request) {
-                $q->where('id', $request->seccion_id);
+        if ($request->filled('seccion_id')) {
+            $query->whereHas('estudiante', function ($q) use ($request) {
+                $q->where('seccion_id', $request->seccion_id);
             });
         }
 
-        // Paginación para mejorar performance (7.8k+ registros)
-        if ($request->has('all') && $request->all === 'true') {
-            $calificaciones = $query->get();
-            return response()->json($calificaciones);
+        // Filtrar por grado
+        if ($request->filled('grado_id')) {
+            $query->whereHas('estudiante.seccion', function ($q) use ($request) {
+                $q->where('grado_id', $request->grado_id);
+            });
         }
 
-        $perPage = $request->get('per_page', 100);
+        // Filtrar por rango de notas
+        if ($request->filled('nota_minima')) {
+            $query->where('nota', '>=', $request->nota_minima);
+        }
+        if ($request->filled('nota_maxima')) {
+            $query->where('nota', '<=', $request->nota_maxima);
+        }
+
+        // Orden por defecto (más recientes primero)
+        $query->orderBy('created_at', 'desc');
+
+        // Paginación obligatoria (por defecto 50 registros)
+        $perPage = $request->get('per_page', 50);
         $calificaciones = $query->paginate($perPage);
 
         return response()->json($calificaciones);
@@ -50,6 +90,7 @@ class CalificacionController extends Controller
 
     /**
      * Obtener calificaciones de un estudiante (para padres)
+     * Optimizado con filtro por periodo y límite
      */
     public function misHijosCalificaciones(Request $request)
     {
@@ -60,11 +101,47 @@ class CalificacionController extends Controller
             return response()->json(['message' => 'Usuario no es un padre registrado'], 403);
         }
 
-        $estudiantes = $padre->estudiantes()->with([
-            'calificaciones.materia',
-            'calificaciones.periodoAcademico',
-            'seccion.grado',
-        ])->get();
+        // Validar filtros opcionales
+        $request->validate([
+            'periodo_academico_id' => 'nullable|exists:periodos_academicos,id',
+            'estudiante_id' => 'nullable|exists:estudiantes,id',
+        ]);
+
+        $query = $padre->estudiantes()
+            ->select('id', 'nombres', 'apellido_paterno', 'apellido_materno', 'seccion_id')
+            ->with([
+                'seccion:id,nombre,grado_id',
+                'seccion.grado:id,nombre,nivel',
+            ]);
+
+        // Filtrar por hijo específico si se proporciona
+        if ($request->filled('estudiante_id')) {
+            $query->where('id', $request->estudiante_id);
+        }
+
+        $estudiantes = $query->get();
+
+        // Cargar calificaciones con filtros
+        $estudiantes->each(function ($estudiante) use ($request) {
+            $calificacionesQuery = $estudiante->calificaciones()
+                ->select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota', 'observaciones', 'created_at')
+                ->with([
+                    'materia:id,nombre',
+                    'periodoAcademico:id,nombre,fecha_inicio,fecha_fin,estado'
+                ]);
+
+            // Filtrar por periodo (por defecto el activo)
+            if ($request->filled('periodo_academico_id')) {
+                $calificacionesQuery->where('periodo_academico_id', $request->periodo_academico_id);
+            } else {
+                $periodoActivo = \App\Models\PeriodoAcademico::where('estado', 'activo')->first();
+                if ($periodoActivo) {
+                    $calificacionesQuery->where('periodo_academico_id', $periodoActivo->id);
+                }
+            }
+
+            $estudiante->calificaciones = $calificacionesQuery->orderBy('created_at', 'desc')->get();
+        });
 
         return response()->json($estudiantes);
     }

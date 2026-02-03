@@ -2,10 +2,13 @@
 
 use App\Http\Controllers\AsignacionDocenteMateriaController;
 use App\Http\Controllers\AsistenciaController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AuxiliarPermisoController;
 use App\Http\Controllers\CalificacionController;
 use App\Http\Controllers\CategoriaLibroController;
+use App\Http\Controllers\ChatConversacionController;
+use App\Http\Controllers\ChatMensajeController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocenteController;
@@ -17,10 +20,12 @@ use App\Http\Controllers\GradoController;
 use App\Http\Controllers\HorarioController;
 use App\Http\Controllers\LibroController;
 use App\Http\Controllers\MateriaController;
+use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\PadreController;
 use App\Http\Controllers\PadrePortalController;
 use App\Http\Controllers\PeriodoAcademicoController;
 use App\Http\Controllers\PrestamoLibroController;
+use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\SeccionController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\VotoController;
@@ -31,10 +36,39 @@ use Illuminate\Support\Facades\Route;
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/register', [AuthController::class, 'register']);
 
+// Rutas mobile (públicas)
+Route::post('/mobile/auth/login', [AuthController::class, 'login']);
+
 // Rutas protegidas con autenticación
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
+
+    // Rutas mobile (protegidas)
+    Route::prefix('mobile')->group(function () {
+        Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
+
+        Route::middleware(['role:docente'])->group(function () {
+            Route::get('/docente/mis-asignaciones', [DocentePortalController::class, 'misAsignaciones']);
+            Route::get('/docente/mis-estudiantes', [DocentePortalController::class, 'misEstudiantes']);
+            Route::get('/docente/mis-calificaciones', [DocentePortalController::class, 'misCalificaciones']);
+            Route::get('/docente/mis-asistencias', [DocentePortalController::class, 'misAsistencias']);
+        });
+
+        Route::middleware(['role:estudiante'])->group(function () {
+            Route::get('/estudiante/mi-horario', [EstudiantePortalController::class, 'miHorario']);
+            Route::get('/estudiante/mis-calificaciones', [EstudiantePortalController::class, 'misCalificaciones']);
+            Route::get('/estudiante/mis-asistencias', [EstudiantePortalController::class, 'misAsistencias']);
+        });
+
+        Route::middleware(['role:padre'])->group(function () {
+            Route::get('/padre/mis-hijos', [PadrePortalController::class, 'misHijos']);
+            Route::get('/padre/calificaciones-hijos', [PadrePortalController::class, 'calificacionesHijos']);
+            Route::get('/padre/asistencias-hijo/{hijo_id}', [PadrePortalController::class, 'asistenciasHijo']);
+            Route::get('/padre/docentes-hijo/{hijo_id}', [PadrePortalController::class, 'docentesHijo']);
+        });
+    });
 
     Route::get('/user', function (Request $request) {
         return $request->user();
@@ -210,6 +244,44 @@ Route::middleware('auth:sanctum')->group(function () {
     }); // Fin grupo módulo elecciones
 
     // ========================================
+    // NOTIFICACIONES Y AUDITORIA
+    // ========================================
+    Route::get('/notificaciones', [NotificacionController::class, 'index']);
+    Route::post('/notificaciones/{id}/leer', [NotificacionController::class, 'marcarLeida']);
+    Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'marcarTodasLeidas']);
+
+    Route::middleware(['role:admin'])->group(function () {
+        Route::post('/notificaciones', [NotificacionController::class, 'store']);
+        Route::get('/auditoria', [AuditLogController::class, 'index']);
+    });
+
+    // ========================================
+    // CHAT DOCENTE - PADRE
+    // ========================================
+    Route::middleware(['role:admin,docente,padre'])->group(function () {
+        Route::get('/chat/conversaciones', [ChatConversacionController::class, 'index']);
+        Route::post('/chat/conversaciones', [ChatConversacionController::class, 'store']);
+        Route::get('/chat/conversaciones/{id}/mensajes', [ChatMensajeController::class, 'index']);
+        Route::post('/chat/conversaciones/{id}/mensajes', [ChatMensajeController::class, 'store']);
+    });
+
+    // Admin - Monitoreo de chat
+    Route::middleware(['role:admin'])->group(function () {
+        Route::get('/chat/todas', [ChatConversacionController::class, 'todas']);
+        Route::get('/chat/estadisticas', [ChatConversacionController::class, 'estadisticas']);
+    });
+
+    // ========================================
+    // REPORTES PDF/EXCEL
+    // ========================================
+    Route::middleware(['role:admin,auxiliar'])->group(function () {
+        Route::get('/reportes/estudiantes/excel', [ReporteController::class, 'estudiantesExcel']);
+        Route::get('/reportes/estudiantes/pdf', [ReporteController::class, 'estudiantesPdf']);
+        Route::get('/reportes/calificaciones/excel', [ReporteController::class, 'calificacionesExcel']);
+        Route::get('/reportes/calificaciones/pdf', [ReporteController::class, 'calificacionesPdf']);
+    });
+
+    // ========================================
     // SISTEMA DE PERMISOS ESPECIALES PARA AUXILIARES
     // ========================================
 
@@ -277,5 +349,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/padre/calificaciones-hijos', [PadrePortalController::class, 'calificacionesHijos']);
         Route::get('/padre/asistencias-hijo/{hijo_id}', [PadrePortalController::class, 'asistenciasHijo']);
         Route::get('/padre/boletin-hijo/{hijo_id}/{periodo_id}', [PadrePortalController::class, 'boletinHijo']);
+        Route::get('/padre/docentes-hijo/{hijo_id}', [PadrePortalController::class, 'docentesHijo']);
     });
 }); // Fin middleware auth:sanctum

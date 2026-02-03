@@ -54,6 +54,7 @@ class EstudiantePortalController extends Controller
 
     /**
      * Ver mis calificaciones
+     * Optimizado con filtros y paginación
      */
     public function misCalificaciones(Request $request)
     {
@@ -63,15 +64,36 @@ class EstudiantePortalController extends Controller
             return response()->json(['message' => 'Usuario no es estudiante'], 403);
         }
 
-        $query = Calificacion::where('estudiante_id', $user->estudiante->id)
-            ->with(['materia:id,nombre', 'periodoAcademico:id,nombre'])
-            ->select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota')
-            ->orderBy('periodo_academico_id');
+        // Validar filtros
+        $request->validate([
+            'periodo_academico_id' => 'nullable|exists:periodos_academicos,id',
+            'materia_id' => 'nullable|exists:materias,id',
+        ]);
 
-        // Filtro por periodo si se especifica
-        if ($request->has('periodo_academico_id')) {
+        $query = Calificacion::where('estudiante_id', $user->estudiante->id)
+            ->with([
+                'materia:id,nombre',
+                'periodoAcademico:id,nombre,fecha_inicio,fecha_fin,estado'
+            ])
+            ->select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota', 'observaciones', 'created_at');
+
+        // Filtro por periodo (por defecto el activo)
+        if ($request->filled('periodo_academico_id')) {
             $query->where('periodo_academico_id', $request->periodo_academico_id);
+        } else {
+            // Por defecto, solo el periodo activo
+            $periodoActivo = \App\Models\PeriodoAcademico::where('estado', 'activo')->first();
+            if ($periodoActivo) {
+                $query->where('periodo_academico_id', $periodoActivo->id);
+            }
         }
+
+        // Filtro por materia
+        if ($request->filled('materia_id')) {
+            $query->where('materia_id', $request->materia_id);
+        }
+
+        $query->orderBy('periodo_academico_id', 'desc')->orderBy('materia_id');
 
         $calificaciones = $query->get();
 
@@ -80,6 +102,7 @@ class EstudiantePortalController extends Controller
         return response()->json([
             'calificaciones' => $calificaciones,
             'promedio' => round($promedio ?? 0, 2),
+            'total' => $calificaciones->count(),
         ]);
     }
 

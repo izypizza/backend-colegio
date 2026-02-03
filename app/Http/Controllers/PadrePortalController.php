@@ -192,4 +192,37 @@ class PadrePortalController extends Controller
             'aprobado' => $promedio >= 11
         ]);
     }
+
+    /**
+     * Obtener docentes de un hijo (para chat)
+     */
+    public function docentesHijo(Request $request, $hijo_id)
+    {
+        $user = $request->user();
+        
+        if (!$user->padre) {
+            return response()->json(['message' => 'Usuario no es padre'], 403);
+        }
+
+        // Verificar que el hijo pertenezca al padre
+        $hijo = $user->padre->estudiantes()->find($hijo_id);
+        
+        if (!$hijo) {
+            return response()->json(['message' => 'Hijo no encontrado'], 404);
+        }
+
+        // Obtener docentes de la sección del hijo
+        $docentes = \DB::table('asignacion_docente_materia')
+            ->join('docentes', 'asignacion_docente_materia.docente_id', '=', 'docentes.id')
+            ->where('asignacion_docente_materia.seccion_id', $hijo->seccion_id)
+            ->select('docentes.*')
+            ->distinct()
+            ->get();
+
+        return response()->json([
+            'docentes' => $docentes,
+            'total' => $docentes->count()
+        ]);
+    }
 }
+

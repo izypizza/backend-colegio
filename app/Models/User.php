@@ -67,6 +67,21 @@ class User extends Authenticatable
         return $this->hasOne(Estudiante::class);
     }
 
+    public function notificaciones()
+    {
+        return $this->hasMany(Notificacion::class);
+    }
+
+    public function auditorias()
+    {
+        return $this->hasMany(AuditLog::class);
+    }
+
+    public function chatMensajes()
+    {
+        return $this->hasMany(ChatMensaje::class);
+    }
+
     // Helpers de roles
     public function isAdmin()
     {

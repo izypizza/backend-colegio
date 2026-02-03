@@ -30,6 +30,6 @@ class AuxiliarSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        $this->command->info('✓ Usuarios auxiliares creados correctamente');
+        $this->command->info('Usuarios auxiliares creados correctamente');
     }
 }
