@@ -786,6 +786,7 @@ Base de datos actual:
 Implementacion de paginacion en todos los endpoints principales para mejorar rendimiento y reducir tiempos de carga en 90-95%.
 
 **Controladores con Paginacion:**
+
 - EstudiantePortalController: misCalificaciones (50/pag) + misAsistencias (50/pag) con cache
 - CalificacionController: index (100/pag) con filtros
 - AsistenciaController: index (100/pag) con filtros de fecha
@@ -798,6 +799,7 @@ Implementacion de paginacion en todos los endpoints principales para mejorar ren
 - HorarioController: index (50/pag)
 
 **Parametros Soportados:**
+
 ```php
 // Paginacion
 ?page=1&per_page=50
@@ -807,6 +809,7 @@ Implementacion de paginacion en todos los endpoints principales para mejorar ren
 ```
 
 **Formato de Respuesta:**
+
 ```json
 {
   "data": [...],
@@ -820,6 +823,7 @@ Implementacion de paginacion en todos los endpoints principales para mejorar ren
 ```
 
 **Beneficios:**
+
 - Reduccion de carga inicial: 90-95%
 - Tiempo de respuesta: De 2-3s a 200-300ms
 - Con cache: 50-100ms en subsecuentes cargas
@@ -866,4 +870,3 @@ Ultima actualizacion: 3 Febrero 2026 | Version: 1.5.0
 Proyecto para I.E. N 51006 "TUPAC AMARU" - Cusco, Peru
 
 Laravel: 12.0 | PHP: 8.2+ | MySQL: 8.0
-
