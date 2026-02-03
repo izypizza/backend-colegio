@@ -26,7 +26,15 @@ class PrestamoLibroController extends Controller
             $query->where('user_id', $request->user_id);
         }
 
-        $prestamos = $query->orderBy('created_at', 'desc')->get();
+        // Paginación
+        if ($request->has('all') && $request->all === 'true') {
+            $prestamos = $query->orderBy('created_at', 'desc')->get();
+            return response()->json($prestamos);
+        }
+
+        $perPage = $request->get('per_page', 50);
+        $prestamos = $query->orderBy('created_at', 'desc')->paginate($perPage);
+        
         return response()->json($prestamos);
     }
 

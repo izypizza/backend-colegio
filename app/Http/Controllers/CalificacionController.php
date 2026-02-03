@@ -272,6 +272,10 @@ class CalificacionController extends Controller
 
             $calificacion = Calificacion::create($validated);
 
+            // Limpiar caché de calificaciones del estudiante
+            cache()->forget('calificaciones_estudiante_' . $validated['estudiante_id'] . '_all');
+            cache()->forget('calificaciones_estudiante_' . $validated['estudiante_id'] . '_' . $validated['periodo_academico_id']);
+
             return response()->json([
                 'message' => 'Calificación registrada correctamente',
                 'calificacion' => $calificacion->load(['estudiante', 'materia', 'periodoAcademico']),
@@ -383,6 +387,10 @@ class CalificacionController extends Controller
             }
 
             $calificacion->update($validated);
+
+            // Limpiar caché de calificaciones del estudiante
+            cache()->forget('calificaciones_estudiante_' . $calificacion->estudiante_id . '_all');
+            cache()->forget('calificaciones_estudiante_' . $calificacion->estudiante_id . '_' . $calificacion->periodo_academico_id);
 
             return response()->json([
                 'message' => 'Calificación actualizada correctamente',
