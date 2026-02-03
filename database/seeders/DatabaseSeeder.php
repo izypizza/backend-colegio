@@ -61,6 +61,8 @@ class DatabaseSeeder extends Seeder
             BibliotecaSeeder::class,
             EleccionSeeder::class,
             BibliotecarioUserSeeder::class,
+            PrestamosSeeder::class,
+            VotosSeeder::class,
         ]);
 
         $this->mostrarEstadisticas();
@@ -194,16 +196,16 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * Crear padres con algunos usuarios (30% tendrán acceso)
+     * Crear padres - TODOS con usuarios (100% tendrán acceso al portal)
      */
     private function crearPadres(int $total, int $conAcceso): \Illuminate\Database\Eloquent\Collection
     {
         $padres = Padre::factory($total)->create();
         
-        $padresConAcceso = $padres->random($conAcceso);
+        // Crear usuarios para TODOS los padres
         $usuariosData = [];
         
-        foreach ($padresConAcceso as $index => $padre) {
+        foreach ($padres as $index => $padre) {
             $nombreCompleto = "{$padre->nombres} {$padre->apellido_paterno} {$padre->apellido_materno}";
             $usuariosData[] = [
                 'name' => $nombreCompleto,
@@ -221,7 +223,8 @@ class DatabaseSeeder extends Seeder
             $usuarios->push(User::create($userData));
         }
 
-        foreach ($padresConAcceso as $index => $padre) {
+        // Vincular TODOS los padres con sus usuarios
+        foreach ($padres as $index => $padre) {
             $padre->update(['user_id' => $usuarios[$index]->id]);
         }
 
@@ -301,30 +304,31 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * Asignar tutores a secciones
+     * Asignar tutores a TODAS las secciones
      */
     private function asignarTutores($secciones, $docentes, $periodo): void
     {
-        // Seleccionar 3 secciones aleatorias para tener tutores
-        $seccionesConTutor = $secciones->random(min(3, $secciones->count()));
-        
-        foreach ($seccionesConTutor as $index => $seccion) {
+        // Asignar un tutor a CADA sección
+        foreach ($secciones as $seccion) {
             $docente = $docentes->random();
-            $materia = Materia::where('nombre', 'Tutoría')->first() ?? Materia::first();
             
-            // Crear o actualizar asignación como tutor
-            AsignacionDocenteMateria::updateOrCreate(
-                [
-                    'docente_id' => $docente->id,
-                    'seccion_id' => $seccion->id,
-                    'materia_id' => $materia->id,
-                    'periodo_academico_id' => $periodo->id,
-                ],
-                [
+            // Actualizar la sección con el tutor asignado
+            $seccion->update(['tutor_id' => $docente->id]);
+            
+            // Buscar si ya existe una asignación para este docente en esta sección
+            $asignacionExistente = AsignacionDocenteMateria::where([
+                'docente_id' => $docente->id,
+                'seccion_id' => $seccion->id,
+                'periodo_academico_id' => $periodo->id,
+            ])->first();
+            
+            if ($asignacionExistente) {
+                // Marcar como tutor la asignación existente
+                $asignacionExistente->update([
                     'es_tutor' => true,
                     'tutor_hasta' => now()->addMonths(6)->format('Y-m-d'),
-                ]
-            );
+                ]);
+            }
         }
     }
 
