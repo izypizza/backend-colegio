@@ -32,7 +32,7 @@ class CalificacionController extends Controller
                 'estudiante.seccion:id,nombre,grado_id',
                 'estudiante.seccion.grado:id,nombre,nivel',
                 'materia:id,nombre',
-                'periodoAcademico:id,nombre,fecha_inicio,fecha_fin,estado'
+                'periodoAcademico:id,nombre,anio,estado'
             ]);
 
         // Filtrar por estudiante
@@ -127,7 +127,7 @@ class CalificacionController extends Controller
                 ->select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota', 'observaciones', 'created_at')
                 ->with([
                     'materia:id,nombre',
-                    'periodoAcademico:id,nombre,fecha_inicio,fecha_fin,estado'
+                    'periodoAcademico:id,nombre,anio,estado'
                 ]);
 
             // Filtrar por periodo (por defecto el activo)
