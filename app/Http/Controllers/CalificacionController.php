@@ -4,9 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Calificacion;
 use Illuminate\Http\Request;
+use App\Http\Requests\CalificacionStoreRequest;
+use App\Http\Requests\CalificacionUpdateRequest;
+use App\Traits\VerificaAutorizacionDocente;
+use App\Helpers\PeriodoAcademicoHelper;
 
 class CalificacionController extends Controller
 {
+    use VerificaAutorizacionDocente;
     /**
      * Display a listing of the resource.
      * Consulta optimizada con filtros avanzados y paginación obligatoria
@@ -50,9 +55,13 @@ class CalificacionController extends Controller
             $query->where('periodo_academico_id', $request->periodo_academico_id);
         } elseif (!$request->has('todos')) {
             // Si no se especifica periodo y no se pide todos, usar el periodo activo
-            $periodoActivo = \App\Models\PeriodoAcademico::where('estado', 'activo')->first();
-            if ($periodoActivo) {
-                $query->where('periodo_academico_id', $periodoActivo->id);
+            try {
+                $periodoActivo = PeriodoAcademicoHelper::obtenerIdPeriodoActivo();
+                if ($periodoActivo) {
+                    $query->where('periodo_academico_id', $periodoActivo);
+                }
+            } catch (\Exception $e) {
+                // Si no hay período activo, continuar sin filtrar
             }
         }
 
@@ -196,56 +205,22 @@ class CalificacionController extends Controller
 
     /**
      * Store a newly created resource in storage.
+     * Refactorizado: Usa FormRequest y Trait de autorización
      */
-    public function store(Request $request)
+    public function store(CalificacionStoreRequest $request)
     {
         try {
-            $validated = $request->validate([
-                'estudiante_id' => 'required|exists:estudiantes,id',
-                'materia_id' => 'required|exists:materias,id',
-                'periodo_academico_id' => 'required|exists:periodos_academicos,id',
-                'nota' => 'required|numeric|min:0|max:20',
-                'observaciones' => 'nullable|string|max:500',
-            ], [
-                'estudiante_id.required' => 'Debe seleccionar un estudiante',
-                'estudiante_id.exists' => 'El estudiante seleccionado no existe',
-                'materia_id.required' => 'Debe seleccionar una materia',
-                'materia_id.exists' => 'La materia seleccionada no existe',
-                'periodo_academico_id.required' => 'Debe seleccionar un período académico',
-                'periodo_academico_id.exists' => 'El período académico seleccionado no existe',
-                'nota.required' => 'La nota es obligatoria',
-                'nota.numeric' => 'La nota debe ser un número',
-                'nota.min' => 'La nota mínima es 0',
-                'nota.max' => 'La nota máxima es 20. Ingresó: '.$request->nota,
-                'observaciones.max' => 'Las observaciones no deben exceder 500 caracteres',
-            ]);
+            $validated = $request->validated();
 
-            // Si es docente, verificar que tenga asignada esta materia
-            $user = $request->user();
-            if ($user->role === 'docente') {
-                $docente = \App\Models\Docente::where('user_id', $user->id)->first();
-                
-                if (!$docente) {
-                    return response()->json([
-                        'message' => 'No se encontró el registro de docente'
-                    ], 403);
-                }
-
-                // Verificar que el estudiante esté en una sección del docente
-                $estudiante = \App\Models\Estudiante::find($validated['estudiante_id']);
-                
-                // Verificar que el docente tenga asignada esta materia en la sección del estudiante
-                $tieneAsignacion = \App\Models\AsignacionDocenteMateria::where('docente_id', $docente->id)
-                    ->where('materia_id', $validated['materia_id'])
-                    ->where('seccion_id', $estudiante->seccion_id)
-                    ->where('periodo_academico_id', $validated['periodo_academico_id'])
-                    ->exists();
-
-                if (!$tieneAsignacion) {
-                    return response()->json([
-                        'message' => 'No tienes autorización para calificar en esta materia o sección'
-                    ], 403);
-                }
+            // Verificar autorización de docente usando Trait
+            $estudiante = \App\Models\Estudiante::findOrFail($validated['estudiante_id']);
+            $autorizacion = $this->verificarDocenteAsignado(
+                $validated['materia_id'],
+                $estudiante->seccion_id
+            );
+            
+            if ($autorizacion !== true) {
+                return $autorizacion; // Retorna JsonResponse con error
             }
 
             // Validar que no exista ya una calificación para este estudiante en esta materia y período
@@ -261,15 +236,6 @@ class CalificacionController extends Controller
                 ], 422);
             }
 
-            // Validación adicional del rango de notas
-            $nota = floatval($validated['nota']);
-            if ($nota < 0 || $nota > 20) {
-                return response()->json([
-                    'message' => 'Error de validación',
-                    'errors' => ['nota' => ['La nota debe estar entre 0 y 20. Valor ingresado: '.$nota]],
-                ], 422);
-            }
-
             $calificacion = Calificacion::create($validated);
 
             // Limpiar caché de calificaciones del estudiante
@@ -281,11 +247,6 @@ class CalificacionController extends Controller
                 'calificacion' => $calificacion->load(['estudiante', 'materia', 'periodoAcademico']),
             ], 201);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al registrar la calificación',
@@ -306,84 +267,36 @@ class CalificacionController extends Controller
 
     /**
      * Update the specified resource in storage.
+     * Refactorizado: Usa FormRequest y Trait de autorización
      */
-    public function update(Request $request, string $id)
+    public function update(CalificacionUpdateRequest $request, string $id)
     {
         try {
             $calificacion = Calificacion::findOrFail($id);
+            $validated = $request->validated();
 
-            $validated = $request->validate([
-                'estudiante_id' => 'sometimes|required|exists:estudiantes,id',
-                'materia_id' => 'sometimes|required|exists:materias,id',
-                'periodo_academico_id' => 'sometimes|required|exists:periodos_academicos,id',
-                'nota' => 'sometimes|required|numeric|min:0|max:20',
-                'observaciones' => 'nullable|string|max:500',
-            ], [
-                'estudiante_id.exists' => 'El estudiante seleccionado no existe',
-                'materia_id.exists' => 'La materia seleccionada no existe',
-                'periodo_academico_id.exists' => 'El período académico seleccionado no existe',
-                'nota.numeric' => 'La nota debe ser un número',
-                'nota.min' => 'La nota mínima es 0',
-                'nota.max' => 'La nota máxima es 20. Ingresó: '.$request->nota,
-                'observaciones.max' => 'Las observaciones no deben exceder 500 caracteres',
-            ]);
-
-            // Si es docente, verificar límite de modificaciones (máximo 3 cambios)
-            $user = $request->user();
-            if ($user->role === 'docente') {
-                // Verificar que tenga asignada esta materia
-                $docente = \App\Models\Docente::where('user_id', $user->id)->first();
-                
-                if (!$docente) {
-                    return response()->json([
-                        'message' => 'No se encontró el registro de docente'
-                    ], 403);
-                }
-
-                // Si se está modificando la nota, verificar límite
-                if (isset($validated['nota']) && $validated['nota'] != $calificacion->nota) {
-                    if ($calificacion->modificaciones_count >= 3) {
-                        return response()->json([
-                            'message' => 'Ha alcanzado el límite máximo de 3 modificaciones para esta calificación',
-                            'errors' => ['nota' => ['Esta calificación ya fue modificada 3 veces. Contacte al administrador si necesita cambiarla nuevamente.']]
-                        ], 422);
-                    }
-                    
-                    // Incrementar contador de modificaciones
-                    $validated['modificaciones_count'] = $calificacion->modificaciones_count + 1;
-                    $validated['ultima_modificacion'] = now();
-                }
-
-                // Usar la materia actual o la nueva si se está actualizando
-                $materiaId = $validated['materia_id'] ?? $calificacion->materia_id;
-                $estudianteId = $validated['estudiante_id'] ?? $calificacion->estudiante_id;
-                $periodoId = $validated['periodo_academico_id'] ?? $calificacion->periodo_academico_id;
-
-                $estudiante = \App\Models\Estudiante::find($estudianteId);
-                
-                // Verificar que el docente tenga asignada esta materia
-                $tieneAsignacion = \App\Models\AsignacionDocenteMateria::where('docente_id', $docente->id)
-                    ->where('materia_id', $materiaId)
-                    ->where('seccion_id', $estudiante->seccion_id)
-                    ->where('periodo_academico_id', $periodoId)
-                    ->exists();
-
-                if (!$tieneAsignacion) {
-                    return response()->json([
-                        'message' => 'No tienes autorización para modificar esta calificación'
-                    ], 403);
-                }
+            // Verificar autorización de docente usando Trait
+            $materiaId = $validated['materia_id'] ?? $calificacion->materia_id;
+            $estudianteId = $validated['estudiante_id'] ?? $calificacion->estudiante_id;
+            $estudiante = \App\Models\Estudiante::findOrFail($estudianteId);
+            
+            $autorizacion = $this->verificarDocenteAsignado($materiaId, $estudiante->seccion_id);
+            if ($autorizacion !== true) {
+                return $autorizacion; // Retorna JsonResponse con error
             }
 
-            // Validación adicional del rango de notas
-            if (isset($validated['nota'])) {
-                $nota = floatval($validated['nota']);
-                if ($nota < 0 || $nota > 20) {
+            // Si es docente, verificar límite de modificaciones (máximo 3 cambios)
+            if ($this->esDocente() && isset($validated['nota']) && $validated['nota'] != $calificacion->nota) {
+                if ($calificacion->modificaciones_count >= 3) {
                     return response()->json([
-                        'message' => 'Error de validación',
-                        'errors' => ['nota' => ['La nota debe estar entre 0 y 20. Valor ingresado: '.$nota]],
+                        'message' => 'Ha alcanzado el límite máximo de 3 modificaciones para esta calificación',
+                        'errors' => ['nota' => ['Esta calificación ya fue modificada 3 veces. Contacte al administrador si necesita cambiarla nuevamente.']]
                     ], 422);
                 }
+                
+                // Incrementar contador de modificaciones
+                $validated['modificaciones_count'] = $calificacion->modificaciones_count + 1;
+                $validated['ultima_modificacion'] = now();
             }
 
             $calificacion->update($validated);
@@ -398,11 +311,6 @@ class CalificacionController extends Controller
                 'modificaciones_restantes' => max(0, 3 - ($calificacion->modificaciones_count ?? 0))
             ]);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al actualizar la calificación',

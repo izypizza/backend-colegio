@@ -4,9 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\Asistencia;
 use Illuminate\Http\Request;
+use App\Http\Requests\AsistenciaStoreRequest;
+use App\Http\Requests\AsistenciaUpdateRequest;
+use App\Traits\VerificaAutorizacionDocente;
+use App\Traits\ConPaginacionOpcional;
+use App\Services\EstadisticasAsistenciaService;
 
 class AsistenciaController extends Controller
 {
+    use VerificaAutorizacionDocente, ConPaginacionOpcional;
+
+    protected $estadisticasService;
+
+    public function __construct(EstadisticasAsistenciaService $estadisticasService)
+    {
+        $this->estadisticasService = $estadisticasService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -36,16 +49,8 @@ class AsistenciaController extends Controller
             });
         }
 
-        // Paginación para mejorar performance (67k+ registros)
-        // Si se solicita sin paginación (para exportar), usar parámetro 'all'
-        if ($request->has('all') && $request->all === 'true') {
-            $asistencias = $query->orderBy('fecha', 'desc')->get();
-            return response()->json($asistencias);
-        }
-
-        // Por defecto, paginar resultados
-        $perPage = $request->get('per_page', 100); // 100 registros por página
-        $asistencias = $query->orderBy('fecha', 'desc')->paginate($perPage);
+        // Aplicar paginación con trait
+        $asistencias = $this->paginateOrAll($query->orderBy('fecha', 'desc'), $request, 100);
         return response()->json($asistencias);
     }
 
@@ -62,22 +67,11 @@ class AsistenciaController extends Controller
         }
 
         $asistencias = $query->get();
-        
-        $total = $asistencias->count();
-        $presentes = $asistencias->where('estado', 'presente')->count();
-        $tardes = $asistencias->where('estado', 'tarde')->count();
-        $ausentes = $asistencias->where('estado', 'ausente')->count();
-        $porcentaje_asistencia = $total > 0 ? round((($presentes + $tardes) / $total) * 100, 2) : 0;
+        $estadisticas = $this->estadisticasService->calcular($asistencias);
 
         return response()->json([
             'asistencias' => $asistencias,
-            'estadisticas' => [
-                'total' => $total,
-                'presentes' => $presentes,
-                'tardes' => $tardes,
-                'ausentes' => $ausentes,
-                'porcentaje_asistencia' => $porcentaje_asistencia
-            ]
+            'estadisticas' => $estadisticas
         ]);
     }
 
@@ -95,48 +89,23 @@ class AsistenciaController extends Controller
             ->with(['estudiante', 'materia'])
             ->get();
 
-        $total = $asistencias->count();
-        $presentes = $asistencias->where('estado', 'presente')->count();
-        $tardes = $asistencias->where('estado', 'tarde')->count();
-        $ausentes = $asistencias->where('estado', 'ausente')->count();
+        $estadisticas = $this->estadisticasService->calcular($asistencias);
 
         return response()->json([
             'fecha' => $fecha,
             'asistencias' => $asistencias,
-            'estadisticas' => [
-                'total' => $total,
-                'presentes' => $presentes,
-                'tardes' => $tardes,
-                'ausentes' => $ausentes,
-                'porcentaje_asistencia' => $total > 0 ? round((($presentes + $tardes) / $total) * 100, 2) : 0
-            ]
+            'estadisticas' => $estadisticas
         ]);
     }
 
     /**
      * Store a newly created resource in storage.
+     * Refactorizado: Usa FormRequest y Trait de autorización
      */
-    public function store(Request $request)
+    public function store(AsistenciaStoreRequest $request)
     {
         try {
-            $validated = $request->validate([
-                'estudiante_id' => 'required|exists:estudiantes,id',
-                'materia_id' => 'required|exists:materias,id',
-                'fecha' => 'required|date|before_or_equal:today',
-                'estado' => 'required|in:presente,tarde,ausente',
-                'observaciones' => 'nullable|string|max:500'
-            ], [
-                'estudiante_id.required' => 'Debe seleccionar un estudiante',
-                'estudiante_id.exists' => 'El estudiante seleccionado no existe',
-                'materia_id.required' => 'Debe seleccionar una materia',
-                'materia_id.exists' => 'La materia seleccionada no existe',
-                'fecha.required' => 'La fecha es obligatoria',
-                'fecha.date' => 'El formato de fecha no es válido',
-                'fecha.before_or_equal' => 'No se puede registrar asistencia para fechas futuras',
-                'estado.required' => 'Debe indicar el estado de asistencia',
-                'estado.in' => 'El estado debe ser: presente, tarde o ausente',
-                'observaciones.max' => 'Las observaciones no deben exceder 500 caracteres'
-            ]);
+            $validated = $request->validated();
 
             // Validar que la fecha no sea muy antigua (máximo 60 días atrás)
             $fecha = \Carbon\Carbon::parse($validated['fecha']);
@@ -149,7 +118,7 @@ class AsistenciaController extends Controller
                 ], 422);
             }
 
-            // Validar que no exista ya un registro de asistencia para este estudiante en esta fecha y materia
+            // Validar que no exista ya un registro de asistencia
             $existente = Asistencia::where('estudiante_id', $validated['estudiante_id'])
                 ->where('materia_id', $validated['materia_id'])
                 ->where('fecha', $validated['fecha'])
@@ -162,30 +131,15 @@ class AsistenciaController extends Controller
                 ], 422);
             }
 
-            // Si es docente, verificar que tenga asignada esta materia
-            $user = $request->user();
-            if ($user->role === 'docente') {
-                $docente = \App\Models\Docente::where('user_id', $user->id)->first();
-                
-                if (!$docente) {
-                    return response()->json([
-                        'message' => 'No se encontró el registro de docente'
-                    ], 403);
-                }
-
-                $estudiante = \App\Models\Estudiante::find($validated['estudiante_id']);
-                
-                // Verificar que el docente tenga asignada esta materia en la sección del estudiante
-                $tieneAsignacion = \App\Models\AsignacionDocenteMateria::where('docente_id', $docente->id)
-                    ->where('materia_id', $validated['materia_id'])
-                    ->where('seccion_id', $estudiante->seccion_id)
-                    ->exists();
-
-                if (!$tieneAsignacion) {
-                    return response()->json([
-                        'message' => 'No tienes autorización para registrar asistencia en esta materia o sección'
-                    ], 403);
-                }
+            // Verificar autorización de docente usando Trait
+            $estudiante = \App\Models\Estudiante::findOrFail($validated['estudiante_id']);
+            $autorizacion = $this->verificarDocenteAsignado(
+                $validated['materia_id'],
+                $estudiante->seccion_id
+            );
+            
+            if ($autorizacion !== true) {
+                return $autorizacion; // Retorna JsonResponse con error
             }
 
             $asistencia = Asistencia::create($validated);
@@ -194,11 +148,6 @@ class AsistenciaController extends Controller
                 'asistencia' => $asistencia->load(['estudiante', 'materia'])
             ], 201);
             
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $e->errors()
-            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al registrar la asistencia',
@@ -218,26 +167,13 @@ class AsistenciaController extends Controller
 
     /**
      * Update the specified resource in storage.
+     * Refactorizado: Usa FormRequest y Trait de autorización
      */
-    public function update(Request $request, string $id)
+    public function update(AsistenciaUpdateRequest $request, string $id)
     {
         try {
             $asistencia = Asistencia::findOrFail($id);
-            
-            $validated = $request->validate([
-                'estudiante_id' => 'sometimes|required|exists:estudiantes,id',
-                'materia_id' => 'sometimes|required|exists:materias,id',
-                'fecha' => 'sometimes|required|date|before_or_equal:today',
-                'estado' => 'sometimes|required|in:presente,tarde,ausente',
-                'observaciones' => 'nullable|string|max:500'
-            ], [
-                'estudiante_id.exists' => 'El estudiante seleccionado no existe',
-                'materia_id.exists' => 'La materia seleccionada no existe',
-                'fecha.date' => 'El formato de fecha no es válido',
-                'fecha.before_or_equal' => 'No se puede registrar asistencia para fechas futuras',
-                'estado.in' => 'El estado debe ser: presente, tarde o ausente',
-                'observaciones.max' => 'Las observaciones no deben exceder 500 caracteres'
-            ]);
+            $validated = $request->validated();
 
             // Validar que la fecha no sea muy antigua si se está actualizando
             if (isset($validated['fecha'])) {
@@ -252,34 +188,14 @@ class AsistenciaController extends Controller
                 }
             }
 
-            // Si es docente, verificar que tenga asignada esta materia
-            $user = $request->user();
-            if ($user->role === 'docente') {
-                $docente = \App\Models\Docente::where('user_id', $user->id)->first();
-                
-                if (!$docente) {
-                    return response()->json([
-                        'message' => 'No se encontró el registro de docente'
-                    ], 403);
-                }
-
-                // Usar la materia actual o la nueva si se está actualizando
-                $materiaId = $validated['materia_id'] ?? $asistencia->materia_id;
-                $estudianteId = $validated['estudiante_id'] ?? $asistencia->estudiante_id;
-
-                $estudiante = \App\Models\Estudiante::find($estudianteId);
-                
-                // Verificar que el docente tenga asignada esta materia
-                $tieneAsignacion = \App\Models\AsignacionDocenteMateria::where('docente_id', $docente->id)
-                    ->where('materia_id', $materiaId)
-                    ->where('seccion_id', $estudiante->seccion_id)
-                    ->exists();
-
-                if (!$tieneAsignacion) {
-                    return response()->json([
-                        'message' => 'No tienes autorización para modificar esta asistencia'
-                    ], 403);
-                }
+            // Verificar autorización de docente usando Trait
+            $materiaId = $validated['materia_id'] ?? $asistencia->materia_id;
+            $estudianteId = $validated['estudiante_id'] ?? $asistencia->estudiante_id;
+            $estudiante = \App\Models\Estudiante::findOrFail($estudianteId);
+            
+            $autorizacion = $this->verificarDocenteAsignado($materiaId, $estudiante->seccion_id);
+            if ($autorizacion !== true) {
+                return $autorizacion; // Retorna JsonResponse con error
             }
 
             $asistencia->update($validated);
@@ -288,11 +204,6 @@ class AsistenciaController extends Controller
                 'asistencia' => $asistencia->load(['estudiante', 'materia'])
             ]);
             
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $e->errors()
-            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al actualizar la asistencia',
