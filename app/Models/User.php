@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -45,12 +44,10 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
         ];
     }
-
     // Relaciones
     public function docente()
     {
@@ -82,48 +79,46 @@ class User extends Authenticatable
         return $this->hasMany(ChatMensaje::class);
     }
 
-    // Helpers de roles
-    public function isAdmin()
-    {
-        return $this->role === 'admin';
-    }
-
-    public function isAuxiliar()
-    {
-        return $this->role === 'auxiliar';
-    }
-
-    public function isDocente()
-    {
-        return $this->role === 'docente';
-    }
-
-    public function isPadre()
-    {
-        return $this->role === 'padre';
-    }
-
-    public function isEstudiante()
-    {
-        return $this->role === 'estudiante';
-    }
-
     /**
-     * Verificar si el usuario tiene uno o varios roles
+     * Helpers de roles (compatibilidad con código existente)
      */
-    public function hasRole(string|array $roles): bool
+    public function hasRole(string $role): bool
     {
-        if (is_array($roles)) {
-            return in_array($this->role, $roles);
-        }
-        return $this->role === $roles;
+        return $this->role === $role;
     }
 
-    /**
-     * Verificar si el usuario tiene permisos administrativos (admin o auxiliar)
-     */
+    public function hasAnyRole(array $roles): bool
+    {
+        return in_array($this->role, $roles, true);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->hasRole('admin');
+    }
+
+    public function isAuxiliar(): bool
+    {
+        return $this->hasRole('auxiliar');
+    }
+
+    public function isDocente(): bool
+    {
+        return $this->hasRole('docente');
+    }
+
+    public function isPadre(): bool
+    {
+        return $this->hasRole('padre');
+    }
+
+    public function isEstudiante(): bool
+    {
+        return $this->hasRole('estudiante');
+    }
+
     public function hasAdminAccess(): bool
     {
-        return in_array($this->role, ['admin', 'auxiliar']);
+        return $this->hasAnyRole(['admin', 'auxiliar']);
     }
 }
