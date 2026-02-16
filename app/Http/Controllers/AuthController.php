@@ -60,7 +60,8 @@ class AuthController extends Controller
             'id' => (string) $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'role' => $user->role ?? 'admin',
+            // Usar rol almacenado; si falta, exponer "guest" para no otorgar permisos de admin
+            'role' => $user->role ?? 'guest',
             'avatar' => $user->avatar,
             'isActive' => $user->is_active ?? true,
             'createdAt' => $user->created_at->toISOString(),
@@ -136,28 +137,10 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6',
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        $token = $user->createToken('auth-token')->plainTextToken;
-
+        // Deshabilitado para evitar alta pública de usuarios
         return response()->json([
-            'success' => true,
-            'token' => $token,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-        ], 201);
+            'success' => false,
+            'message' => 'Registro deshabilitado. Solicite alta a un administrador.',
+        ], 403);
     }
 }

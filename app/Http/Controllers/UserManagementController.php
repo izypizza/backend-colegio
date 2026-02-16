@@ -85,44 +85,69 @@ class UserManagementController extends Controller
      */
     public function store(Request $request)
     {
+        // Si viene persona_tipo asumimos flujo vinculado a persona
+        if ($request->filled('persona_tipo')) {
+            $validated = $request->validate([
+                'persona_id' => 'required|integer',
+                'persona_tipo' => 'required|in:estudiante,docente,padre,auxiliar',
+                'email' => 'required|email|unique:users,email',
+                'password' => 'required|string|min:6',
+                'is_active' => 'boolean',
+            ]);
+
+            // Verificar que la persona existe y no tiene usuario
+            $persona = $this->getPersona($validated['persona_tipo'], $validated['persona_id']);
+            
+            if (!$persona) {
+                return response()->json([
+                    'message' => 'La persona no existe'
+                ], 404);
+            }
+
+            if ($persona->user_id) {
+                return response()->json([
+                    'message' => 'Esta persona ya tiene un usuario asignado'
+                ], 422);
+            }
+
+            // Crear el usuario
+            $user = User::create([
+                'name' => $this->getNombreCompleto($persona, $validated['persona_tipo']),
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'role' => $validated['persona_tipo'],
+                'is_active' => $validated['is_active'] ?? true,
+            ]);
+
+            // Vincular usuario con la persona
+            $persona->update(['user_id' => $user->id]);
+
+            return response()->json([
+                'message' => 'Usuario creado exitosamente',
+                'user' => $user->load(['estudiante', 'docente', 'padre'])
+            ], 201);
+        }
+
+        // Flujo para usuarios sin persona (auxiliar / bibliotecario)
         $validated = $request->validate([
-            'persona_id' => 'required|integer',
-            'persona_tipo' => 'required|in:estudiante,docente,padre,auxiliar',
+            'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
+            'role' => 'required|in:auxiliar,bibliotecario',
             'is_active' => 'boolean',
         ]);
 
-        // Verificar que la persona existe y no tiene usuario
-        $persona = $this->getPersona($validated['persona_tipo'], $validated['persona_id']);
-        
-        if (!$persona) {
-            return response()->json([
-                'message' => 'La persona no existe'
-            ], 404);
-        }
-
-        if ($persona->user_id) {
-            return response()->json([
-                'message' => 'Esta persona ya tiene un usuario asignado'
-            ], 422);
-        }
-
-        // Crear el usuario
         $user = User::create([
-            'name' => $this->getNombreCompleto($persona, $validated['persona_tipo']),
+            'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => $validated['persona_tipo'],
+            'role' => $validated['role'],
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
-        // Vincular usuario con la persona
-        $persona->update(['user_id' => $user->id]);
-
         return response()->json([
             'message' => 'Usuario creado exitosamente',
-            'user' => $user->load(['estudiante', 'docente', 'padre'])
+            'user' => $user,
         ], 201);
     }
 

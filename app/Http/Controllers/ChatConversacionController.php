@@ -33,11 +33,42 @@ class ChatConversacionController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'docente_id' => 'required|exists:docentes,id',
-            'padre_id' => 'required|exists:padres,id',
-            'estudiante_id' => 'nullable|exists:estudiantes,id',
-        ]);
+        $user = $request->user();
+
+        if ($user->role === 'admin') {
+            return response()->json(['message' => 'Solo docentes o padres pueden iniciar conversaciones'], 403);
+        }
+
+        // Forzar que el usuario autenticado sea parte de la conversación
+        if ($user->docente) {
+            $validated = $request->validate([
+                'padre_id' => 'required|exists:padres,id',
+                'estudiante_id' => 'nullable|exists:estudiantes,id',
+            ]);
+
+            $validated['docente_id'] = $user->docente->id;
+        } elseif ($user->padre) {
+            $validated = $request->validate([
+                'docente_id' => 'required|exists:docentes,id',
+                'estudiante_id' => 'nullable|exists:estudiantes,id',
+            ]);
+
+            $validated['padre_id'] = $user->padre->id;
+
+            // Si se indica estudiante, validar que pertenezca al padre
+            if (!empty($validated['estudiante_id'])) {
+                $tieneHijo = $user->padre->estudiantes()
+                    ->where('estudiantes.id', $validated['estudiante_id'])
+                    ->exists();
+
+                if (!$tieneHijo) {
+                    return response()->json([
+                        'message' => 'El estudiante no pertenece a este padre'], 422);
+                }
+            }
+        } else {
+            return response()->json(['message' => 'Rol no autorizado para iniciar chat'], 403);
+        }
 
         $conversacion = ChatConversacion::firstOrCreate(
             $validated,

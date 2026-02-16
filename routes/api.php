@@ -34,7 +34,6 @@ use Illuminate\Support\Facades\Route;
 
 // Rutas de autenticación (públicas)
 Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/register', [AuthController::class, 'register']);
 
 // Rutas mobile (públicas)
 Route::post('/mobile/auth/login', [AuthController::class, 'login']);
