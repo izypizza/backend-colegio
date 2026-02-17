@@ -16,6 +16,12 @@ use App\Models\Seccion;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Database\Seeders\ConfiguracionSeeder;
+use Database\Seeders\BibliotecaSeeder;
+use Database\Seeders\EleccionSeeder;
+use Database\Seeders\BibliotecarioUserSeeder;
+use Database\Seeders\PrestamosSeeder;
+use Database\Seeders\VotosSeeder;
 
 class DatabaseSeeder extends Seeder
 {
