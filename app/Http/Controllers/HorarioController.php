@@ -100,9 +100,38 @@ class HorarioController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     * Los horarios son registros de planificación y pueden eliminarse,
+     * pero no si el período al que pertenece la sección está activo
+     * y ya hay asistencias registradas contra esa combinación seccion+materia+dia.
      */
     public function destroy(string $id)
     {
-        //
+        try {
+            $horario = Horario::with(['seccion.grado', 'materia'])->findOrFail($id);
+
+            // Bloquear si ya hay asistencias registradas para esta combinación seccion+materia en la fecha del dia
+            $tieneAsistencias = \App\Models\Asistencia::where('materia_id', $horario->materia_id)
+                ->whereHas('estudiante', fn($q) => $q->where('seccion_id', $horario->seccion_id))
+                ->exists();
+
+            if ($tieneAsistencias) {
+                return response()->json([
+                    'message' => "No se puede eliminar el horario porque ya existen registros de asistencia para la materia \"{$horario->materia->nombre}\" en la sección \"{$horario->seccion->nombre}\". Elimina primero los registros de asistencia relacionados.",
+                    'materia' => $horario->materia->nombre,
+                    'seccion' => $horario->seccion->nombre,
+                ], 422);
+            }
+
+            $horario->delete();
+            return response()->json(['message' => 'Horario eliminado correctamente'], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Horario no encontrado'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar el horario',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

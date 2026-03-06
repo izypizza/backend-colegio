@@ -150,18 +150,36 @@ class PadreController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     * Restricciones: un padre con hijos matriculados activamente vinculados
+     * no puede eliminarse —es el tutor legal registrado.
      */
     public function destroy(string $id)
     {
         try {
-            $padre = Padre::findOrFail($id);
+            $padre = Padre::withCount('estudiantes')->findOrFail($id);
             $nombre = $padre->nombre_completo;
+
+            // Bloquear si tiene hijos vinculados
+            if ($padre->estudiantes_count > 0) {
+                return response()->json([
+                    'message' => "No se puede eliminar a {$nombre} porque tiene {$padre->estudiantes_count} estudiante(s) vinculado(s). Desvincula primero a los estudiantes o usa la opción de desactivar cuenta.",
+                    'estudiantes_vinculados' => $padre->estudiantes_count,
+                ], 422);
+            }
+
+            // Desvincular usuario si lo tiene asignado
+            if ($padre->user_id) {
+                \App\Models\User::where('id', $padre->user_id)->delete();
+            }
+
             $padre->delete();
 
             return response()->json([
                 'message' => "Padre {$nombre} eliminado correctamente",
             ], 200);
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Padre no encontrado'], 404);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al eliminar el padre',

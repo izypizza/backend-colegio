@@ -214,11 +214,34 @@ class AsistenciaController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     * Restricciones: no se permite eliminar registros de asistencia
+     * con más de 60 días de antigüedad (mismo límite que para crearlos).
      */
     public function destroy(string $id)
     {
-        $asistencia = Asistencia::findOrFail($id);
-        $asistencia->delete();
-        return response()->json(['message' => 'Asistencia eliminada correctamente'], 200);
+        try {
+            $asistencia = Asistencia::findOrFail($id);
+
+            $diasAtras = \Carbon\Carbon::parse($asistencia->fecha)->diffInDays(now());
+
+            if ($diasAtras > 60) {
+                return response()->json([
+                    'message' => "No se puede eliminar el registro de asistencia del {$asistencia->fecha} porque tiene {$diasAtras} días de antigüedad (límite: 60 días). Los registros históricos de asistencia son inmutables.",
+                    'fecha' => $asistencia->fecha,
+                    'dias_antiguedad' => $diasAtras,
+                ], 422);
+            }
+
+            $asistencia->delete();
+            return response()->json(['message' => 'Asistencia eliminada correctamente'], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Registro de asistencia no encontrado'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar la asistencia',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

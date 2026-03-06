@@ -321,13 +321,40 @@ class CalificacionController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     * Restricciones: solo admin/auxiliar pueden eliminar calificaciones
+     * y únicamente si el período académico todavía está activo.
+     * Los registros de períodos cerrados son inmutables.
      */
     public function destroy(string $id)
     {
-        $calificacion = Calificacion::findOrFail($id);
-        $calificacion->delete();
+        try {
+            $calificacion = Calificacion::with(['periodoAcademico', 'estudiante', 'materia'])->findOrFail($id);
 
-        return response()->json(['message' => 'Calificación eliminada correctamente'], 200);
+            // Bloquear si el período ya está cerrado/inactivo
+            if ($calificacion->periodoAcademico && $calificacion->periodoAcademico->estado !== 'activo') {
+                return response()->json([
+                    'message' => "No se puede eliminar la calificación porque pertenece al período \"{$calificacion->periodoAcademico->nombre}\" que ya está cerrado. Los registros de períodos finalizados son inmutables.",
+                    'periodo' => $calificacion->periodoAcademico->nombre,
+                    'estado_periodo' => $calificacion->periodoAcademico->estado,
+                ], 422);
+            }
+
+            // Limpiar caché relacionada
+            cache()->forget('calificaciones_estudiante_' . $calificacion->estudiante_id . '_all');
+            cache()->forget('calificaciones_estudiante_' . $calificacion->estudiante_id . '_' . $calificacion->periodo_academico_id);
+
+            $calificacion->delete();
+
+            return response()->json(['message' => 'Calificación eliminada correctamente'], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Calificación no encontrada'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar la calificación',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

@@ -163,22 +163,75 @@ class DocenteController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     * Restricciones: no se permite eliminar si tiene asignaciones activas
+     * con calificaciones o asistencias registradas —son registros oficiales del año escolar.
      */
     public function destroy(string $id)
     {
         try {
-            $docente = Docente::findOrFail($id);
+            $docente = Docente::withCount('asignaciones')->findOrFail($id);
             $nombre = $docente->nombre_completo;
+
+            if ($docente->asignaciones_count > 0) {
+                // Obtener pares materia_id/seccion_id de sus asignaciones
+                $pares = $docente->asignaciones()
+                    ->select('materia_id', 'seccion_id')
+                    ->get();
+
+                $tieneCalificaciones = false;
+                $tieneAsistencias    = false;
+
+                foreach ($pares as $par) {
+                    if (\App\Models\Calificacion::where('materia_id', $par->materia_id)
+                        ->whereHas('estudiante', fn($q) => $q->where('seccion_id', $par->seccion_id))
+                        ->exists()) {
+                        $tieneCalificaciones = true;
+                        break;
+                    }
+                }
+
+                if (!$tieneCalificaciones) {
+                    foreach ($pares as $par) {
+                        if (\App\Models\Asistencia::where('materia_id', $par->materia_id)
+                            ->whereHas('estudiante', fn($q) => $q->where('seccion_id', $par->seccion_id))
+                            ->exists()) {
+                            $tieneAsistencias = true;
+                            break;
+                        }
+                    }
+                }
+
+                if ($tieneCalificaciones || $tieneAsistencias) {
+                    return response()->json([
+                        'message' => "No se puede eliminar a {$nombre} porque tiene calificaciones o asistencias registradas vinculadas a sus asignaciones. Desactiva su cuenta en lugar de eliminarla.",
+                        'asignaciones' => $docente->asignaciones_count,
+                    ], 422);
+                }
+
+                // Tiene asignaciones pero sin datos aún
+                return response()->json([
+                    'message' => "No se puede eliminar a {$nombre} porque tiene {$docente->asignaciones_count} asignación(es) activa(s). Elimina primero las asignaciones o desactiva la cuenta.",
+                    'asignaciones' => $docente->asignaciones_count,
+                ], 422);
+            }
+
+            // Desvincular usuario si lo tiene asignado
+            if ($docente->user_id) {
+                \App\Models\User::where('id', $docente->user_id)->delete();
+            }
+
             $docente->delete();
-            
+
             return response()->json([
-                'message' => "Docente {$nombre} eliminado correctamente"
+                'message' => "Docente {$nombre} eliminado correctamente",
             ], 200);
-            
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Docente no encontrado'], 404);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al eliminar el docente',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
