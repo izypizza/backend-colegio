@@ -113,28 +113,16 @@ return [
         'enable_font_subsetting' => false,
 
         /**
-         * The PDF rendering backend to use
+         * The PDF rendering backend to use.
          *
-         * Valid settings are 'PDFLib', 'CPDF' (the bundled R&OS PDF class), 'GD' and
-         * 'auto'. 'auto' will look for PDFLib and use it if found, or if not it will
-         * fall back on CPDF. 'GD' renders PDFs to graphic files.
-         * {@link * Canvas_Factory} ultimately determines which rendering class to
-         * instantiate based on this setting.
+         * Valid settings: 'PDFLib', 'CPDF' (bundled R&OS PDF class), 'GD', or 'auto'.
+         * 'auto' prefers PDFLib when available, otherwise falls back to CPDF.
+         * GD renders PDFs to images. Canvas_Factory decides which renderer is instantiated.
          *
-         * Both PDFLib & CPDF rendering backends provide sufficient rendering
-         * capabilities for dompdf, however additional features (e.g. object,
-         * image and font support, etc.) differ between backends.  Please see
-         * {@link PDFLib_Adapter} for more information on the PDFLib backend
-         * and {@link CPDF_Adapter} and lib/class.pdf.php for more information
-         * on CPDF. Also see the documentation for each backend at the links
-         * below.
-         *
-         * The GD rendering backend is a little different than PDFLib and
-         * CPDF. Several features of CPDF and PDFLib are not supported or do
-         * not make any sense when creating image files.  For example,
-         * multiple pages are not supported, nor are PDF 'objects'.  Have a
-         * look at {@link GD_Adapter} for more information.  GD support is
-         * experimental, so use it at your own risk.
+         * Both PDFLib and CPDF provide sufficient rendering capabilities, but features
+         * differ (object, image, and font support, etc.). See \Dompdf\Adapter\PDFLib for
+         * PDFLib details and \Dompdf\Adapter\CPDF plus lib/class.pdf.php for CPDF details.
+         * GD support is experimental; multiple pages and PDF objects are not supported.
          *
          * @link http://www.pdflib.com
          * @link http://www.ros.co.nz/pdf
@@ -157,9 +145,9 @@ return [
         /**
          * The default paper size.
          *
-         * North America standard is "letter"; other countries generally "a4"
+         * North America standard is "letter"; other countries generally "a4".
          *
-         * @see CPDF_Adapter::PAPER_SIZES for valid sizes ('letter', 'legal', 'A4', etc.)
+         * @see \Dompdf\Adapter\CPDF::PAPER_SIZES for valid sizes ('letter', 'legal', 'A4', etc.)
          */
         'default_paper_size' => 'a4',
 

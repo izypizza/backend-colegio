@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Eleccion;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class EleccionController extends Controller
 {
@@ -235,12 +234,43 @@ class EleccionController extends Controller
     }
 
     /**
-     * Eliminar una elección
+     * Eliminar una elección.
+     * Restricciones: no se puede eliminar una elección activa
+     * ni una que ya tenga votos emitidos —son registros electorales oficiales.
      */
     public function destroy($id)
     {
-        $eleccion = Eleccion::findOrFail($id);
-        $eleccion->delete();
-        return response()->json(['message' => 'Elección eliminada correctamente']);
+        try {
+            $eleccion = Eleccion::withCount('votos')->findOrFail($id);
+
+            // Bloquear si está activa
+            if ($eleccion->estado === 'activa') {
+                return response()->json([
+                    'message' => "No se puede eliminar la elección \"{$eleccion->titulo}\" porque está activa. Ciérrala primero.",
+                ], 422);
+            }
+
+            // Bloquear si ya tiene votos emitidos
+            if ($eleccion->votos_count > 0) {
+                return response()->json([
+                    'message' => "No se puede eliminar la elección \"{$eleccion->titulo}\" porque tiene {$eleccion->votos_count} voto(s) emitido(s). Los registros electorales no pueden borrarse.",
+                    'votos' => $eleccion->votos_count,
+                ], 422);
+            }
+
+            // Eliminar candidatos vinculados (sin votos) antes de eliminar la elección
+            $eleccion->candidatos()->delete();
+            $eleccion->delete();
+
+            return response()->json(['message' => "Elección \"{$eleccion->titulo}\" eliminada correctamente"]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Elección no encontrada'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar la elección',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

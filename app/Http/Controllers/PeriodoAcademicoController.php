@@ -58,12 +58,51 @@ class PeriodoAcademicoController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     * Restricciones: un período activo nunca puede eliminarse;
+     * tampoco uno que tenga calificaciones o asignaciones registradas.
      */
     public function destroy(string $id)
     {
-        $periodo = PeriodoAcademico::findOrFail($id);
-        $periodo->delete();
-        return response()->json(['message' => 'Periodo académico eliminado correctamente'], 200);
+        try {
+            $periodo = PeriodoAcademico::withCount([
+                'calificaciones',
+                'asignaciones',
+            ])->findOrFail($id);
+
+            // Bloquear período activo
+            if ($periodo->estado === 'activo') {
+                return response()->json([
+                    'message' => "No se puede eliminar el período \"{$periodo->nombre}\" porque está activo. Activa otro período antes de eliminarlo.",
+                ], 422);
+            }
+
+            // Bloquear si tiene calificaciones
+            if ($periodo->calificaciones_count > 0) {
+                return response()->json([
+                    'message' => "No se puede eliminar el período \"{$periodo->nombre}\" porque tiene {$periodo->calificaciones_count} calificación(es) registrada(s). Los registros académicos no pueden borrarse.",
+                    'calificaciones' => $periodo->calificaciones_count,
+                ], 422);
+            }
+
+            // Bloquear si tiene asignaciones docente-materia vinculadas
+            if ($periodo->asignaciones_count > 0) {
+                return response()->json([
+                    'message' => "No se puede eliminar el período \"{$periodo->nombre}\" porque tiene {$periodo->asignaciones_count} asignación(es) docente activa(s). Elimina primero las asignaciones.",
+                    'asignaciones' => $periodo->asignaciones_count,
+                ], 422);
+            }
+
+            $periodo->delete();
+            return response()->json(['message' => "Período \"{$periodo->nombre}\" eliminado correctamente"], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Período académico no encontrado'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar el período académico',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

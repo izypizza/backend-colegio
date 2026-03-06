@@ -195,22 +195,65 @@ class EstudianteController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     * Restricciones: no se permite eliminar si el estudiante tiene registros académicos
+     * o préstamos activos —el historial escolar es irrenunciable.
      */
     public function destroy(string $id)
     {
         try {
-            $estudiante = Estudiante::findOrFail($id);
+            $estudiante = Estudiante::withCount([
+                'calificaciones',
+                'asistencias',
+            ])->findOrFail($id);
+
             $nombre = $estudiante->nombre_completo;
+
+            // Bloquear si tiene calificaciones registradas
+            if ($estudiante->calificaciones_count > 0) {
+                return response()->json([
+                    'message' => "No se puede eliminar a {$nombre} porque tiene {$estudiante->calificaciones_count} calificación(es) registrada(s). El historial académico no puede borrarse; usa la opción de cambiar estado a 'egresado'.",
+                    'calificaciones' => $estudiante->calificaciones_count,
+                ], 422);
+            }
+
+            // Bloquear si tiene asistencias registradas
+            if ($estudiante->asistencias_count > 0) {
+                return response()->json([
+                    'message' => "No se puede eliminar a {$nombre} porque tiene {$estudiante->asistencias_count} registro(s) de asistencia. El historial académico no puede borrarse; usa la opción de cambiar estado a 'egresado'.",
+                    'asistencias' => $estudiante->asistencias_count,
+                ], 422);
+            }
+
+            // Bloquear si tiene préstamos pendientes o activos
+            $prestamosActivos = \App\Models\PrestamoLibro::where('estudiante_id', $estudiante->id)
+                ->whereIn('estado', ['pendiente', 'aprobado'])
+                ->where('devuelto', false)
+                ->count();
+
+            if ($prestamosActivos > 0) {
+                return response()->json([
+                    'message' => "No se puede eliminar a {$nombre} porque tiene {$prestamosActivos} préstamo(s) de biblioteca sin devolver.",
+                    'prestamos_activos' => $prestamosActivos,
+                ], 422);
+            }
+
+            // Desvincular usuario si lo tiene asignado
+            if ($estudiante->user_id) {
+                \App\Models\User::where('id', $estudiante->user_id)->delete();
+            }
+
             $estudiante->delete();
-            
+
             return response()->json([
-                'message' => "Estudiante {$nombre} eliminado correctamente"
+                'message' => "Estudiante {$nombre} eliminado correctamente",
             ], 200);
-            
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Estudiante no encontrado'], 404);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al eliminar el estudiante',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
