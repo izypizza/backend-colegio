@@ -18,7 +18,8 @@ return new class extends Migration
 
         // Agregar constraint único en votos para evitar que un estudiante vote múltiples veces en la misma elección
         Schema::table('votos', function (Blueprint $table) {
-            $table->unique(['eleccion_id', 'estudiante_id'], 'unique_voto_estudiante_eleccion');
+            // Ahora los votos se relacionan al usuario autenticado
+            $table->unique(['eleccion_id', 'user_id'], 'unique_voto_usuario_eleccion');
         });
 
         // Agregar constraint único en asignacion_docente_materia para evitar asignaciones duplicadas
@@ -40,7 +41,7 @@ return new class extends Migration
         });
 
         Schema::table('votos', function (Blueprint $table) {
-            $table->dropUnique('unique_voto_estudiante_eleccion');
+            $table->dropUnique('unique_voto_usuario_eleccion');
         });
 
         Schema::table('asignacion_docente_materia', function (Blueprint $table) {

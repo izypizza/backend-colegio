@@ -13,7 +13,8 @@ class EstudianteController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Estudiante::with(['seccion.grado', 'padres']);
+        $query = Estudiante::with(['seccion.grado', 'padres'])
+            ->orderByDesc('created_at');
         
         // Paginación para mejorar performance (328+ estudiantes)
         if ($request->has('all') && $request->all === 'true') {

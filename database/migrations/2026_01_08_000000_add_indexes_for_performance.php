@@ -115,8 +115,9 @@ return new class extends Migration
             if (! $this->indexExists('votos', 'idx_votos_eleccion')) {
                 $table->index('eleccion_id', 'idx_votos_eleccion');
             }
-            if (! $this->indexExists('votos', 'idx_votos_estudiante')) {
-                $table->index('estudiante_id', 'idx_votos_estudiante');
+            // Tras el cambio de esquema, los votos se relacionan al usuario autenticado
+            if (! $this->indexExists('votos', 'idx_votos_user')) {
+                $table->index('user_id', 'idx_votos_user');
             }
         });
     }
@@ -186,7 +187,7 @@ return new class extends Migration
 
         Schema::table('votos', function (Blueprint $table) {
             $table->dropIndex('idx_votos_eleccion');
-            $table->dropIndex('idx_votos_estudiante');
+            $table->dropIndex('idx_votos_user');
         });
     }
 };
