@@ -15,7 +15,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('eleccion_id')->constrained('elecciones')->cascadeOnDelete();
             $table->foreignId('candidato_id')->constrained('candidatos')->cascadeOnDelete();
-            $table->foreignId('estudiante_id')->constrained()->cascadeOnDelete();
+            // Guardamos el usuario autenticado que emite el voto
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            // Evitar votos duplicados por usuario en la misma elección
+            $table->unique(['eleccion_id', 'user_id']);
             $table->timestamps();
         });
     }
