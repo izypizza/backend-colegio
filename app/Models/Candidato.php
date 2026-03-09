@@ -11,7 +11,8 @@ class Candidato extends Model
 
     protected $fillable = [
         'eleccion_id',
-        'estudiante_id',
+        'nombre',
+        'partido_id',
         'cargo',
         'propuestas',
     ];
@@ -25,8 +26,12 @@ class Candidato extends Model
     }
 
     /**
-     * Relación: Un candidato es un estudiante
+     * Relación: Un candidato pertenece a un partido
      */
+    public function partido()
+    {
+        return $this->belongsTo(Partido::class);
+    }
     public function estudiante()
     {
         return $this->belongsTo(Estudiante::class, 'estudiante_id');

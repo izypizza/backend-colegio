@@ -36,6 +36,14 @@ class Eleccion extends Model
     }
 
     /**
+     * Relación: Una elección tiene muchos partidos
+     */
+    public function partidos()
+    {
+        return $this->hasMany(Partido::class);
+    }
+
+    /**
      * Relación: Una elección tiene muchos votos
      */
     public function votos()

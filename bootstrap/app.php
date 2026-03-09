@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Registrar middleware de roles personalizados
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'permission' => \App\Http\Middleware\PermissionMiddleware::class,
             'modulo.activo' => \App\Http\Middleware\CheckModuloActivo::class,
             'maintenance' => \App\Http\Middleware\CheckMaintenanceMode::class,
             'audit' => \App\Http\Middleware\AuditLogMiddleware::class,
