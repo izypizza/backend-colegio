@@ -187,4 +187,100 @@ class PadreController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Asociar un estudiante a un padre
+     */
+    public function asociarEstudiante(Request $request, string $id)
+    {
+        try {
+            $validated = $request->validate([
+                'estudiante_id' => 'required|exists:estudiantes,id',
+            ]);
+
+            $padre = Padre::findOrFail($id);
+            
+            // Verificar si ya está asociado
+            if ($padre->estudiantes()->where('estudiante_id', $validated['estudiante_id'])->exists()) {
+                return response()->json([
+                    'message' => 'El estudiante ya está vinculado a este padre',
+                ], 422);
+            }
+
+            $padre->estudiantes()->attach($validated['estudiante_id']);
+
+            return response()->json([
+                'message' => 'Estudiante asociado correctamente',
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Error de validación',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al asociar el estudiante',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Desasociar un estudiante de un padre
+     */
+    public function desasociarEstudiante(string $padreId, string $estudianteId)
+    {
+        try {
+            $padre = Padre::findOrFail($padreId);
+            
+            // Verificar si está asociado
+            if (!$padre->estudiantes()->where('estudiante_id', $estudianteId)->exists()) {
+                return response()->json([
+                    'message' => 'El estudiante no está vinculado a este padre',
+                ], 422);
+            }
+
+            $padre->estudiantes()->detach($estudianteId);
+
+            return response()->json([
+                'message' => 'Estudiante desvinculado correctamente',
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al desvincular el estudiante',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener lista de estudiantes disponibles para asociar
+     */
+    public function estudiantesDisponibles(string $id)
+    {
+        try {
+            $padre = Padre::findOrFail($id);
+            
+            // Obtener IDs de estudiantes ya asociados
+            $estudiantesAsociados = $padre->estudiantes()->pluck('estudiante_id');
+            
+            // Obtener estudiantes NO asociados
+            $disponibles = \App\Models\Estudiante::with(['seccion.grado'])
+                ->whereNotIn('id', $estudiantesAsociados)
+                ->orderBy('apellido_paterno')
+                ->orderBy('apellido_materno')
+                ->orderBy('nombres')
+                ->get();
+
+            return response()->json($disponibles);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al obtener estudiantes disponibles',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

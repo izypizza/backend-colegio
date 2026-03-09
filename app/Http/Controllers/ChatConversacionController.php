@@ -7,12 +7,21 @@ use Illuminate\Http\Request;
 
 class ChatConversacionController extends Controller
 {
+    /**
+     * Listar conversaciones del usuario
+     */
     public function index(Request $request)
     {
         $user = $request->user();
 
-        $query = ChatConversacion::with(['docente', 'padre', 'estudiante'])
-            ->orderByDesc('ultimo_mensaje_at');
+        $query = ChatConversacion::with([
+            'docente.user', 
+            'padre.user', 
+            'estudiante',
+            'ultimoMensaje.user'
+        ])
+        ->activas() // Solo conversaciones activas
+        ->orderByDesc('ultimo_mensaje_at');
 
         // Admin puede ver todas las conversaciones
         if ($user->role === 'admin') {
@@ -27,6 +36,12 @@ class ChatConversacionController extends Controller
         }
 
         $conversaciones = $query->paginate(20);
+
+        // Agregar contador de mensajes no leídos a cada conversación
+        $conversaciones->getCollection()->transform(function ($conversacion) use ($user) {
+            $conversacion->mensajes_no_leidos = $conversacion->mensajesNoLeidosPara($user->id);
+            return $conversacion;
+        });
 
         return response()->json($conversaciones);
     }

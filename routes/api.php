@@ -23,6 +23,7 @@ use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\PadreController;
 use App\Http\Controllers\PadrePortalController;
+use App\Http\Controllers\PartidoController;
 use App\Http\Controllers\PeriodoAcademicoController;
 use App\Http\Controllers\PrestamoLibroController;
 use App\Http\Controllers\ReporteController;
@@ -80,9 +81,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/anio-academico', [DashboardController::class, 'anioAcademico']);
 
     // ========================================
-    // CONFIGURACIONES DEL SISTEMA (Solo Admin)
+    // CONFIGURACIONES DEL SISTEMA - Con permisos granulares
     // ========================================
-    Route::middleware(['role:admin'])->group(function () {
+    Route::middleware(['permission:configuraciones'])->group(function () {
         Route::get('/configuraciones', [ConfiguracionController::class, 'index']);
         Route::get('/configuraciones/{clave}', [ConfiguracionController::class, 'obtener']);
         Route::post('/configuraciones', [ConfiguracionController::class, 'actualizar']);
@@ -97,94 +98,91 @@ Route::middleware('auth:sanctum')->group(function () {
     // RUTAS CON CONTROL DE ACCESO POR ROLES
     // ========================================
 
-    // Solo Admin - Gestión completa del sistema (PROTEGIDO)
-    Route::middleware(['role:admin'])->group(function () {
-        // Grados y Materias requieren confirmación especial por ser datos permanentes
-        Route::apiResource('grados', GradoController::class);
-        Route::apiResource('materias', MateriaController::class);
-        Route::apiResource('periodos', PeriodoAcademicoController::class)->except(['index', 'show']);
-        
-        // Gestión de periodos académicos
+    // Periodos académicos - Con permisos granulares
+    Route::middleware(['permission:periodos'])->group(function () {
+        Route::get('/periodos', [PeriodoAcademicoController::class, 'index']);
+        Route::post('/periodos', [PeriodoAcademicoController::class, 'store']);
+        Route::get('/periodos/{periodo}', [PeriodoAcademicoController::class, 'show']);
+        Route::put('/periodos/{periodo}', [PeriodoAcademicoController::class, 'update']);
+        Route::delete('/periodos/{periodo}', [PeriodoAcademicoController::class, 'destroy']);
         Route::post('/periodos/{id}/activar', [PeriodoAcademicoController::class, 'activar']);
         Route::post('/periodos/generar-anio', [PeriodoAcademicoController::class, 'generarAnio']);
     });
 
-    // Docentes, Padres y Estudiantes pueden VER períodos, grados, materias y secciones (solo lectura)
-    Route::middleware(['role:admin,auxiliar,docente,padre,estudiante'])->group(function () {
-        Route::get('/periodos', [PeriodoAcademicoController::class, 'index']);
-        Route::get('/periodos/{periodo}', [PeriodoAcademicoController::class, 'show']);
-        Route::get('/grados', [GradoController::class, 'index']);
-        Route::get('/grados/{grado}', [GradoController::class, 'show']);
-        Route::get('/materias', [MateriaController::class, 'index']);
-        Route::get('/materias/{materia}', [MateriaController::class, 'show']);
-        Route::get('/secciones', [SeccionController::class, 'index']);
-        Route::get('/secciones/{seccion}', [SeccionController::class, 'show']);
-        Route::get('/horarios', [HorarioController::class, 'index']);
-        Route::get('/horarios/{horario}', [HorarioController::class, 'show']);
-    });
-
     // ========================================
-    // ASISTENCIAS - Admin, Auxiliar y Docentes
+    // ASISTENCIAS - Con permisos granulares
     // ========================================
-    Route::middleware(['role:admin,auxiliar,docente'])->group(function () {
+    Route::middleware(['permission:asistencias'])->group(function () {
         Route::get('/asistencias', [AsistenciaController::class, 'index']);
         Route::post('/asistencias', [AsistenciaController::class, 'store']);
         Route::get('/asistencias/{id}', [AsistenciaController::class, 'show']);
         Route::put('/asistencias/{id}', [AsistenciaController::class, 'update']);
+        Route::delete('/asistencias/{id}', [AsistenciaController::class, 'destroy']);
 
-        // Solo admin y auxiliar pueden eliminar
-        Route::middleware(['role:admin,auxiliar'])->group(function () {
-            Route::delete('/asistencias/{id}', [AsistenciaController::class, 'destroy']);
-
-            // Reportes de asistencias
-            Route::get('/asistencias/reporte/estudiante/{estudiante_id}', [AsistenciaController::class, 'reportePorEstudiante']);
-            Route::get('/asistencias/reporte/seccion/{seccion_id}', [AsistenciaController::class, 'reportePorSeccion']);
-        });
+        // Reportes de asistencias
+        Route::get('/asistencias/reporte/estudiante/{estudiante_id}', [AsistenciaController::class, 'reportePorEstudiante']);
+        Route::get('/asistencias/reporte/seccion/{seccion_id}', [AsistenciaController::class, 'reportePorSeccion']);
     });
 
     // ========================================
-    // CALIFICACIONES - Admin, Auxiliar y Docentes
+    // CALIFICACIONES - Con permisos granulares
     // ========================================
-    Route::middleware(['role:admin,auxiliar,docente', 'modulo.activo:modulo_calificaciones_activo'])->group(function () {
+    Route::middleware(['permission:calificaciones', 'modulo.activo:modulo_calificaciones_activo'])->group(function () {
         // Rutas específicas ANTES de las genéricas con {id}
-        Route::middleware(['role:admin,auxiliar'])->group(function () {
-            Route::get('/calificaciones/estadisticas-avanzadas', [CalificacionController::class, 'estadisticasAvanzadas']);
-            Route::get('/calificaciones/boletin/{estudiante_id}/{periodo_id}', [CalificacionController::class, 'boletin']);
-            Route::get('/calificaciones/reporte/materia/{materia_id}', [CalificacionController::class, 'reportePorMateria']);
-            Route::delete('/calificaciones/{id}', [CalificacionController::class, 'destroy']);
-        });
+        Route::get('/calificaciones/estadisticas-avanzadas', [CalificacionController::class, 'estadisticasAvanzadas']);
+        Route::get('/calificaciones/boletin/{estudiante_id}/{periodo_id}', [CalificacionController::class, 'boletin']);
+        Route::get('/calificaciones/reporte/materia/{materia_id}', [CalificacionController::class, 'reportePorMateria']);
         
         // Rutas genéricas de calificaciones
         Route::get('/calificaciones', [CalificacionController::class, 'index']);
         Route::post('/calificaciones', [CalificacionController::class, 'store']);
         Route::get('/calificaciones/{id}', [CalificacionController::class, 'show']);
         Route::put('/calificaciones/{id}', [CalificacionController::class, 'update']);
+        Route::delete('/calificaciones/{id}', [CalificacionController::class, 'destroy']);
     });
 
     // ========================================
-    // GESTIÓN ACADÉMICA - Admin y Auxiliar
+    // GESTIÓN ACADÉMICA - Con permisos granulares
     // ========================================
-    Route::middleware(['role:admin,auxiliar'])->group(function () {
+    
+    Route::middleware(['permission:estudiantes'])->group(function () {
         Route::apiResource('estudiantes', EstudianteController::class);
-        Route::apiResource('secciones', SeccionController::class)->except(['index', 'show']);
-        Route::apiResource('horarios', HorarioController::class)->except(['index', 'show']);
-        Route::apiResource('grados', GradoController::class)->except(['index', 'show']);
-        Route::apiResource('materias', MateriaController::class)->except(['index', 'show']);
+    });
+    
+    Route::middleware(['permission:secciones'])->group(function () {
+        Route::apiResource('secciones', SeccionController::class);
+    });
+    
+    Route::middleware(['permission:horarios'])->group(function () {
+        Route::apiResource('horarios', HorarioController::class);
+    });
+    
+    Route::middleware(['permission:grados'])->group(function () {
+        Route::apiResource('grados', GradoController::class);
+    });
+    
+    Route::middleware(['permission:materias'])->group(function () {
+        Route::apiResource('materias', MateriaController::class);
     });
 
     // ========================================
-    // DOCENTES Y ASIGNACIONES - Admin, Auxiliar y Docentes
+    // DOCENTES Y ASIGNACIONES - Con permisos granulares
     // ========================================
-    Route::middleware(['role:admin,auxiliar,docente'])->group(function () {
+    Route::middleware(['permission:docentes'])->group(function () {
         Route::apiResource('docentes', DocenteController::class);
         Route::apiResource('asignaciones', AsignacionDocenteMateriaController::class);
     });
 
     // ========================================
-    // PADRES - Admin, Auxiliar, Docente y Padres
+    // PADRES - Con permisos granulares
     // ========================================
-    Route::middleware(['role:admin,auxiliar,docente,padre'])->group(function () {
+    Route::middleware(['permission:padres'])->group(function () {
         Route::apiResource('padres', PadreController::class);
+        
+        // Gestión de asociaciones padre-estudiante
+        Route::post('/padres/{id}/asociar-estudiante', [PadreController::class, 'asociarEstudiante']);
+        Route::delete('/padres/{padreId}/desasociar-estudiante/{estudianteId}', [PadreController::class, 'desasociarEstudiante']);
+        Route::get('/padres/{id}/estudiantes-disponibles', [PadreController::class, 'estudiantesDisponibles']);
     });
 
     // Padres - Ver calificaciones de sus hijos
@@ -193,13 +191,14 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ========================================
-    // SISTEMA DE BIBLIOTECA
+    // SISTEMA DE BIBLIOTECA - Con permisos granulares
     // ========================================
-
-    // Admin y Bibliotecario - Gestión completa de biblioteca
-    Route::middleware(['role:admin,bibliotecario', 'modulo.activo:modulos_biblioteca'])->group(function () {
+    Route::middleware(['permission:biblioteca', 'modulo.activo:modulos_biblioteca'])->group(function () {
         Route::apiResource('categorias-libros', CategoriaLibroController::class);
         Route::apiResource('libros', LibroController::class);
+    });
+    
+    Route::middleware(['permission:prestamos', 'modulo.activo:modulos_biblioteca'])->group(function () {
         Route::get('/prestamos', [PrestamoLibroController::class, 'index']);
         Route::post('/prestamos/{id}/aprobar', [PrestamoLibroController::class, 'aprobar']);
         Route::post('/prestamos/{id}/rechazar', [PrestamoLibroController::class, 'rechazar']);
@@ -223,6 +222,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/elecciones', [EleccionController::class, 'index']);
         Route::get('/elecciones/{id}', [EleccionController::class, 'show']);
         Route::get('/elecciones/{id}/resultados', [EleccionController::class, 'resultados']);
+        
+        // Cualquier usuario autenticado puede verificar si ya votó
         Route::get('/elecciones/{id}/ya-vote', [EleccionController::class, 'yaVote']);
 
         // Admin - Gestión completa de elecciones (solo supervisión, no manipula votos)
@@ -233,6 +234,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/elecciones/{id}/activar', [EleccionController::class, 'activar']);
             Route::post('/elecciones/{id}/cerrar', [EleccionController::class, 'cerrar']);
             Route::post('/elecciones/{id}/publicar-resultados', [EleccionController::class, 'publicarResultados']);
+            
+            // Gestión de partidos políticos
+            Route::get('/partidos', [PartidoController::class, 'index']);
+            Route::post('/partidos', [PartidoController::class, 'store']);
+            Route::put('/partidos/{id}', [PartidoController::class, 'update']);
+            Route::delete('/partidos/{id}', [PartidoController::class, 'destroy']);
         });
 
         // Estudiantes - Votar en elecciones activas
@@ -245,11 +252,16 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // NOTIFICACIONES Y AUDITORIA
     // ========================================
+    // Rutas de notificaciones para usuarios autenticados
     Route::get('/notificaciones', [NotificacionController::class, 'index']);
+    Route::get('/notificaciones/estadisticas', [NotificacionController::class, 'estadisticas']);
     Route::post('/notificaciones/{id}/leer', [NotificacionController::class, 'marcarLeida']);
     Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'marcarTodasLeidas']);
+    Route::delete('/notificaciones/{id}', [NotificacionController::class, 'destroy']);
+    Route::delete('/notificaciones/limpiar-leidas', [NotificacionController::class, 'eliminarLeidas']);
 
-    Route::middleware(['role:admin'])->group(function () {
+    // Crear notificaciones y auditoría (solo admin)
+    Route::middleware(['permission:auditoria'])->group(function () {
         Route::post('/notificaciones', [NotificacionController::class, 'store']);
         Route::get('/auditoria', [AuditLogController::class, 'index']);
     });
@@ -262,6 +274,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/chat/conversaciones', [ChatConversacionController::class, 'store']);
         Route::get('/chat/conversaciones/{id}/mensajes', [ChatMensajeController::class, 'index']);
         Route::post('/chat/conversaciones/{id}/mensajes', [ChatMensajeController::class, 'store']);
+        Route::post('/chat/conversaciones/{conversacionId}/mensajes/{mensajeId}/leer', [ChatMensajeController::class, 'marcarLeido']);
+        Route::get('/chat/mensajes/no-leidos', [ChatMensajeController::class, 'contarNoLeidos']);
     });
 
     // Admin - Monitoreo de chat
@@ -281,11 +295,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ========================================
-    // SISTEMA DE PERMISOS ESPECIALES PARA AUXILIARES
+    // SISTEMA DE PERMISOS ESPECIALES PARA AUXILIARES - Con permisos granulares
     // ========================================
-
-    // Admin - Gestión de permisos especiales
-    Route::middleware(['role:admin', 'modulo.activo:modulos_permisos'])->group(function () {
+    Route::middleware(['permission:permisos_auxiliares', 'modulo.activo:modulos_permisos'])->group(function () {
         Route::get('/auxiliares', [AuxiliarPermisoController::class, 'getAuxiliares']);
         Route::get('/auxiliar-permisos', [AuxiliarPermisoController::class, 'index']);
         Route::post('/auxiliar-permisos', [AuxiliarPermisoController::class, 'store']);
@@ -299,11 +311,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ========================================
-    // GESTIÓN DE USUARIOS Y PERSONAS
+    // GESTIÓN DE USUARIOS Y PERSONAS - Con permisos granulares
     // ========================================
-
-    // Admin - Gestión completa de usuarios
-    Route::middleware(['role:admin'])->group(function () {
+    Route::middleware(['permission:usuarios'])->group(function () {
         Route::get('/users', [UserManagementController::class, 'index']);
         Route::post('/users', [UserManagementController::class, 'store']);
         Route::put('/users/{id}', [UserManagementController::class, 'update']);

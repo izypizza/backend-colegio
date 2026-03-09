@@ -203,11 +203,12 @@ class DocentePortalController extends Controller
         // Orden por defecto
         $query->orderBy('created_at', 'desc');
 
-        // Paginación (por defecto 50 registros)
-        $perPage = $request->get('per_page', 50);
-        $calificaciones = $query->paginate($perPage);
+        // Retornar todas las calificaciones (sin paginación) con estructura esperada por el frontend
+        $calificaciones = $query->get();
 
-        return response()->json($calificaciones);
+        return response()->json([
+            'calificaciones' => $calificaciones
+        ]);
     }
 
     /**

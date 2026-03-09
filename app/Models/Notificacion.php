@@ -13,7 +13,10 @@ class Notificacion extends Model
         'titulo',
         'mensaje',
         'tipo',
+        'prioridad',
+        'icono',
         'data',
+        'accion_url',
         'leido_at',
     ];
 
@@ -25,5 +28,47 @@ class Notificacion extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Marcar como leída
+     */
+    public function marcarLeida(): void
+    {
+        if (!$this->leido_at) {
+            $this->update(['leido_at' => now()]);
+        }
+    }
+
+    /**
+     * Verificar si está leída
+     */
+    public function estaLeida(): bool
+    {
+        return !is_null($this->leido_at);
+    }
+
+    /**
+     * Scope para notificaciones no leídas
+     */
+    public function scopeNoLeidas($query)
+    {
+        return $query->whereNull('leido_at');
+    }
+
+    /**
+     * Scope para notificaciones por tipo
+     */
+    public function scopePorTipo($query, string $tipo)
+    {
+        return $query->where('tipo', $tipo);
+    }
+
+    /**
+     * Scope para notificaciones de alta prioridad
+     */
+    public function scopeAltaPrioridad($query)
+    {
+        return $query->where('prioridad', 'alta');
     }
 }
