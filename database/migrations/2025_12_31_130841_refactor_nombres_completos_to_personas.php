@@ -11,89 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // ESTUDIANTES: Cambiar 'nombre' por 'nombres', 'apellido_paterno', 'apellido_materno'
-        Schema::table('estudiantes', function (Blueprint $table) {
-            $table->string('nombres')->after('user_id');
-            $table->string('apellido_paterno')->after('nombres');
-            $table->string('apellido_materno')->after('apellido_paterno');
-            // dni ya existe, no agregarlo
-        });
-
-        // Migrar datos existentes
-        \DB::statement("
-            UPDATE estudiantes 
-            SET nombres = SUBSTRING_INDEX(nombre, ' ', 1),
-                apellido_paterno = COALESCE(SUBSTRING_INDEX(SUBSTRING_INDEX(nombre, ' ', 2), ' ', -1), 'Apellido'),
-                apellido_materno = COALESCE(SUBSTRING_INDEX(nombre, ' ', -1), 'Apellido')
-        ");
-
-        Schema::table('estudiantes', function (Blueprint $table) {
-            $table->dropColumn('nombre');
-        });
-
-        // DOCENTES: Cambiar 'nombre' por 'nombres', 'apellido_paterno', 'apellido_materno'
-        Schema::table('docentes', function (Blueprint $table) {
-            $table->string('nombres')->after('user_id');
-            $table->string('apellido_paterno')->after('nombres');
-            $table->string('apellido_materno')->after('apellido_paterno');
-            // Agregar campos si no existen
-            if (!Schema::hasColumn('docentes', 'dni')) {
-                $table->string('dni', 8)->unique()->nullable()->after('apellido_materno');
-            }
-            if (!Schema::hasColumn('docentes', 'email')) {
-                $table->string('email')->unique()->nullable()->after('dni');
-            }
-            if (!Schema::hasColumn('docentes', 'telefono')) {
-                $table->string('telefono')->nullable()->after('email');
-            }
-            if (!Schema::hasColumn('docentes', 'direccion')) {
-                $table->string('direccion')->nullable()->after('telefono');
-            }
-        });
-
-        // Migrar datos existentes
-        \DB::statement("
-            UPDATE docentes 
-            SET nombres = SUBSTRING_INDEX(nombre, ' ', 1),
-                apellido_paterno = COALESCE(SUBSTRING_INDEX(SUBSTRING_INDEX(nombre, ' ', 2), ' ', -1), 'Apellido'),
-                apellido_materno = COALESCE(SUBSTRING_INDEX(nombre, ' ', -1), 'Apellido')
-        ");
-
-        Schema::table('docentes', function (Blueprint $table) {
-            $table->dropColumn('nombre');
-        });
-
-        // PADRES: Cambiar 'nombre' por 'nombres', 'apellido_paterno', 'apellido_materno'
-        Schema::table('padres', function (Blueprint $table) {
-            $table->string('nombres')->after('user_id');
-            $table->string('apellido_paterno')->after('nombres');
-            $table->string('apellido_materno')->after('apellido_paterno');
-            // Agregar campos si no existen
-            if (!Schema::hasColumn('padres', 'dni')) {
-                $table->string('dni', 8)->unique()->nullable()->after('apellido_materno');
-            }
-            if (!Schema::hasColumn('padres', 'email')) {
-                $table->string('email')->unique()->nullable()->after('dni');
-            }
-            if (!Schema::hasColumn('padres', 'direccion')) {
-                $table->string('direccion')->nullable()->after('telefono');
-            }
-            if (!Schema::hasColumn('padres', 'ocupacion')) {
-                $table->string('ocupacion')->nullable()->after('direccion');
-            }
-        });
-
-        // Migrar datos existentes
-        \DB::statement("
-            UPDATE padres 
-            SET nombres = SUBSTRING_INDEX(nombre, ' ', 1),
-                apellido_paterno = COALESCE(SUBSTRING_INDEX(SUBSTRING_INDEX(nombre, ' ', 2), ' ', -1), 'Apellido'),
-                apellido_materno = COALESCE(SUBSTRING_INDEX(nombre, ' ', -1), 'Apellido')
-        ");
-
-        Schema::table('padres', function (Blueprint $table) {
-            $table->dropColumn('nombre');
-        });
+        $this->normalizeNombreToPersonaColumns('estudiantes');
+        $this->normalizeNombreToPersonaColumns('docentes');
+        $this->normalizeNombreToPersonaColumns('padres');
     }
 
     /**
@@ -101,46 +21,114 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // ESTUDIANTES: Revertir cambios
-        Schema::table('estudiantes', function (Blueprint $table) {
-            $table->string('nombre')->after('id');
+        $this->restoreNombreColumn('estudiantes');
+        $this->restoreNombreColumn('docentes');
+        $this->restoreNombreColumn('padres');
+    }
+
+    private function normalizeNombreToPersonaColumns(string $table): void
+    {
+        if (! Schema::hasTable($table)) {
+            return;
+        }
+
+        if (Schema::hasColumn($table, 'nombres')) {
+            return;
+        }
+
+        if (! Schema::hasColumn($table, 'nombre')) {
+            return;
+        }
+
+        Schema::table($table, function (Blueprint $blueprint) {
+            $blueprint->string('nombres')->nullable()->after('id');
+            $blueprint->string('apellido_paterno')->nullable()->after('nombres');
+            $blueprint->string('apellido_materno')->nullable()->after('apellido_paterno');
         });
 
-        \DB::statement("
-            UPDATE estudiantes 
-            SET nombre = CONCAT(nombres, ' ', apellido_paterno, ' ', apellido_materno)
-        ");
+        \DB::table($table)
+            ->select('id', 'nombre')
+            ->orderBy('id')
+            ->chunkById(200, function ($rows) use ($table) {
+                foreach ($rows as $row) {
+                    [$nombres, $apellidoPaterno, $apellidoMaterno] = $this->splitNombre((string) $row->nombre);
 
-        Schema::table('estudiantes', function (Blueprint $table) {
-            $table->dropColumn(['nombres', 'apellido_paterno', 'apellido_materno', 'dni']);
+                    \DB::table($table)
+                        ->where('id', $row->id)
+                        ->update([
+                            'nombres' => $nombres,
+                            'apellido_paterno' => $apellidoPaterno,
+                            'apellido_materno' => $apellidoMaterno,
+                        ]);
+                }
+            });
+
+        Schema::table($table, function (Blueprint $blueprint) {
+            $blueprint->dropColumn('nombre');
+        });
+    }
+
+    private function restoreNombreColumn(string $table): void
+    {
+        if (! Schema::hasTable($table)) {
+            return;
+        }
+
+        if (! Schema::hasColumn($table, 'nombres')) {
+            return;
+        }
+
+        if (Schema::hasColumn($table, 'nombre')) {
+            return;
+        }
+
+        Schema::table($table, function (Blueprint $blueprint) {
+            $blueprint->string('nombre')->nullable()->after('id');
         });
 
-        // DOCENTES: Revertir cambios
-        Schema::table('docentes', function (Blueprint $table) {
-            $table->string('nombre')->after('id');
+        \DB::table($table)
+            ->select('id', 'nombres', 'apellido_paterno', 'apellido_materno')
+            ->orderBy('id')
+            ->chunkById(200, function ($rows) use ($table) {
+                foreach ($rows as $row) {
+                    $nombreCompleto = trim(implode(' ', array_filter([
+                        $row->nombres ?? '',
+                        $row->apellido_paterno ?? '',
+                        $row->apellido_materno ?? '',
+                    ])));
+
+                    \DB::table($table)
+                        ->where('id', $row->id)
+                        ->update(['nombre' => $nombreCompleto]);
+                }
+            });
+
+        $tableName = $table;
+        Schema::table($table, function (Blueprint $blueprint) use ($tableName) {
+            $columns = array_filter([
+                'nombres',
+                'apellido_paterno',
+                'apellido_materno',
+            ], static function ($column) use ($tableName) {
+                return Schema::hasColumn($tableName, $column);
+            });
+
+            if (! empty($columns)) {
+                $blueprint->dropColumn($columns);
+            }
         });
+    }
 
-        \DB::statement("
-            UPDATE docentes 
-            SET nombre = CONCAT(nombres, ' ', apellido_paterno, ' ', apellido_materno)
-        ");
+    private function splitNombre(string $full): array
+    {
+        $parts = array_values(array_filter(explode(' ', trim($full))));
 
-        Schema::table('docentes', function (Blueprint $table) {
-            $table->dropColumn(['nombres', 'apellido_paterno', 'apellido_materno', 'dni', 'email', 'telefono', 'direccion']);
-        });
+        $nombres = $parts[0] ?? 'N/A';
+        $apellidoPaterno = $parts[1] ?? 'N/A';
+        $apellidoMaterno = count($parts) > 2
+            ? implode(' ', array_slice($parts, 2))
+            : ($parts[2] ?? 'N/A');
 
-        // PADRES: Revertir cambios
-        Schema::table('padres', function (Blueprint $table) {
-            $table->string('nombre')->after('id');
-        });
-
-        \DB::statement("
-            UPDATE padres 
-            SET nombre = CONCAT(nombres, ' ', apellido_paterno, ' ', apellido_materno)
-        ");
-
-        Schema::table('padres', function (Blueprint $table) {
-            $table->dropColumn(['nombres', 'apellido_paterno', 'apellido_materno', 'dni', 'email', 'direccion', 'ocupacion']);
-        });
+        return [$nombres, $apellidoPaterno, $apellidoMaterno];
     }
 };
