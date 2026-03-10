@@ -13,8 +13,18 @@ return new class extends Migration
     {
         Schema::create('padres', function (Blueprint $table) {
             $table->id();
-            $table->string('nombre');
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained('users')
+                ->cascadeOnDelete();
+            $table->string('nombres');
+            $table->string('apellido_paterno');
+            $table->string('apellido_materno');
             $table->string('telefono')->nullable();
+            $table->string('email')->nullable()->unique();
+            $table->string('dni', 8)->nullable()->unique();
+            $table->string('direccion')->nullable();
+            $table->string('ocupacion')->nullable();
             $table->timestamps();
         });
     }
