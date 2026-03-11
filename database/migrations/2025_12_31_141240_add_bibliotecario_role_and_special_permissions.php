@@ -4,7 +4,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Throwable;
 
 return new class extends Migration
 {
@@ -51,7 +50,7 @@ return new class extends Migration
             // Compatibilidad MySQL; en SQLite se ignora este cambio
             try {
                 DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('admin', 'docente', 'auxiliar', 'padre', 'estudiante', 'bibliotecario') NOT NULL");
-            } catch (Throwable $e) {
+            } catch (\Throwable $e) {
                 // Ignorar en motores que no soporten ENUM alter directo
             }
         }
@@ -79,7 +78,7 @@ return new class extends Migration
         if (Schema::hasTable('users')) {
             try {
                 DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('admin', 'docente', 'auxiliar', 'padre', 'estudiante') NOT NULL");
-            } catch (Throwable $e) {
+            } catch (\Throwable $e) {
                 // Ignorar si el motor no soporta revertir ENUM
             }
         }
