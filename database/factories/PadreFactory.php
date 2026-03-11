@@ -37,13 +37,14 @@ class PadreFactory extends Factory
         
         $nombreEmail = $this->removeAccents($nombre);
         $apellidoEmail = $this->removeAccents($apPaterno);
+        $emailBase = strtolower($nombreEmail . '.' . $apellidoEmail);
         
         return [
             'nombres' => $nombre,
             'apellido_paterno' => $apPaterno,
             'apellido_materno' => $apMaterno,
             'dni' => fake()->unique()->numerify('########'),
-            'email' => strtolower($nombreEmail . '.' . $apellidoEmail . fake()->numerify('##')) . '@gmail.com',
+            'email' => fake()->unique()->numerify($emailBase . '###') . '@gmail.com',
             'telefono' => '9' . fake()->numerify('########'),
             'direccion' => fake()->randomElement($direcciones),
             'ocupacion' => fake()->randomElement($ocupaciones),
