@@ -146,6 +146,9 @@ class DashboardController extends Controller
             ->orderBy('grados.nombre')
             ->get();
 
+        // Actividad reciente del sistema
+        $stats['actividad_reciente'] = $this->getActividadReciente();
+
         return response()->json($stats);
     }
 

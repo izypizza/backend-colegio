@@ -59,9 +59,9 @@ class PrestamoLibroController extends Controller
             return response()->json([
                 'error' => 'Libro no disponible',
                 'mensaje' => 'Este libro no tiene copias disponibles en este momento',
-                'stock_total' => $libro->cantidad,
+                'stock_total' => $libro->cantidad_total,
                 'copias_disponibles' => $libro->cantidad_disponible,
-                'copias_prestadas' => $libro->cantidad - $libro->cantidad_disponible
+                'copias_prestadas' => $libro->cantidad_total - $libro->cantidad_disponible
             ], 400);
         }
 

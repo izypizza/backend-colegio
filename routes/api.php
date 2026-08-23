@@ -127,7 +127,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // CALIFICACIONES - Con permisos granulares
     // ========================================
-    Route::middleware(['permission:calificaciones', 'modulo.activo:modulo_calificaciones_activo'])->group(function () {
+    Route::middleware(['permission:calificaciones', 'modulo.activo:modulos_calificaciones'])->group(function () {
         // Rutas específicas ANTES de las genéricas con {id}
         Route::get('/calificaciones/estadisticas-avanzadas', [CalificacionController::class, 'estadisticasAvanzadas']);
         Route::get('/calificaciones/boletin/{estudiante_id}/{periodo_id}', [CalificacionController::class, 'boletin']);
