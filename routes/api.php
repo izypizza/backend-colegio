@@ -34,10 +34,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Rutas de autenticación (públicas)
-Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 // Rutas mobile (públicas)
-Route::post('/mobile/auth/login', [AuthController::class, 'login']);
+Route::post('/mobile/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 // Rutas protegidas con autenticación
 Route::middleware('auth:sanctum')->group(function () {
@@ -360,4 +360,4 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/padre/boletin-hijo/{hijo_id}/{periodo_id}', [PadrePortalController::class, 'boletinHijo']);
         Route::get('/padre/docentes-hijo/{hijo_id}', [PadrePortalController::class, 'docentesHijo']);
     });
-}); // Fin middleware auth:sanctum
+}); 

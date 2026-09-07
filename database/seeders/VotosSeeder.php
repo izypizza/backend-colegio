@@ -33,6 +33,7 @@ class VotosSeeder extends Seeder
 
             // Seleccionar estudiantes que votarán (30-50% de estudiantes activos)
             $estudiantesVotantes = Estudiante::where('estado', 'activo')
+                ->whereNotNull('user_id')
                 ->inRandomOrder()
                 ->limit(rand(120, 200))
                 ->get();
@@ -40,12 +41,12 @@ class VotosSeeder extends Seeder
             foreach ($estudiantesVotantes as $estudiante) {
                 // Votar por un candidato aleatorio
                 $candidato = $candidatos->random();
-                
+
                 try {
                     Voto::create([
                         'eleccion_id' => $eleccion->id,
                         'candidato_id' => $candidato->id,
-                        'estudiante_id' => $estudiante->id,
+                        'user_id' => $estudiante->user_id,
                     ]);
                     
                     $totalVotos++;
