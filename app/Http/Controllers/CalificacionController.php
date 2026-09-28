@@ -31,7 +31,7 @@ class CalificacionController extends Controller
         ]);
 
         // Seleccionar solo columnas necesarias
-        $query = Calificacion::select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota', 'observaciones', 'created_at')
+        $query = Calificacion::visiblePara($request->user())->select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota', 'observaciones', 'created_at')
             ->with([
                 'estudiante:id,nombres,apellido_paterno,apellido_materno,seccion_id',
                 'estudiante.seccion:id,nombre,grado_id',
@@ -158,9 +158,9 @@ class CalificacionController extends Controller
     /**
      * Boletín de notas por estudiante y periodo
      */
-    public function boletin($estudiante_id, $periodo_id)
+    public function boletin($estudiante_id, $periodo_id, Request $request)
     {
-        $calificaciones = Calificacion::where('estudiante_id', $estudiante_id)
+        $calificaciones = Calificacion::visiblePara($request->user())->where('estudiante_id', $estudiante_id)
             ->where('periodo_academico_id', $periodo_id)
             ->with(['materia', 'periodoAcademico'])
             ->get();
@@ -183,7 +183,7 @@ class CalificacionController extends Controller
     {
         $periodo_id = $request->input('periodo_academico_id');
 
-        $query = Calificacion::where('materia_id', $materia_id)
+        $query = Calificacion::visiblePara($request->user())->where('materia_id', $materia_id)
             ->with(['estudiante.seccion']);
 
         if ($periodo_id) {
@@ -216,7 +216,8 @@ class CalificacionController extends Controller
             $estudiante = \App\Models\Estudiante::findOrFail($validated['estudiante_id']);
             $autorizacion = $this->verificarDocenteAsignado(
                 $validated['materia_id'],
-                $estudiante->seccion_id
+                $estudiante->seccion_id,
+                $validated['periodo_academico_id']
             );
             
             if ($autorizacion !== true) {
@@ -258,9 +259,9 @@ class CalificacionController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(string $id, Request $request)
     {
-        $calificacion = Calificacion::with(['estudiante.seccion', 'materia', 'periodoAcademico'])->findOrFail($id);
+        $calificacion = Calificacion::visiblePara($request->user())->with(['estudiante.seccion', 'materia', 'periodoAcademico'])->findOrFail($id);
 
         return response()->json($calificacion);
     }
@@ -271,8 +272,17 @@ class CalificacionController extends Controller
      */
     public function update(CalificacionUpdateRequest $request, string $id)
     {
+        $calificacion = Calificacion::visiblePara($request->user())->findOrFail($id);
+        $autorizacionOriginal = $this->verificarDocenteAsignado(
+            $calificacion->materia_id,
+            $calificacion->estudiante->seccion_id,
+            $calificacion->periodo_academico_id
+        );
+        if ($autorizacionOriginal !== true) {
+            return $autorizacionOriginal;
+        }
+
         try {
-            $calificacion = Calificacion::findOrFail($id);
             $validated = $request->validated();
 
             // Verificar autorización de docente usando Trait
@@ -280,7 +290,10 @@ class CalificacionController extends Controller
             $estudianteId = $validated['estudiante_id'] ?? $calificacion->estudiante_id;
             $estudiante = \App\Models\Estudiante::findOrFail($estudianteId);
             
-            $autorizacion = $this->verificarDocenteAsignado($materiaId, $estudiante->seccion_id);
+            $autorizacion = $this->verificarDocenteAsignado(
+                $materiaId, $estudiante->seccion_id,
+                $validated['periodo_academico_id'] ?? $calificacion->periodo_academico_id
+            );
             if ($autorizacion !== true) {
                 return $autorizacion; // Retorna JsonResponse con error
             }
@@ -365,7 +378,8 @@ class CalificacionController extends Controller
         $periodo_id = $request->input('periodo_academico_id');
         
         // Verificar si hay calificaciones en el sistema
-        $totalCalificaciones = Calificacion::count();
+        $calificacionesVisibles = Calificacion::visiblePara($request->user())->select('calificaciones.id');
+        $totalCalificaciones = (clone $calificacionesVisibles)->count();
         if ($totalCalificaciones === 0) {
             return response()->json([
                 'general' => [
@@ -388,7 +402,8 @@ class CalificacionController extends Controller
         }
         
         // Estadísticas generales usando agregaciones SQL
-        $generalQuery = \DB::table('calificaciones');
+        $generalQuery = \DB::table('calificaciones')
+            ->whereIn('calificaciones.id', clone $calificacionesVisibles);
         if ($periodo_id) {
             $generalQuery->where('periodo_academico_id', $periodo_id);
         }
@@ -428,6 +443,7 @@ class CalificacionController extends Controller
 
         // Estadísticas por nivel (usando el campo nivel de grados)
         $porNivelQuery = \DB::table('calificaciones')
+            ->whereIn('calificaciones.id', clone $calificacionesVisibles)
             ->join('estudiantes', 'calificaciones.estudiante_id', '=', 'estudiantes.id')
             ->join('secciones', 'estudiantes.seccion_id', '=', 'secciones.id')
             ->join('grados', 'secciones.grado_id', '=', 'grados.id');
@@ -453,6 +469,7 @@ class CalificacionController extends Controller
 
         // Estadísticas por grado
         $porGradoQuery = \DB::table('calificaciones')
+            ->whereIn('calificaciones.id', clone $calificacionesVisibles)
             ->join('estudiantes', 'calificaciones.estudiante_id', '=', 'estudiantes.id')
             ->join('secciones', 'estudiantes.seccion_id', '=', 'secciones.id')
             ->join('grados', 'secciones.grado_id', '=', 'grados.id');

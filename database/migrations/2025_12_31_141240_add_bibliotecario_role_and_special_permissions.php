@@ -47,11 +47,13 @@ return new class extends Migration
 
         // Actualizar roles en users table para incluir BIBLIOTECARIO
         if (Schema::hasTable('users')) {
-            // Compatibilidad MySQL; en SQLite se ignora este cambio
-            try {
+            if (DB::getDriverName() === 'sqlite') {
+                Schema::table('users', function (Blueprint $table) {
+                    $table->enum('role', ['admin', 'docente', 'auxiliar', 'padre', 'estudiante', 'bibliotecario'])
+                        ->default('estudiante')->change();
+                });
+            } elseif (DB::getDriverName() === 'mysql') {
                 DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('admin', 'docente', 'auxiliar', 'padre', 'estudiante', 'bibliotecario') NOT NULL");
-            } catch (\Throwable $e) {
-                // Ignorar en motores que no soporten ENUM alter directo
             }
         }
     }

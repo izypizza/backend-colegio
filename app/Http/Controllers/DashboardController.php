@@ -28,7 +28,10 @@ class DashboardController extends Controller
         $role = $user->role;
 
         // Admin y Auxiliar tienen acceso a todas las estadísticas
-        if (in_array($role, ['admin', 'auxiliar', 'bibliotecario'])) {
+        if ($role === 'bibliotecario') {
+            return response()->json(['biblioteca' => $this->bibliotecaStats()]);
+        }
+        if (in_array($role, ['admin', 'auxiliar'])) {
             return $this->getAdminStats();
         }
         // Docente: ver estadísticas de sus materias/secciones
@@ -48,8 +51,23 @@ class DashboardController extends Controller
     }
 
     /**
-     * Estadísticas para admin/auxiliar/bibliotecario
+     * Indicadores de biblioteca compartidos por administración y bibliotecario.
      */
+    private function bibliotecaStats(): array
+    {
+        $activos = PrestamoLibro::where('estado', 'aprobado')->where('devuelto', false);
+
+        return [
+            'total_libros' => \App\Models\Libro::count(),
+            'prestamos_activos' => (clone $activos)->count(),
+            'prestamos_vencidos' => (clone $activos)->whereDate('fecha_devolucion', '<', today())->count(),
+            'prestamos_pendientes' => PrestamoLibro::where('estado', 'pendiente')->count(),
+            'total_prestamos_mes' => PrestamoLibro::whereBetween('fecha_prestamo', [
+                today()->startOfMonth(), today()->endOfMonth(),
+            ])->count(),
+        ];
+    }
+
     private function getAdminStats()
     {
         $periodoActual = PeriodoAcademico::where('estado', 'activo')->first();
@@ -110,28 +128,15 @@ class DashboardController extends Controller
             ];
         }
 
-        // Biblioteca - OPTIMIZADO
-        $fechaLimite = Carbon::today()->subDays(15);
-        $bibliotecaStats = DB::table('prestamos_libros')
-            ->selectRaw('
-                SUM(CASE WHEN fecha_devolucion IS NULL THEN 1 ELSE 0 END) as activos,
-                SUM(CASE WHEN fecha_devolucion IS NULL AND fecha_prestamo < ? THEN 1 ELSE 0 END) as vencidos,
-                SUM(CASE WHEN MONTH(fecha_prestamo) = ? AND YEAR(fecha_prestamo) = ? THEN 1 ELSE 0 END) as mes_actual
-            ', [$fechaLimite, $hoy->month, $hoy->year])
-            ->first();
-        
-        $stats['biblioteca'] = [
-            'prestamos_activos' => $bibliotecaStats->activos ?? 0,
-            'prestamos_vencidos' => $bibliotecaStats->vencidos ?? 0,
-            'total_prestamos_mes' => $bibliotecaStats->mes_actual ?? 0,
-        ];
+        $stats['biblioteca'] = $this->bibliotecaStats();
 
         // Elecciones activas - OPTIMIZADO
         $stats['elecciones'] = [
-            'activas' => DB::table('elecciones')->where('estado', 'activa')->count(),
+            'activas' => DB::table('elecciones')->where('estado', 'activa')
+                ->where('fecha_inicio', '<=', now())->where('fecha_cierre', '>', now())->count(),
             'proximas' => DB::table('elecciones')
-                ->where('estado', 'pendiente')
-                ->whereDate('fecha_inicio', '>', $hoy)
+                ->whereIn('estado', ['pendiente', 'activa'])
+                ->where('fecha_inicio', '>', now())
                 ->count(),
         ];
 
@@ -263,7 +268,7 @@ class DashboardController extends Controller
         }
 
         $hijos = $padre->estudiantes;
-        $periodoActual = PeriodoAcademico::orderBy('anio', 'desc')->first();
+        $periodoActual = PeriodoAcademico::activo();
         $hoy = Carbon::today();
 
         $stats = [
@@ -298,7 +303,7 @@ class DashboardController extends Controller
                     ->where('periodo_academico_id', $periodoActual->id)
                     ->avg('nota');
 
-                $datosHijo['promedio'] = $promedio ? round($promedio, 2) : 0;
+                $datosHijo['promedio'] = $promedio !== null ? round($promedio, 2) : null;
             }
 
             $stats['hijos_detalle'][] = $datosHijo;
@@ -311,7 +316,7 @@ class DashboardController extends Controller
                 ->avg('nota');
 
             $stats['resumen'] = [
-                'promedio_general' => $promedioGeneral ? round($promedioGeneral, 2) : 0,
+                'promedio_general' => $promedioGeneral !== null ? round($promedioGeneral, 2) : null,
                 'periodo_actual' => $periodoActual->nombre,
             ];
         }
@@ -350,7 +355,7 @@ class DashboardController extends Controller
             return response()->json(['error' => 'Estudiante no encontrado'], 404);
         }
 
-        $periodoActual = PeriodoAcademico::orderBy('anio', 'desc')->first();
+        $periodoActual = PeriodoAcademico::activo();
         $hoy = Carbon::today();
 
         $stats = [
@@ -388,7 +393,7 @@ class DashboardController extends Controller
             $promedio = $calificaciones->avg('nota');
 
             $stats['calificaciones'] = [
-                'promedio' => $promedio ? round($promedio, 2) : 0,
+                'promedio' => $promedio !== null ? round($promedio, 2) : null,
                 'total_cursos' => $calificaciones->count(),
                 'aprobados' => $calificaciones->where('nota', '>=', 11)->count(),
                 'desaprobados' => $calificaciones->where('nota', '<', 11)->count(),
@@ -411,7 +416,13 @@ class DashboardController extends Controller
         
         // Mensaje de asistencia
         $faltas = $asistenciasMes->where('estado', 'ausente')->count();
-        if ($faltas >= 5) {
+        if ($asistenciasMes->isEmpty()) {
+            $stats['recordatorios'][] = [
+                'titulo' => 'Asistencia sin registros',
+                'mensaje' => 'Aún no se han registrado asistencias este mes.',
+                'tipo' => 'info',
+            ];
+        } elseif ($faltas >= 5) {
             $mensajes = [
                 'Has faltado muchas veces este mes. Tu presencia es importante, ¡esperamos verte en clases!',
                 'Tus faltas son preocupantes. Recuerda que cada día cuenta para tu aprendizaje.',
@@ -447,7 +458,7 @@ class DashboardController extends Controller
             ];
         }
 
-        if ($periodoActual && isset($stats['calificaciones'])) {
+        if ($periodoActual && ($stats['calificaciones']['total_cursos'] ?? 0) > 0) {
             $promedio = $stats['calificaciones']['promedio'];
             
             if ($promedio >= 17) {

@@ -11,6 +11,18 @@ class Eleccion extends Model
 
     protected $table = 'elecciones';
 
+    protected $appends = ['votacion_abierta'];
+
+    public function getVotacionAbiertaAttribute(): bool
+    {
+        $ahora = now();
+        return $this->estado === 'activa'
+            && $this->fecha_inicio !== null
+            && $this->fecha_cierre !== null
+            && $ahora->greaterThanOrEqualTo($this->fecha_inicio)
+            && $ahora->lessThan($this->fecha_cierre);
+    }
+
     protected $fillable = [
         'titulo',
         'fecha',

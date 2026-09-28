@@ -24,7 +24,9 @@ class PeriodoAcademicoController extends Controller
     {
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
-            'anio' => 'required|integer|min:2000|max:2100'
+            'anio' => 'required|integer|min:2000|max:2100',
+            'fecha_inicio' => 'nullable|required_with:fecha_fin|date_format:Y-m-d',
+            'fecha_fin' => 'nullable|required_with:fecha_inicio|date_format:Y-m-d|after_or_equal:fecha_inicio'
         ]);
 
         $periodo = PeriodoAcademico::create($validated);
@@ -46,10 +48,18 @@ class PeriodoAcademicoController extends Controller
     public function update(Request $request, string $id)
     {
         $periodo = PeriodoAcademico::findOrFail($id);
-        
+        if ($request->hasAny(['fecha_inicio', 'fecha_fin'])) {
+            $request->mergeIfMissing([
+                'fecha_inicio' => $periodo->fecha_inicio?->format('Y-m-d'),
+                'fecha_fin' => $periodo->fecha_fin?->format('Y-m-d'),
+            ]);
+        }
+
         $validated = $request->validate([
             'nombre' => 'sometimes|required|string|max:255',
-            'anio' => 'sometimes|required|integer|min:2000|max:2100'
+            'anio' => 'sometimes|required|integer|min:2000|max:2100',
+            'fecha_inicio' => 'nullable|required_with:fecha_fin|date_format:Y-m-d',
+            'fecha_fin' => 'nullable|required_with:fecha_inicio|date_format:Y-m-d|after_or_equal:fecha_inicio'
         ]);
 
         $periodo->update($validated);

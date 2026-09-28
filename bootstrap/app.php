@@ -16,6 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(\App\Http\Middleware\SanitizeApiErrors::class);
+
         // Registrar middleware de roles personalizados
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
@@ -32,5 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response) {
+            return \App\Http\Middleware\SanitizeApiErrors::sanitize($response, request());
+        });
     })->create();

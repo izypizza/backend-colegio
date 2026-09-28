@@ -19,7 +19,7 @@ trait VerificaAutorizacionDocente
      * @param int|null $seccionId
      * @return bool|JsonResponse True si está autorizado, JsonResponse con error si no
      */
-    protected function verificarDocenteAsignado(int $materiaId, ?int $seccionId = null)
+    protected function verificarDocenteAsignado(int $materiaId, ?int $seccionId = null, ?int $periodoId = null)
     {
         $user = auth()->user();
         
@@ -44,6 +44,10 @@ trait VerificaAutorizacionDocente
         // Si se especifica sección, filtrar por ella también
         if ($seccionId) {
             $query->where('seccion_id', $seccionId);
+        }
+
+        if ($periodoId !== null) {
+            $query->where('periodo_academico_id', $periodoId);
         }
 
         $asignacion = $query->first();

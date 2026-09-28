@@ -35,12 +35,16 @@ class PrestamosSeeder extends Seeder
                 // 70% devuelto, 30% activo
                 $devuelto = rand(1, 10) <= 7;
                 
+                $fechaDevolucion = $devuelto
+                    ? $fechaPrestamo->copy()->addDays(rand(1, 14))
+                    : $fechaPrestamo->copy()->addDays(15);
+                
                 $prestamo = PrestamoLibro::create([
                     'libro_id' => $libro->id,
                     'estudiante_id' => $estudiante->id,
                     'user_id' => $estudiante->user_id,
                     'fecha_prestamo' => $fechaPrestamo,
-                    'fecha_devolucion' => $devuelto ? $fechaPrestamo->copy()->addDays(rand(1, 14)) : null,
+                    'fecha_devolucion' => $fechaDevolucion,
                     'devuelto' => $devuelto,
                     'estado' => $devuelto ? 'devuelto' : 'aprobado',
                 ]);

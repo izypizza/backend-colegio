@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PrestamoLibro;
 use App\Models\Libro;
+use App\Models\PrestamoLibro;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class PrestamoLibroController extends Controller
 {
@@ -14,11 +16,11 @@ class PrestamoLibroController extends Controller
      */
     public function index(Request $request)
     {
-        $query = PrestamoLibro::with(['libro.categoria', 'usuario']);
+        $query = PrestamoLibro::with(['libro.categoria', 'usuario', 'estudiante']);
 
         // Filtrar préstamos activos
         if ($request->has('activos') && $request->activos == 'true') {
-            $query->whereNull('fecha_devolucion');
+            $query->where('estado', 'aprobado')->where('devuelto', false);
         }
 
         // Filtrar por usuario
@@ -29,12 +31,13 @@ class PrestamoLibroController extends Controller
         // Paginación
         if ($request->has('all') && $request->all === 'true') {
             $prestamos = $query->orderBy('created_at', 'desc')->get();
+
             return response()->json($prestamos);
         }
 
         $perPage = $request->get('per_page', 50);
         $prestamos = $query->orderBy('created_at', 'desc')->paginate($perPage);
-        
+
         return response()->json($prestamos);
     }
 
@@ -43,109 +46,69 @@ class PrestamoLibroController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'libro_id' => 'required|exists:libros,id',
+        $esPersonal = $request->user()->hasAnyRole(['admin', 'bibliotecario']);
+        abort_unless($esPersonal || $request->user()->isEstudiante(), 403);
+
+        $datos = $request->validate([
+            'libro_id' => 'required|integer|exists:libros,id',
+            'user_id' => $esPersonal ? 'required|integer|exists:users,id' : 'prohibited',
+            'fecha_devolucion' => $esPersonal
+                ? 'required|date_format:Y-m-d|after_or_equal:today' : 'prohibited',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+        return DB::transaction(function () use ($request, $datos, $esPersonal) {
+            $usuario = User::lockForUpdate()->findOrFail(
+                $esPersonal ? $datos['user_id'] : $request->user()->id
+            );
+            // Tomar ambos bloqueos antes de las lecturas de stock y relaciones.
+            $libro = Libro::lockForUpdate()->findOrFail($datos['libro_id']);
+            if (! $usuario->isEstudiante() || ! $usuario->is_active || ! $usuario->estudiante
+                || $usuario->estudiante->estado !== 'activo') {
+                throw ValidationException::withMessages(['user_id' => 'Seleccione un estudiante activo con cuenta vinculada.']);
+            }
 
-        $userId = $request->user()->id;
-        $libro = Libro::findOrFail($request->libro_id);
+            if (! $libro->disponible || $libro->cantidad_disponible <= 0) {
+                throw ValidationException::withMessages(['libro_id' => 'El libro no tiene copias disponibles.']);
+            }
+            $this->verificarLimites($usuario->id);
 
-        // 1. Verificar stock disponible
-        if ($libro->cantidad_disponible <= 0) {
+            if (PrestamoLibro::where('user_id', $usuario->id)->where('libro_id', $libro->id)
+                ->whereIn('estado', ['pendiente', 'aprobado'])->where('devuelto', false)->exists()) {
+                throw ValidationException::withMessages(['libro_id' => 'El estudiante ya tiene una solicitud o préstamo activo de este libro.']);
+            }
+
+            $fechaDevolucion = $esPersonal ? $datos['fecha_devolucion'] : now()->addDays(15)->toDateString();
+            $prestamo = PrestamoLibro::create([
+                'libro_id' => $libro->id,
+                'estudiante_id' => $usuario->estudiante->id,
+                'user_id' => $usuario->id,
+                'fecha_prestamo' => now(),
+                'fecha_devolucion' => $fechaDevolucion,
+                'devuelto' => false,
+                'estado' => $esPersonal ? 'aprobado' : 'pendiente',
+                'aprobado_por' => $esPersonal ? $request->user()->id : null,
+                'fecha_respuesta' => $esPersonal ? now() : null,
+            ]);
+
             return response()->json([
-                'error' => 'Libro no disponible',
-                'mensaje' => 'Este libro no tiene copias disponibles en este momento',
-                'stock_total' => $libro->cantidad_total,
-                'copias_disponibles' => $libro->cantidad_disponible,
-                'copias_prestadas' => $libro->cantidad_total - $libro->cantidad_disponible
-            ], 400);
+                'message' => $esPersonal ? 'Préstamo registrado correctamente.' : 'Solicitud enviada. Espera la aprobación del bibliotecario.',
+                'prestamo' => $prestamo->load(['libro.categoria', 'usuario']),
+                'fecha_devolucion' => $prestamo->fecha_devolucion->format('d/m/Y'),
+            ], 201);
+        });
+    }
+
+    private function verificarLimites(int $usuarioId): void
+    {
+        $activos = PrestamoLibro::where('user_id', $usuarioId)
+            ->where('estado', 'aprobado')->where('devuelto', false);
+
+        if ((clone $activos)->whereDate('fecha_devolucion', '<', today())->exists()) {
+            throw ValidationException::withMessages(['user_id' => 'El estudiante tiene préstamos vencidos.']);
         }
-
-        // 2. Verificar que el usuario no tenga préstamos vencidos
-        $prestamosVencidos = PrestamoLibro::where('user_id', $userId)
-            ->where('estado', 'aprobado')
-            ->where('devuelto', false)
-            ->where('fecha_devolucion', '<', now())
-            ->count();
-
-        if ($prestamosVencidos > 0) {
-            return response()->json([
-                'error' => 'Tienes préstamos vencidos',
-                'mensaje' => 'Debes devolver los libros vencidos antes de solicitar uno nuevo',
-                'prestamos_vencidos' => $prestamosVencidos
-            ], 400);
+        if ($activos->count() >= 3) {
+            throw ValidationException::withMessages(['user_id' => 'El estudiante alcanzó el límite de tres préstamos activos.']);
         }
-
-        // 3. Verificar límite de 3 préstamos activos APROBADOS
-        $prestamosActivos = PrestamoLibro::where('user_id', $userId)
-            ->where('estado', 'aprobado')
-            ->where('devuelto', false)
-            ->count();
-
-        if ($prestamosActivos >= 3) {
-            return response()->json([
-                'error' => 'Límite de préstamos alcanzado',
-                'mensaje' => 'Solo puedes tener máximo 3 libros prestados al mismo tiempo',
-                'prestamos_activos' => $prestamosActivos,
-                'limite_maximo' => 3
-            ], 400);
-        }
-
-        // 4. Verificar que el usuario no tenga un préstamo activo/pendiente del mismo libro
-        $prestamoActivo = PrestamoLibro::where('user_id', $userId)
-            ->where('libro_id', $request->libro_id)
-            ->whereIn('estado', ['pendiente', 'aprobado'])
-            ->where('devuelto', false)
-            ->first();
-
-        if ($prestamoActivo) {
-            $mensaje = $prestamoActivo->estado === 'pendiente' 
-                ? 'Ya tienes una solicitud pendiente de este libro' 
-                : 'Ya tienes este libro prestado';
-            
-            return response()->json([
-                'error' => $mensaje,
-                'estado' => $prestamoActivo->estado,
-                'fecha_devolucion_esperada' => $prestamoActivo->fecha_devolucion ? $prestamoActivo->fecha_devolucion->format('d/m/Y') : null
-            ], 400);
-        }
-
-        // Crear préstamo con fecha de devolución de 15 días
-        $fechaPrestamo = now();
-        $fechaDevolucion = now()->addDays(15);
-
-        // Obtener el estudiante_id del usuario
-        $user = $request->user();
-        $estudianteId = $user->estudiante ? $user->estudiante->id : null;
-
-        if (!$estudianteId) {
-            return response()->json([
-                'error' => 'Usuario no válido',
-                'mensaje' => 'Solo los estudiantes pueden solicitar préstamos de libros'
-            ], 403);
-        }
-
-        $prestamo = PrestamoLibro::create([
-            'libro_id' => $request->libro_id,
-            'estudiante_id' => $estudianteId,
-            'user_id' => $userId,
-            'fecha_prestamo' => $fechaPrestamo,
-            'fecha_devolucion' => $fechaDevolucion,
-            'devuelto' => false,
-            'estado' => 'pendiente', // Estado inicial: pendiente de aprobación
-        ]);
-
-        return response()->json([
-            'message' => 'Solicitud de préstamo enviada. Espera la aprobación del bibliotecario.',
-            'prestamo' => $prestamo->load(['libro.categoria']),
-            'fecha_devolucion' => $fechaDevolucion->format('d/m/Y'),
-            'dias_prestamo' => 15,
-            'prestamos_activos_totales' => $prestamosActivos + 1
-        ], 201);
     }
 
     /**
@@ -153,16 +116,15 @@ class PrestamoLibroController extends Controller
      */
     public function devolver(Request $request, $id)
     {
-        $prestamo = PrestamoLibro::findOrFail($id);
+        return DB::transaction(function () use ($id) {
+            $prestamo = PrestamoLibro::lockForUpdate()->findOrFail($id);
+            if ($prestamo->devuelto || $prestamo->estado !== 'aprobado') {
+                return response()->json(['message' => 'Solo se puede devolver un préstamo aprobado y no devuelto.'], 422);
+            }
+            $prestamo->update(['devuelto' => true]);
 
-        if ($prestamo->devuelto) {
-            return response()->json(['error' => 'Este préstamo ya fue devuelto'], 400);
-        }
-
-        // Registrar devolución
-        $prestamo->update(['devuelto' => true]);
-
-        return response()->json($prestamo->load(['libro.categoria']));
+            return response()->json($prestamo->load(['libro.categoria', 'usuario']));
+        });
     }
 
     /**
@@ -183,34 +145,33 @@ class PrestamoLibroController extends Controller
      */
     public function aprobar(Request $request, $id)
     {
-        $prestamo = PrestamoLibro::findOrFail($id);
+        return DB::transaction(function () use ($request, $id) {
+            $prestamo = PrestamoLibro::lockForUpdate()->findOrFail($id);
+            if ($prestamo->estado !== 'pendiente' || $prestamo->devuelto) {
+                return response()->json(['message' => 'Este préstamo ya fue procesado.'], 422);
+            }
+            $usuario = User::lockForUpdate()->findOrFail($prestamo->user_id);
+            $libro = Libro::lockForUpdate()->findOrFail($prestamo->libro_id);
+            if (! $usuario->is_active || ! $usuario->estudiante || $usuario->estudiante->estado !== 'activo') {
+                throw ValidationException::withMessages(['user_id' => 'El estudiante no está activo.']);
+            }
+            if (! $libro->disponible || $libro->cantidad_disponible <= 0) {
+                throw ValidationException::withMessages(['libro_id' => 'No hay copias disponibles.']);
+            }
+            $this->verificarLimites($usuario->id);
+            $prestamo->update([
+                'estado' => 'aprobado',
+                'aprobado_por' => $request->user()->id,
+                'fecha_respuesta' => now(),
+                'fecha_prestamo' => today(),
+                'fecha_devolucion' => today()->addDays(15),
+            ]);
 
-        if ($prestamo->estado !== 'pendiente') {
             return response()->json([
-                'error' => 'Este préstamo ya fue procesado',
-                'estado_actual' => $prestamo->estado
-            ], 400);
-        }
-
-        // Verificar nuevamente stock disponible
-        $libro = $prestamo->libro;
-        if ($libro->cantidad_disponible <= 0) {
-            return response()->json([
-                'error' => 'No hay stock disponible',
-                'mensaje' => 'Ya no quedan copias disponibles de este libro'
-            ], 400);
-        }
-
-        $prestamo->update([
-            'estado' => 'aprobado',
-            'aprobado_por' => $request->user()->id,
-            'fecha_respuesta' => now(),
-        ]);
-
-        return response()->json([
-            'message' => 'Préstamo aprobado exitosamente',
-            'prestamo' => $prestamo->load(['libro.categoria', 'usuario', 'aprobador'])
-        ]);
+                'message' => 'Préstamo aprobado exitosamente',
+                'prestamo' => $prestamo->load(['libro.categoria', 'usuario', 'aprobador']),
+            ]);
+        });
     }
 
     /**
@@ -218,34 +179,25 @@ class PrestamoLibroController extends Controller
      */
     public function rechazar(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'motivo' => 'required|string|max:500',
-        ]);
+        $datos = $request->validate(['motivo' => 'required|string|max:500']);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+        return DB::transaction(function () use ($request, $id, $datos) {
+            $prestamo = PrestamoLibro::lockForUpdate()->findOrFail($id);
+            if ($prestamo->estado !== 'pendiente') {
+                return response()->json(['message' => 'Este préstamo ya fue procesado.'], 422);
+            }
+            $prestamo->update([
+                'estado' => 'rechazado',
+                'aprobado_por' => $request->user()->id,
+                'fecha_respuesta' => now(),
+                'motivo_rechazo' => $datos['motivo'],
+            ]);
 
-        $prestamo = PrestamoLibro::findOrFail($id);
-
-        if ($prestamo->estado !== 'pendiente') {
             return response()->json([
-                'error' => 'Este préstamo ya fue procesado',
-                'estado_actual' => $prestamo->estado
-            ], 400);
-        }
-
-        $prestamo->update([
-            'estado' => 'rechazado',
-            'aprobado_por' => $request->user()->id,
-            'fecha_respuesta' => now(),
-            'motivo_rechazo' => $request->motivo,
-        ]);
-
-        return response()->json([
-            'message' => 'Préstamo rechazado',
-            'prestamo' => $prestamo->load(['libro.categoria', 'usuario', 'aprobador'])
-        ]);
+                'message' => 'Préstamo rechazado',
+                'prestamo' => $prestamo->load(['libro.categoria', 'usuario', 'aprobador']),
+            ]);
+        });
     }
 
     /**
@@ -258,13 +210,14 @@ class PrestamoLibroController extends Controller
             'libros_fisicos' => Libro::where('tipo', 'fisico')->count(),
             'libros_digitales' => Libro::where('tipo', 'digital')->count(),
             'total_prestamos' => PrestamoLibro::count(),
+            'prestamos_devueltos' => PrestamoLibro::where('devuelto', true)->count(),
             'prestamos_activos' => PrestamoLibro::where('estado', 'aprobado')
-                ->whereNull('fecha_devolucion')
+                ->where('devuelto', false)
                 ->count(),
             'prestamos_pendientes' => PrestamoLibro::where('estado', 'pendiente')->count(),
             'prestamos_vencidos' => PrestamoLibro::where('estado', 'aprobado')
-                ->whereNull('fecha_devolucion')
-                ->where('fecha_devolucion', '<', now())
+                ->where('devuelto', false)
+                ->whereDate('fecha_devolucion', '<', today())
                 ->count(),
             'libros_mas_prestados' => \DB::table('prestamos_libros')
                 ->join('libros', 'prestamos_libros.libro_id', '=', 'libros.id')
@@ -280,7 +233,7 @@ class PrestamoLibroController extends Controller
                 ->limit(5)
                 ->get(),
             'estudiantes_activos' => PrestamoLibro::where('estado', 'aprobado')
-                ->whereNull('fecha_devolucion')
+                ->where('devuelto', false)
                 ->distinct('user_id')
                 ->count('user_id'),
             'categorias_count' => \DB::table('categorias_libros')->count(),
