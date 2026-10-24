@@ -2,20 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Estudiante;
-use App\Models\Docente;
-use App\Models\Padre;
-use App\Models\Materia;
-use App\Models\Seccion;
-use App\Models\Grado;
 use App\Models\Asistencia;
 use App\Models\Calificacion;
-use App\Models\PrestamoLibro;
-use App\Models\Eleccion;
+use App\Models\Docente;
+use App\Models\Estudiante;
+use App\Models\Padre;
 use App\Models\PeriodoAcademico;
+use App\Models\PrestamoLibro;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -93,19 +89,19 @@ class DashboardController extends Controller
                 SUM(CASE WHEN estado = "ausente" THEN 1 ELSE 0 END) as ausentes
             ')
             ->first();
-        
+
         $totalAsistencias = $asistenciasHoyStats->total ?? 0;
         $presentes = $asistenciasHoyStats->presentes ?? 0;
         $tardes = $asistenciasHoyStats->tardes ?? 0;
-        
+
         $stats['asistencias_hoy'] = [
             'total' => $totalAsistencias,
             'presentes' => $presentes,
             'tardes' => $tardes,
             'ausentes' => $asistenciasHoyStats->ausentes ?? 0,
-            'porcentaje_asistencia' => $totalAsistencias > 0 
-                ? round((($presentes + $tardes) / $totalAsistencias) * 100, 1) 
-                : 0
+            'porcentaje_asistencia' => $totalAsistencias > 0
+                ? round((($presentes + $tardes) / $totalAsistencias) * 100, 1)
+                : 0,
         ];
 
         // Calificaciones por periodo actual - OPTIMIZADO
@@ -119,7 +115,7 @@ class DashboardController extends Controller
                     SUM(CASE WHEN nota < 11 THEN 1 ELSE 0 END) as desaprobados
                 ')
                 ->first();
-            
+
             $stats['calificaciones'] = [
                 'promedio_general' => $calificacionesStats->promedio ?? 0,
                 'total_calificaciones' => $calificacionesStats->total ?? 0,
@@ -163,8 +159,8 @@ class DashboardController extends Controller
     private function getDocenteStats($user)
     {
         $docente = Docente::where('user_id', $user->id)->first();
-        
-        if (!$docente) {
+
+        if (! $docente) {
             return response()->json(['error' => 'Docente no encontrado'], 404);
         }
 
@@ -174,7 +170,7 @@ class DashboardController extends Controller
         // Obtener IDs de secciones y materias de manera eficiente
         $asignaciones = DB::table('asignacion_docente_materia')
             ->where('docente_id', $docente->id)
-            ->when($periodoActual, function($q) use ($periodoActual) {
+            ->when($periodoActual, function ($q) use ($periodoActual) {
                 return $q->where('periodo_academico_id', $periodoActual->id);
             })
             ->get();
@@ -198,7 +194,7 @@ class DashboardController extends Controller
             ->join('grados as g', 's.grado_id', '=', 'g.id')
             ->leftJoin('estudiantes as e', 's.id', '=', 'e.seccion_id')
             ->where('adm.docente_id', $docente->id)
-            ->when($periodoActual, function($q) use ($periodoActual) {
+            ->when($periodoActual, function ($q) use ($periodoActual) {
                 return $q->where('adm.periodo_academico_id', $periodoActual->id);
             })
             ->select('m.nombre as materia', 's.nombre as seccion', 'g.nombre as grado')
@@ -209,14 +205,14 @@ class DashboardController extends Controller
         // Asistencias registradas hoy
         $stats['asistencias_hoy'] = DB::table('asistencias as asistencia')
             ->whereDate('asistencia.fecha', $hoy)
-            ->whereExists(function($query) use ($docente, $periodoActual) {
+            ->whereExists(function ($query) use ($docente, $periodoActual) {
                 $query->selectRaw('1')
                     ->from('asignacion_docente_materia as asignacion')
                     ->join('estudiantes as alumno', 'alumno.seccion_id', '=', 'asignacion.seccion_id')
                     ->whereColumn('alumno.id', 'asistencia.estudiante_id')
                     ->whereColumn('asignacion.materia_id', 'asistencia.materia_id')
                     ->where('asignacion.docente_id', $docente->id)
-                    ->when($periodoActual, function($q) use ($periodoActual) {
+                    ->when($periodoActual, function ($q) use ($periodoActual) {
                         return $q->where('asignacion.periodo_academico_id', $periodoActual->id);
                     });
             })
@@ -232,7 +228,7 @@ class DashboardController extends Controller
 
             $calificacionesRegistradas = DB::table('calificaciones as calificacion')
                 ->where('calificacion.periodo_academico_id', $periodoActual->id)
-                ->whereExists(function($query) use ($docente, $periodoActual) {
+                ->whereExists(function ($query) use ($docente, $periodoActual) {
                     $query->selectRaw('1')
                         ->from('asignacion_docente_materia as asignacion')
                         ->join('estudiantes as alumno', 'alumno.seccion_id', '=', 'asignacion.seccion_id')
@@ -254,13 +250,13 @@ class DashboardController extends Controller
             [
                 'tipo' => 'Asistencias',
                 'descripcion' => 'Registrar asistencias diarias',
-                'prioridad' => ($stats['asistencias_hoy'] ?? 0) === 0 ? 'alta' : 'normal'
+                'prioridad' => ($stats['asistencias_hoy'] ?? 0) === 0 ? 'alta' : 'normal',
             ],
             [
                 'tipo' => 'Calificaciones',
                 'descripcion' => 'Registrar calificaciones del periodo',
-                'prioridad' => isset($stats['calificaciones']) && $stats['calificaciones']['pendientes'] > 10 ? 'alta' : 'normal'
-            ]
+                'prioridad' => isset($stats['calificaciones']) && $stats['calificaciones']['pendientes'] > 10 ? 'alta' : 'normal',
+            ],
         ];
 
         return response()->json($stats);
@@ -272,8 +268,8 @@ class DashboardController extends Controller
     private function getPadreStats($user)
     {
         $padre = Padre::where('user_id', $user->id)->with('estudiantes.seccion.grado')->first();
-        
-        if (!$padre) {
+
+        if (! $padre) {
             return response()->json(['error' => 'Padre no encontrado'], 404);
         }
 
@@ -283,7 +279,7 @@ class DashboardController extends Controller
 
         $stats = [
             'mis_hijos' => $hijos->count(),
-            'hijos_detalle' => []
+            'hijos_detalle' => [],
         ];
 
         foreach ($hijos as $hijo) {
@@ -337,14 +333,14 @@ class DashboardController extends Controller
             $asistenciasMes = Asistencia::where('estudiante_id', $hijo->id)
                 ->whereMonth('fecha', $hoy->month)
                 ->get();
-            
+
             $faltas = $asistenciasMes->where('estado', 'ausente')->count();
             if ($faltas >= 3) {
                 $stats['alertas'][] = [
                     'tipo' => 'asistencia',
                     'estudiante' => "{$hijo->nombres} {$hijo->apellido_paterno}",
                     'mensaje' => "Ha faltado $faltas veces este mes",
-                    'severidad' => $faltas >= 5 ? 'alta' : 'media'
+                    'severidad' => $faltas >= 5 ? 'alta' : 'media',
                 ];
             }
         }
@@ -360,8 +356,8 @@ class DashboardController extends Controller
         $estudiante = Estudiante::where('user_id', $user->id)
             ->with(['seccion.grado', 'padres'])
             ->first();
-        
-        if (!$estudiante) {
+
+        if (! $estudiante) {
             return response()->json(['error' => 'Estudiante no encontrado'], 404);
         }
 
@@ -374,7 +370,7 @@ class DashboardController extends Controller
                 'seccion' => $estudiante->seccion->nombre,
                 'grado' => $estudiante->seccion->grado->nombre,
                 'edad' => Carbon::parse($estudiante->fecha_nacimiento)->age,
-            ]
+            ],
         ];
 
         // Asistencias del mes
@@ -388,9 +384,9 @@ class DashboardController extends Controller
             'presentes' => $asistenciasMes->where('estado', 'presente')->count(),
             'tardanzas' => $asistenciasMes->where('estado', 'tarde')->count(),
             'faltas' => $asistenciasMes->where('estado', 'ausente')->count(),
-            'porcentaje' => $asistenciasMes->count() > 0 
+            'porcentaje' => $asistenciasMes->count() > 0
                 ? round(($asistenciasMes->where('estado', 'presente')->count() / $asistenciasMes->count()) * 100, 1)
-                : 0
+                : 0,
         ];
 
         // Calificaciones del periodo actual
@@ -412,18 +408,18 @@ class DashboardController extends Controller
             ];
 
             // Detalles por curso
-            $stats['calificaciones_detalle'] = $calificaciones->map(function($cal) {
+            $stats['calificaciones_detalle'] = $calificaciones->map(function ($cal) {
                 return [
                     'materia' => $cal->materia->nombre,
                     'nota' => $cal->nota,
-                    'estado' => $cal->nota >= 11 ? 'Aprobado' : 'Desaprobado'
+                    'estado' => $cal->nota >= 11 ? 'Aprobado' : 'Desaprobado',
                 ];
             })->sortByDesc('nota')->values();
         }
 
         // Recordatorios con frases motivacionales variadas
         $stats['recordatorios'] = [];
-        
+
         // Mensaje de asistencia
         $faltas = $asistenciasMes->where('estado', 'ausente')->count();
         if ($asistenciasMes->isEmpty()) {
@@ -441,7 +437,7 @@ class DashboardController extends Controller
             $stats['recordatorios'][] = [
                 'titulo' => 'Asistencia - Necesita Atención',
                 'mensaje' => $mensajes[array_rand($mensajes)],
-                'tipo' => 'warning'
+                'tipo' => 'warning',
             ];
         } elseif ($faltas >= 3) {
             $mensajes = [
@@ -452,7 +448,7 @@ class DashboardController extends Controller
             $stats['recordatorios'][] = [
                 'titulo' => 'Asistencia - Ten Cuidado',
                 'mensaje' => $mensajes[array_rand($mensajes)],
-                'tipo' => 'info'
+                'tipo' => 'info',
             ];
         } else {
             $mensajes = [
@@ -464,13 +460,13 @@ class DashboardController extends Controller
             $stats['recordatorios'][] = [
                 'titulo' => 'Asistencia - ¡Fantástico!',
                 'mensaje' => $mensajes[array_rand($mensajes)],
-                'tipo' => 'success'
+                'tipo' => 'success',
             ];
         }
 
         if ($periodoActual && ($stats['calificaciones']['total_cursos'] ?? 0) > 0) {
             $promedio = $stats['calificaciones']['promedio'];
-            
+
             if ($promedio >= 17) {
                 $mensajes = [
                     '¡Eres una estrella brillante! Tu rendimiento es sobresaliente. ¡Sigue iluminando con tu conocimiento!',
@@ -481,7 +477,7 @@ class DashboardController extends Controller
                 $stats['recordatorios'][] = [
                     'titulo' => 'Promedio - ¡Excelencia Académica!',
                     'mensaje' => $mensajes[array_rand($mensajes)],
-                    'tipo' => 'success'
+                    'tipo' => 'success',
                 ];
             } elseif ($promedio >= 14) {
                 $mensajes = [
@@ -493,7 +489,7 @@ class DashboardController extends Controller
                 $stats['recordatorios'][] = [
                     'titulo' => 'Promedio - ¡Muy Bien!',
                     'mensaje' => $mensajes[array_rand($mensajes)],
-                    'tipo' => 'success'
+                    'tipo' => 'success',
                 ];
             } elseif ($promedio >= 11) {
                 $mensajes = [
@@ -505,7 +501,7 @@ class DashboardController extends Controller
                 $stats['recordatorios'][] = [
                     'titulo' => 'Promedio - Puedes Mejorar',
                     'mensaje' => $mensajes[array_rand($mensajes)],
-                    'tipo' => 'info'
+                    'tipo' => 'info',
                 ];
             } else {
                 $mensajes = [
@@ -517,10 +513,10 @@ class DashboardController extends Controller
                 $stats['recordatorios'][] = [
                     'titulo' => 'Promedio - Necesitas Ayuda',
                     'mensaje' => $mensajes[array_rand($mensajes)],
-                    'tipo' => 'warning'
+                    'tipo' => 'warning',
                 ];
             }
-            
+
             // Mensaje adicional motivacional general (aleatorio)
             $mensajesGenerales = [
                 'Recuerda: "El éxito es la suma de pequeños esfuerzos repetidos día tras día."',
@@ -532,12 +528,12 @@ class DashboardController extends Controller
                 'Los errores son pruebas de que lo estás intentando. ¡Sigue aprendiendo!',
                 '"El éxito no es definitivo, el fracaso no es fatal: lo que cuenta es el coraje para continuar."',
             ];
-            
+
             if (rand(1, 2) === 1) { // 50% de probabilidad de mostrar mensaje general
                 $stats['recordatorios'][] = [
                     'titulo' => 'Pensamiento del Día',
                     'mensaje' => $mensajesGenerales[array_rand($mensajesGenerales)],
-                    'tipo' => 'info'
+                    'tipo' => 'info',
                 ];
             }
         }
@@ -566,7 +562,7 @@ class DashboardController extends Controller
                 'descripcion' => "{$cal->materia->nombre} - {$cal->estudiante->nombres} {$cal->estudiante->apellido_paterno}",
                 'fecha' => $cal->created_at->diffForHumans(),
                 'icono' => 'clipboard',
-                'color' => 'blue'
+                'color' => 'blue',
             ];
         }
 
@@ -580,15 +576,15 @@ class DashboardController extends Controller
             $actividades[] = [
                 'tipo' => 'asistencia',
                 'titulo' => 'Asistencia registrada',
-                'descripcion' => "{$asist->estudiante->nombres} {$asist->estudiante->apellido_paterno} - " . ($asist->presente ? 'Presente' : 'Ausente'),
+                'descripcion' => "{$asist->estudiante->nombres} {$asist->estudiante->apellido_paterno} - ".($asist->presente ? 'Presente' : 'Ausente'),
                 'fecha' => $asist->created_at->diffForHumans(),
                 'icono' => 'check',
-                'color' => $asist->presente ? 'green' : 'red'
+                'color' => $asist->presente ? 'green' : 'red',
             ];
         }
 
         // Ordenar por fecha
-        usort($actividades, function($a, $b) {
+        usort($actividades, function ($a, $b) {
             return strtotime($b['fecha']) - strtotime($a['fecha']);
         });
 
@@ -602,10 +598,10 @@ class DashboardController extends Controller
     {
         $periodoActivo = PeriodoAcademico::activo();
         $anioActual = PeriodoAcademico::anioActual();
-        
+
         // Obtener todos los periodos del año actual
         $periodosDelAnio = PeriodoAcademico::delAnioActual();
-        
+
         return response()->json([
             'anio_actual' => $anioActual,
             'periodo_activo' => $periodoActivo ? [
@@ -614,7 +610,7 @@ class DashboardController extends Controller
                 'anio' => $periodoActivo->anio,
                 'estado' => $periodoActivo->estado,
             ] : null,
-            'periodos_disponibles' => $periodosDelAnio->map(function($periodo) {
+            'periodos_disponibles' => $periodosDelAnio->map(function ($periodo) {
                 return [
                     'id' => $periodo->id,
                     'nombre' => $periodo->nombre,
@@ -624,4 +620,5 @@ class DashboardController extends Controller
             }),
             'total_periodos' => $periodosDelAnio->count(),
         ]);
-    }}
+    }
+}
