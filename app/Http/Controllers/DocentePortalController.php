@@ -65,6 +65,10 @@ class DocentePortalController extends Controller
 
         $user = $request->user();
 
+        if (! $user->docente) {
+            return response()->json(['message' => 'Usuario no es docente'], 403);
+        }
+
         // Verificar que el docente enseña esta materia
         $estudiante = Estudiante::findOrFail($validated['estudiante_id']);
         $asignacion = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
@@ -105,13 +109,20 @@ class DocentePortalController extends Controller
 
         $user = $request->user();
 
+        if (! $user->docente) {
+            return response()->json(['message' => 'Usuario no es docente'], 403);
+        }
+
         // Verificar que el docente enseña esta materia
+        $estudiante = Estudiante::findOrFail($validated['estudiante_id']);
         $asignacion = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
             ->where('materia_id', $validated['materia_id'])
+            ->where('seccion_id', $estudiante->seccion_id)
+            ->where('periodo_academico_id', $validated['periodo_academico_id'])
             ->first();
 
         if (! $asignacion) {
-            return response()->json(['message' => 'No tiene permiso para esta materia'], 403);
+            return response()->json(['message' => 'No tiene permiso para registrar calificaciones en esta materia, sección o periodo'], 403);
         }
 
         $calificacion = Calificacion::updateOrCreate(
@@ -152,21 +163,18 @@ class DocentePortalController extends Controller
         // Obtener periodo activo
         $periodoActual = \App\Models\PeriodoAcademico::where('estado', 'activo')->first();
         
-        // Obtener materias y secciones del docente
-        $asignaciones = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
-            ->when($periodoActual && !$request->filled('periodo_academico_id'), function($q) use ($periodoActual) {
-                return $q->where('periodo_academico_id', $periodoActual->id);
-            })
-            ->get(['materia_id', 'seccion_id']);
-
-        $materiasIds = $asignaciones->pluck('materia_id')->unique();
-        $seccionesIds = $asignaciones->pluck('seccion_id')->unique();
+        $docenteId = $user->docente->id;
 
         // Query optimizado
         $query = Calificacion::select('id', 'estudiante_id', 'materia_id', 'periodo_academico_id', 'nota', 'observaciones', 'created_at')
-            ->whereIn('materia_id', $materiasIds)
-            ->whereHas('estudiante', function($q) use ($seccionesIds) {
-                $q->whereIn('seccion_id', $seccionesIds);
+            ->whereExists(function ($asignaciones) use ($docenteId) {
+                $asignaciones->selectRaw('1')
+                    ->from('asignacion_docente_materia as asignacion')
+                    ->join('estudiantes as alumno', 'alumno.seccion_id', '=', 'asignacion.seccion_id')
+                    ->whereColumn('alumno.id', 'calificaciones.estudiante_id')
+                    ->whereColumn('asignacion.materia_id', 'calificaciones.materia_id')
+                    ->whereColumn('asignacion.periodo_academico_id', 'calificaciones.periodo_academico_id')
+                    ->where('asignacion.docente_id', $docenteId);
             })
             ->with([
                 'estudiante:id,nombres,apellido_paterno,apellido_materno,seccion_id',
@@ -222,17 +230,7 @@ class DocentePortalController extends Controller
             return response()->json(['message' => 'Usuario no es docente'], 403);
         }
 
-        // Obtener solo las materias del periodo actual
-        $periodoActual = \App\Models\PeriodoAcademico::where('estado', 'activo')->first();
-        
-        $materiasIds = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
-            ->when($periodoActual, function($q) use ($periodoActual) {
-                return $q->where('periodo_academico_id', $periodoActual->id);
-            })
-            ->pluck('materia_id')
-            ->unique();
-
-        $query = Asistencia::whereIn('materia_id', $materiasIds)
+        $query = Asistencia::visiblePara($user)
             ->with(['estudiante:id,nombres,apellido_paterno,apellido_materno,seccion_id', 'estudiante.seccion:id,nombre', 'materia:id,nombre'])
             ->select('id', 'estudiante_id', 'materia_id', 'fecha', 'estado', 'observaciones');
 

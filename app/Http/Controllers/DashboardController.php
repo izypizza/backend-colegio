@@ -207,35 +207,45 @@ class DashboardController extends Controller
             ->get();
 
         // Asistencias registradas hoy
-        $stats['asistencias_hoy'] = DB::table('asistencias')
-            ->whereDate('fecha', $hoy)
-            ->whereIn('materia_id', $materiasIds)
-            ->whereIn('estudiante_id', function($query) use ($seccionesIds) {
-                $query->select('id')
-                    ->from('estudiantes')
-                    ->whereIn('seccion_id', $seccionesIds);
+        $stats['asistencias_hoy'] = DB::table('asistencias as asistencia')
+            ->whereDate('asistencia.fecha', $hoy)
+            ->whereExists(function($query) use ($docente, $periodoActual) {
+                $query->selectRaw('1')
+                    ->from('asignacion_docente_materia as asignacion')
+                    ->join('estudiantes as alumno', 'alumno.seccion_id', '=', 'asignacion.seccion_id')
+                    ->whereColumn('alumno.id', 'asistencia.estudiante_id')
+                    ->whereColumn('asignacion.materia_id', 'asistencia.materia_id')
+                    ->where('asignacion.docente_id', $docente->id)
+                    ->when($periodoActual, function($q) use ($periodoActual) {
+                        return $q->where('asignacion.periodo_academico_id', $periodoActual->id);
+                    });
             })
             ->count();
 
         // Calificaciones pendientes
         if ($periodoActual && $materiasIds->count() > 0 && $seccionesIds->count() > 0) {
-            $totalEstudiantes = DB::table('estudiantes')
-                ->whereIn('seccion_id', $seccionesIds)
+            $calificacionesEsperadas = DB::table('asignacion_docente_materia as asignacion')
+                ->join('estudiantes as alumno', 'alumno.seccion_id', '=', 'asignacion.seccion_id')
+                ->where('asignacion.docente_id', $docente->id)
+                ->where('asignacion.periodo_academico_id', $periodoActual->id)
                 ->count();
-                
-            $calificacionesRegistradas = DB::table('calificaciones')
-                ->where('periodo_academico_id', $periodoActual->id)
-                ->whereIn('materia_id', $materiasIds)
-                ->whereIn('estudiante_id', function($query) use ($seccionesIds) {
-                    $query->select('id')
-                        ->from('estudiantes')
-                        ->whereIn('seccion_id', $seccionesIds);
+
+            $calificacionesRegistradas = DB::table('calificaciones as calificacion')
+                ->where('calificacion.periodo_academico_id', $periodoActual->id)
+                ->whereExists(function($query) use ($docente, $periodoActual) {
+                    $query->selectRaw('1')
+                        ->from('asignacion_docente_materia as asignacion')
+                        ->join('estudiantes as alumno', 'alumno.seccion_id', '=', 'asignacion.seccion_id')
+                        ->whereColumn('alumno.id', 'calificacion.estudiante_id')
+                        ->whereColumn('asignacion.materia_id', 'calificacion.materia_id')
+                        ->where('asignacion.docente_id', $docente->id)
+                        ->where('asignacion.periodo_academico_id', $periodoActual->id);
                 })
                 ->count();
 
             $stats['calificaciones'] = [
                 'registradas' => $calificacionesRegistradas,
-                'pendientes' => max(0, ($totalEstudiantes * $materiasIds->count()) - $calificacionesRegistradas),
+                'pendientes' => max(0, $calificacionesEsperadas - $calificacionesRegistradas),
             ];
         }
 

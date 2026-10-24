@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Asistencia extends Model
@@ -33,6 +34,36 @@ class Asistencia extends Model
     public function getPresenteAttribute()
     {
         return $this->estado === self::ESTADO_PRESENTE || $this->estado === self::ESTADO_TARDE;
+    }
+
+    public function scopeVisiblePara(Builder $query, User $usuario): Builder
+    {
+        if ($usuario->hasAnyRole(['admin', 'auxiliar'])) {
+            return $query;
+        }
+
+        if ($usuario->isEstudiante()) {
+            return $query->whereHas('estudiante', fn (Builder $estudiantes) =>
+                $estudiantes->where('user_id', $usuario->id));
+        }
+
+        if ($usuario->isPadre()) {
+            return $query->whereHas('estudiante.padres', fn (Builder $padres) =>
+                $padres->where('user_id', $usuario->id));
+        }
+
+        if ($usuario->isDocente() && $usuario->docente) {
+            return $query->whereExists(function ($asignaciones) use ($usuario) {
+                $asignaciones->selectRaw('1')
+                    ->from('asignacion_docente_materia as asignacion')
+                    ->join('estudiantes as alumno', 'alumno.seccion_id', '=', 'asignacion.seccion_id')
+                    ->whereColumn('alumno.id', 'asistencias.estudiante_id')
+                    ->whereColumn('asignacion.materia_id', 'asistencias.materia_id')
+                    ->where('asignacion.docente_id', $usuario->docente->id);
+            });
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 
     public function estudiante()

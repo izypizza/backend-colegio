@@ -25,7 +25,7 @@ class AsistenciaController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Asistencia::with(['estudiante.seccion', 'materia']);
+        $query = Asistencia::visiblePara($request->user())->with(['estudiante.seccion', 'materia']);
 
         // Filtrar por fecha
         if ($request->has('fecha_inicio') && $request->has('fecha_fin')) {
@@ -59,7 +59,8 @@ class AsistenciaController extends Controller
      */
     public function reportePorEstudiante($estudiante_id, Request $request)
     {
-        $query = Asistencia::where('estudiante_id', $estudiante_id)
+        $query = Asistencia::visiblePara($request->user())
+            ->where('estudiante_id', $estudiante_id)
             ->with(['materia']);
 
         if ($request->has('fecha_inicio') && $request->has('fecha_fin')) {
@@ -82,10 +83,11 @@ class AsistenciaController extends Controller
     {
         $fecha = $request->input('fecha', now()->format('Y-m-d'));
 
-        $asistencias = Asistencia::whereHas('estudiante.seccion', function ($q) use ($seccion_id) {
+        $asistencias = Asistencia::visiblePara($request->user())
+            ->whereHas('estudiante.seccion', function ($q) use ($seccion_id) {
                 $q->where('id', $seccion_id);
             })
-            ->where('fecha', $fecha)
+            ->whereDate('fecha', $fecha)
             ->with(['estudiante', 'materia'])
             ->get();
 
@@ -121,7 +123,7 @@ class AsistenciaController extends Controller
             // Validar que no exista ya un registro de asistencia
             $existente = Asistencia::where('estudiante_id', $validated['estudiante_id'])
                 ->where('materia_id', $validated['materia_id'])
-                ->where('fecha', $validated['fecha'])
+                ->whereDate('fecha', $validated['fecha'])
                 ->first();
 
             if ($existente) {
@@ -161,7 +163,9 @@ class AsistenciaController extends Controller
      */
     public function show(string $id)
     {
-        $asistencia = Asistencia::with(['estudiante.seccion', 'materia'])->findOrFail($id);
+        $asistencia = Asistencia::visiblePara(auth()->user())
+            ->with(['estudiante.seccion', 'materia'])
+            ->findOrFail($id);
         return response()->json($asistencia);
     }
 
@@ -172,7 +176,7 @@ class AsistenciaController extends Controller
     public function update(AsistenciaUpdateRequest $request, string $id)
     {
         try {
-            $asistencia = Asistencia::findOrFail($id);
+            $asistencia = Asistencia::visiblePara($request->user())->findOrFail($id);
             $validated = $request->validated();
 
             // Validar que la fecha no sea muy antigua si se está actualizando
@@ -204,6 +208,8 @@ class AsistenciaController extends Controller
                 'asistencia' => $asistencia->load(['estudiante', 'materia'])
             ]);
             
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Registro de asistencia no encontrado'], 404);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al actualizar la asistencia',
