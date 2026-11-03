@@ -11,11 +11,14 @@ class Libro extends Model
 
     protected $fillable = [
         'titulo',
+        'tipo',
         'autor',
         'isbn',
         'editorial',
         'anio_publicacion',
         'cantidad_total',
+        'url_digital',
+        'formato_digital',
         'categoria_id',
         'disponible',
     ];

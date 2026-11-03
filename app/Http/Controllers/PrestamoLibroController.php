@@ -121,7 +121,7 @@ class PrestamoLibroController extends Controller
             if ($prestamo->devuelto || $prestamo->estado !== 'aprobado') {
                 return response()->json(['message' => 'Solo se puede devolver un préstamo aprobado y no devuelto.'], 422);
             }
-            $prestamo->update(['devuelto' => true]);
+            $prestamo->update(['devuelto' => true, 'estado' => 'devuelto']);
 
             return response()->json($prestamo->load(['libro.categoria', 'usuario']));
         });
@@ -227,7 +227,7 @@ class PrestamoLibroController extends Controller
                     'libros.autor',
                     \DB::raw('COUNT(*) as total_prestamos')
                 )
-                ->where('prestamos_libros.estado', 'aprobado')
+                ->whereIn('prestamos_libros.estado', ['aprobado', 'devuelto'])
                 ->groupBy('libros.id', 'libros.titulo', 'libros.autor')
                 ->orderBy('total_prestamos', 'desc')
                 ->limit(5)
