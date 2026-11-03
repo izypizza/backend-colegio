@@ -36,6 +36,7 @@ class VotoController extends Controller
             // Verificar si el usuario ya votó
             if ($eleccion->usuarioYaVoto($request->user())) {
                 return response()->json([
+                    'message' => 'Ya has votado en esta elección',
                     'error' => 'Ya has votado en esta elección',
                     'mensaje' => 'Solo puedes votar una vez por elección',
                     'estado' => 'ya_voto',
@@ -48,7 +49,10 @@ class VotoController extends Controller
                 ->first();
 
             if (! $candidato) {
-                return response()->json(['error' => 'Candidato no válido para esta elección'], 400);
+                return response()->json([
+                    'message' => 'Candidato no válido para esta elección',
+                    'error' => 'Candidato no válido para esta elección',
+                ], 400);
             }
 
             // Registrar voto

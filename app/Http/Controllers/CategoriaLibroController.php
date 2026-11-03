@@ -70,9 +70,9 @@ class CategoriaLibroController extends Controller
         $categoria = CategoriaLibro::findOrFail($id);
         
         // Verificar si tiene libros asociados
-        if ($categoria->libros()->count() > 0) {
+        if ($categoria->libros()->exists()) {
             return response()->json([
-                'error' => 'No se puede eliminar la categoría porque tiene libros asociados'
+                'message' => 'No se puede eliminar la categoría porque tiene libros asociados',
             ], 400);
         }
 

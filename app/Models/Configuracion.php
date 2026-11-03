@@ -58,6 +58,7 @@ class Configuracion extends Model
             
             $config->update(['valor' => $valorString]);
             Cache::forget("config_{$clave}");
+            Cache::forget('config_todas');
         }
     }
 

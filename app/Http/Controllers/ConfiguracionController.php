@@ -14,8 +14,10 @@ class ConfiguracionController extends Controller
      */
     public function index()
     {
-        $configuraciones = Configuracion::all()->groupBy('categoria');
-        
+        $configuraciones = Cache::remember('config_todas', 3600, function () {
+            return Configuracion::all()->groupBy('categoria');
+        });
+
         return response()->json($configuraciones);
     }
 

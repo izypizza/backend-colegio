@@ -40,8 +40,8 @@ class DocentePortalController extends Controller
         }
 
         $seccionesIds = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
-            ->pluck('seccion_id')
-            ->unique();
+            ->distinct()
+            ->pluck('seccion_id');
 
         $estudiantes = Estudiante::whereIn('seccion_id', $seccionesIds)
             ->with(['seccion.grado'])
@@ -307,11 +307,8 @@ class DocentePortalController extends Controller
             return response()->json(['message' => 'No es tutor activo de ninguna sección'], 403);
         }
 
-        // Obtener estudiantes de la sección
-        $estudiantesIds = Estudiante::where('seccion_id', $asignacionTutor->seccion_id)
-            ->pluck('id');
-
-        $query = Calificacion::whereIn('estudiante_id', $estudiantesIds)
+        $query = Calificacion::whereHas('estudiante', fn ($estudiante) =>
+                $estudiante->where('seccion_id', $asignacionTutor->seccion_id))
             ->with([
                 'estudiante:id,nombres,apellido_paterno,apellido_materno,seccion_id', 
                 'materia:id,nombre', 
@@ -367,11 +364,8 @@ class DocentePortalController extends Controller
             return response()->json(['message' => 'No es tutor activo de ninguna sección'], 403);
         }
 
-        // Obtener estudiantes de la sección
-        $estudiantesIds = Estudiante::where('seccion_id', $asignacionTutor->seccion_id)
-            ->pluck('id');
-
-        $query = Asistencia::whereIn('estudiante_id', $estudiantesIds)
+        $query = Asistencia::whereHas('estudiante', fn ($estudiante) =>
+                $estudiante->where('seccion_id', $asignacionTutor->seccion_id))
             ->with([
                 'estudiante:id,nombres,apellido_paterno,apellido_materno', 
                 'materia:id,nombre'
