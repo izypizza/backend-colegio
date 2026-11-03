@@ -3,25 +3,44 @@
 namespace App\Exports;
 
 use App\Models\Estudiante;
-use Maatwebsite\Excel\Concerns\FromCollection;
+use Illuminate\Database\Eloquent\Builder;
+use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMapping;
 
-class EstudiantesExport implements FromCollection, WithHeadings
+class EstudiantesExport implements FromQuery, WithChunkReading, WithHeadings, WithMapping
 {
-    public function collection()
+    public function query(): Builder
     {
-        return Estudiante::with('seccion.grado')->get()->map(function ($e) {
-            return [
-                'id' => $e->id,
-                'nombres' => $e->nombres,
-                'apellido_paterno' => $e->apellido_paterno,
-                'apellido_materno' => $e->apellido_materno,
-                'dni' => $e->dni,
-                'seccion' => $e->seccion?->nombre,
-                'grado' => $e->seccion?->grado?->nombre,
-                'estado' => $e->estado,
-            ];
-        });
+        return Estudiante::query()
+            ->leftJoin('secciones', 'estudiantes.seccion_id', '=', 'secciones.id')
+            ->leftJoin('grados', 'secciones.grado_id', '=', 'grados.id')
+            ->orderBy('estudiantes.id')
+            ->select([
+                'estudiantes.id as id',
+                'estudiantes.nombres as nombres',
+                'estudiantes.apellido_paterno as apellido_paterno',
+                'estudiantes.apellido_materno as apellido_materno',
+                'estudiantes.dni as dni',
+                'estudiantes.estado as estado',
+                'secciones.nombre as seccion',
+                'grados.nombre as grado',
+            ]);
+    }
+
+    public function map($fila): array
+    {
+        return [
+            'id' => $fila->id,
+            'nombres' => $fila->nombres,
+            'apellido_paterno' => $fila->apellido_paterno,
+            'apellido_materno' => $fila->apellido_materno,
+            'dni' => $fila->dni,
+            'seccion' => $fila->seccion,
+            'grado' => $fila->grado,
+            'estado' => $fila->estado,
+        ];
     }
 
     public function headings(): array
@@ -36,5 +55,10 @@ class EstudiantesExport implements FromCollection, WithHeadings
             'Grado',
             'Estado',
         ];
+    }
+
+    public function chunkSize(): int
+    {
+        return 1000;
     }
 }

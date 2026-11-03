@@ -360,11 +360,13 @@ class DashboardController extends Controller
 
         $hijos = $padre->estudiantes;
         $periodoActual = PeriodoAcademico::activo();
-        $hoy = Carbon::today();
+        $inicioMes = Carbon::today()->startOfMonth()->toDateString();
+        $finMes = Carbon::today()->endOfMonth()->toDateString();
 
         $stats = [
             'mis_hijos' => $hijos->count(),
             'hijos_detalle' => [],
+            'alertas' => [],
         ];
 
         foreach ($hijos as $hijo) {
@@ -377,16 +379,26 @@ class DashboardController extends Controller
 
             // Asistencia del mes actual
             $asistenciasMes = Asistencia::where('estudiante_id', $hijo->id)
-                ->whereMonth('fecha', $hoy->month)
-                ->whereYear('fecha', $hoy->year)
+                ->whereBetween('fecha', [$inicioMes, $finMes])
                 ->get();
+
+            $faltas = $asistenciasMes->where('estado', 'ausente')->count();
 
             $datosHijo['asistencia'] = [
                 'total' => $asistenciasMes->count(),
                 'presentes' => $asistenciasMes->where('estado', 'presente')->count(),
                 'tardanzas' => $asistenciasMes->where('estado', 'tarde')->count(),
-                'faltas' => $asistenciasMes->where('estado', 'ausente')->count(),
+                'faltas' => $faltas,
             ];
+
+            if ($faltas >= 3) {
+                $stats['alertas'][] = [
+                    'tipo' => 'asistencia',
+                    'estudiante' => "{$hijo->nombres} {$hijo->apellido_paterno}",
+                    'mensaje' => "Ha faltado $faltas veces este mes",
+                    'severidad' => $faltas >= 5 ? 'alta' : 'media',
+                ];
+            }
 
             // Promedio de calificaciones
             if ($periodoActual) {
@@ -412,24 +424,6 @@ class DashboardController extends Controller
             ];
         }
 
-        // Alertas importantes
-        $stats['alertas'] = [];
-        foreach ($hijos as $hijo) {
-            $asistenciasMes = Asistencia::where('estudiante_id', $hijo->id)
-                ->whereMonth('fecha', $hoy->month)
-                ->get();
-
-            $faltas = $asistenciasMes->where('estado', 'ausente')->count();
-            if ($faltas >= 3) {
-                $stats['alertas'][] = [
-                    'tipo' => 'asistencia',
-                    'estudiante' => "{$hijo->nombres} {$hijo->apellido_paterno}",
-                    'mensaje' => "Ha faltado $faltas veces este mes",
-                    'severidad' => $faltas >= 5 ? 'alta' : 'media',
-                ];
-            }
-        }
-
         return response()->json($stats);
     }
 
@@ -447,7 +441,8 @@ class DashboardController extends Controller
         }
 
         $periodoActual = PeriodoAcademico::activo();
-        $hoy = Carbon::today();
+        $inicioMes = Carbon::today()->startOfMonth()->toDateString();
+        $finMes = Carbon::today()->endOfMonth()->toDateString();
 
         $stats = [
             'info_personal' => [
@@ -460,8 +455,7 @@ class DashboardController extends Controller
 
         // Asistencias del mes
         $asistenciasMes = Asistencia::where('estudiante_id', $estudiante->id)
-            ->whereMonth('fecha', $hoy->month)
-            ->whereYear('fecha', $hoy->year)
+            ->whereBetween('fecha', [$inicioMes, $finMes])
             ->get();
 
         $stats['asistencia_mes'] = [

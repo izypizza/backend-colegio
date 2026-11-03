@@ -17,7 +17,7 @@ class UserManagementController extends Controller
      */
     public function index()
     {
-        $users = User::with(['estudiante.seccion.grado', 'docente', 'padre'])
+        $users = User::with(['estudiante.seccion.grado', 'docente', 'padre.estudiantes'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function($user) {
