@@ -70,19 +70,14 @@ class NotificationService
         ?array $data = null,
         ?string $accionUrl = null
     ): int {
-        $users = User::where('role', $rol)->get();
-        $count = 0;
+        $userIds = User::where('role', $rol)->pluck('id')->all();
 
-        foreach ($users as $user) {
-            $this->crear($user->id, $titulo, $mensaje, $tipo, $data, $accionUrl);
-            $count++;
-        }
-
-        return $count;
+        return $this->crearMasivo($userIds, $titulo, $mensaje, $tipo, $data, $accionUrl);
     }
 
     /**
-     * Crear notificaciones masivas para múltiples usuarios
+     * Crear notificaciones masivas para múltiples usuarios.
+     * Usa inserción por lotes para no bloquear la petición cuando hay cientos de destinatarios.
      */
     public function crearMasivo(
         array $userIds,
@@ -92,14 +87,35 @@ class NotificationService
         ?array $data = null,
         ?string $accionUrl = null
     ): int {
-        $count = 0;
-
-        foreach ($userIds as $userId) {
-            $this->crear($userId, $titulo, $mensaje, $tipo, $data, $accionUrl);
-            $count++;
+        if ($userIds === []) {
+            return 0;
         }
 
-        return $count;
+        $tipoConfig = self::TIPOS[$tipo] ?? self::TIPOS['info'];
+        $ahora = now();
+        $filas = [];
+
+        foreach ($userIds as $userId) {
+            $filas[] = [
+                'user_id' => $userId,
+                'titulo' => $titulo,
+                'mensaje' => $mensaje,
+                'tipo' => $tipo,
+                'prioridad' => $tipoConfig['prioridad'],
+                'icono' => $tipoConfig['icono'],
+                'data' => $data !== null ? json_encode($data, JSON_UNESCAPED_UNICODE) : null,
+                'accion_url' => $accionUrl,
+                'leido_at' => null,
+                'created_at' => $ahora,
+                'updated_at' => $ahora,
+            ];
+        }
+
+        foreach (array_chunk($filas, 500) as $lote) {
+            Notificacion::insert($lote);
+        }
+
+        return count($filas);
     }
 
     /**
