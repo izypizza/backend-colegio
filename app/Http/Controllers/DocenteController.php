@@ -26,7 +26,7 @@ class DocenteController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Docente::with(['asignaciones']);
+        $query = Docente::with(['asignaciones', 'user:id,is_active,email']);
         
         // Paginación para mejorar performance
         if ($request->has('all') && $request->all === 'true') {

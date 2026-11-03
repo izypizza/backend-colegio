@@ -12,7 +12,7 @@ class PadreController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Padre::with(['estudiantes']);
+        $query = Padre::with(['estudiantes', 'user:id,is_active,email']);
 
         // Paginación para mejorar performance
         if ($request->has('all') && $request->all === 'true') {
