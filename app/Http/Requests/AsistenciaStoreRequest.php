@@ -24,8 +24,8 @@ class AsistenciaStoreRequest extends FormRequest
         return [
             'estudiante_id' => 'required|exists:estudiantes,id',
             'materia_id' => 'required|exists:materias,id',
-            'fecha' => 'required|date',
-            'estado' => 'required|in:presente,ausente,tarde,justificado',
+            'fecha' => 'required|date|before_or_equal:today',
+            'estado' => 'required|in:presente,ausente,tarde',
             'observaciones' => 'nullable|string|max:500',
         ];
     }
@@ -42,8 +42,9 @@ class AsistenciaStoreRequest extends FormRequest
             'materia_id.exists' => 'La materia no existe',
             'fecha.required' => 'La fecha es requerida',
             'fecha.date' => 'La fecha debe ser válida',
+            'fecha.before_or_equal' => 'No se puede registrar asistencia para una fecha futura',
             'estado.required' => 'El estado es requerido',
-            'estado.in' => 'El estado debe ser: presente, ausente, tarde o justificado',
+            'estado.in' => 'El estado debe ser: presente, ausente o tarde',
             'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres',
         ];
     }

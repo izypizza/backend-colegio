@@ -25,9 +25,7 @@ class CalificacionStoreRequest extends FormRequest
             'estudiante_id' => 'required|exists:estudiantes,id',
             'materia_id' => 'required|exists:materias,id',
             'periodo_academico_id' => 'required|exists:periodos_academicos,id',
-            'tipo_evaluacion' => 'required|in:parcial,final,recuperacion,tarea,examen',
             'nota' => 'required|numeric|min:0|max:20',
-            'fecha' => 'required|date',
             'observaciones' => 'nullable|string|max:500',
         ];
     }
@@ -44,14 +42,10 @@ class CalificacionStoreRequest extends FormRequest
             'materia_id.exists' => 'La materia no existe',
             'periodo_academico_id.required' => 'El período académico es requerido',
             'periodo_academico_id.exists' => 'El período académico no existe',
-            'tipo_evaluacion.required' => 'El tipo de evaluación es requerido',
-            'tipo_evaluacion.in' => 'El tipo de evaluación debe ser: parcial, final, recuperacion, tarea o examen',
             'nota.required' => 'La nota es requerida',
             'nota.numeric' => 'La nota debe ser un número',
             'nota.min' => 'La nota mínima es 0',
             'nota.max' => 'La nota máxima es 20',
-            'fecha.required' => 'La fecha es requerida',
-            'fecha.date' => 'La fecha debe ser válida',
             'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres',
         ];
     }

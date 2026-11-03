@@ -24,8 +24,8 @@ class AsistenciaUpdateRequest extends FormRequest
         return [
             'estudiante_id' => 'sometimes|exists:estudiantes,id',
             'materia_id' => 'sometimes|exists:materias,id',
-            'fecha' => 'sometimes|date',
-            'estado' => 'sometimes|in:presente,ausente,tarde,justificado',
+            'fecha' => 'sometimes|date|before_or_equal:today',
+            'estado' => 'sometimes|in:presente,ausente,tarde',
             'observaciones' => 'nullable|string|max:500',
         ];
     }
@@ -39,7 +39,8 @@ class AsistenciaUpdateRequest extends FormRequest
             'estudiante_id.exists' => 'El estudiante no existe',
             'materia_id.exists' => 'La materia no existe',
             'fecha.date' => 'La fecha debe ser válida',
-            'estado.in' => 'El estado debe ser: presente, ausente, tarde o justificado',
+            'fecha.before_or_equal' => 'No se puede registrar asistencia para una fecha futura',
+            'estado.in' => 'El estado debe ser: presente, ausente o tarde',
             'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres',
         ];
     }

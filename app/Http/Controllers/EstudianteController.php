@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Estudiante;
+use App\Models\AsignacionDocenteMateria;
 use Illuminate\Http\Request;
 use App\Helpers\AcademicYearHelper;
 
@@ -15,6 +16,14 @@ class EstudianteController extends Controller
     {
         $query = Estudiante::with(['seccion.grado', 'padres'])
             ->orderByDesc('created_at');
+
+        if ($request->user()->isDocente()) {
+            $seccionesIds = AsignacionDocenteMateria::where('docente_id', $request->user()->docente?->id)
+                ->distinct()
+                ->pluck('seccion_id');
+
+            $query->whereIn('seccion_id', $seccionesIds);
+        }
         
         // Paginación para mejorar performance (328+ estudiantes)
         if ($request->has('all') && $request->all === 'true') {

@@ -125,16 +125,35 @@ class DocentePortalController extends Controller
             return response()->json(['message' => 'No tiene permiso para registrar calificaciones en esta materia, sección o periodo'], 403);
         }
 
-        $calificacion = Calificacion::updateOrCreate(
-            [
+        $calificacion = Calificacion::where('estudiante_id', $validated['estudiante_id'])
+            ->where('materia_id', $validated['materia_id'])
+            ->where('periodo_academico_id', $validated['periodo_academico_id'])
+            ->first();
+
+        if ($calificacion) {
+            $notaCambia = (float) $calificacion->nota !== (float) $validated['nota'];
+
+            if ($notaCambia && $calificacion->modificaciones_count >= 3) {
+                return response()->json([
+                    'message' => 'Ha alcanzado el límite máximo de 3 modificaciones para esta calificación',
+                ], 422);
+            }
+
+            if ($notaCambia) {
+                $calificacion->modificaciones_count += 1;
+                $calificacion->ultima_modificacion = now();
+            }
+
+            $calificacion->nota = $validated['nota'];
+            $calificacion->save();
+        } else {
+            $calificacion = Calificacion::create([
                 'estudiante_id' => $validated['estudiante_id'],
                 'materia_id' => $validated['materia_id'],
                 'periodo_academico_id' => $validated['periodo_academico_id'],
-            ],
-            [
                 'nota' => $validated['nota'],
-            ]
-        );
+            ]);
+        }
 
         return response()->json($calificacion->load(['estudiante', 'materia', 'periodoAcademico']), 201);
     }
