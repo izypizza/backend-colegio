@@ -15,7 +15,8 @@ class VotosSeeder extends Seeder
      */
     public function run(): void
     {
-        $elecciones = Eleccion::all();
+        // Solo se emiten votos en las elecciones ya cerradas; la activa queda libre para la demo
+        $elecciones = Eleccion::where('estado', 'cerrada')->get();
         
         if ($elecciones->isEmpty()) {
             $this->command->warn('No hay elecciones disponibles para crear votos');

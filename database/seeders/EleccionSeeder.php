@@ -16,14 +16,17 @@ class EleccionSeeder extends Seeder
     {
         // Paleta de colores para los partidos (uso en la UI)
         $colores = ['#3B82F6', '#F22727', '#04ADBF', '#F59E0B', '#10B981', '#8B5CF6', '#EC4899', '#F97316'];
+        $anio = date('Y');
 
         // Definir elecciones con sus partidos y candidatos
         $eleccionesData = [
             [
-                'titulo' => 'Elecciones Municipio Escolar 2025',
-                'fecha' => now()->addDays(7)->format('Y-m-d'),
-                'fecha_inicio' => now()->addDays(5)->format('Y-m-d H:i:s'),
-                'fecha_cierre' => now()->addDays(9)->format('Y-m-d H:i:s'),
+                'titulo' => "Elecciones Municipio Escolar {$anio}",
+                'fecha' => now()->subDays(27)->format('Y-m-d'),
+                'fecha_inicio' => now()->subDays(30)->format('Y-m-d H:i:s'),
+                'fecha_cierre' => now()->subDays(27)->format('Y-m-d H:i:s'),
+                'estado' => 'cerrada',
+                'resultados_publicados' => true,
                 'partidos' => [
                     [
                         'nombre' => 'Unidos por el Cambio',
@@ -49,10 +52,12 @@ class EleccionSeeder extends Seeder
                 ],
             ],
             [
-                'titulo' => 'Elecciones Policía Escolar 2025',
-                'fecha' => now()->addDays(12)->format('Y-m-d'),
-                'fecha_inicio' => now()->addDays(10)->format('Y-m-d H:i:s'),
-                'fecha_cierre' => now()->addDays(14)->format('Y-m-d H:i:s'),
+                'titulo' => "Elecciones Policía Escolar {$anio}",
+                'fecha' => now()->addDays(7)->format('Y-m-d'),
+                'fecha_inicio' => now()->subDay()->format('Y-m-d H:i:s'),
+                'fecha_cierre' => now()->addDays(7)->format('Y-m-d H:i:s'),
+                'estado' => 'activa',
+                'resultados_publicados' => false,
                 'partidos' => [
                     [
                         'nombre' => 'Disciplina y Respeto',
@@ -77,10 +82,6 @@ class EleccionSeeder extends Seeder
         foreach ($eleccionesData as $eleccionData) {
             $partidos = $eleccionData['partidos'];
             unset($eleccionData['partidos']);
-
-            // Por defecto la elección queda pendiente (el admin la activa cuando corresponda)
-            $eleccionData['estado'] = 'pendiente';
-            $eleccionData['resultados_publicados'] = false;
 
             $eleccion = Eleccion::create($eleccionData);
 

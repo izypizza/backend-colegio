@@ -50,18 +50,19 @@ class DatabaseSeeder extends Seeder
         $secciones = Seccion::all();
         $estudiantes = $this->crearEstudiantes($secciones, $docentes, $padres);
 
-        // 4. Crear asignaciones docente-materia
-        $periodo2025 = PeriodoAcademico::first();
-        $this->crearAsignaciones($secciones, $docentes, Materia::all(), $periodo2025);
+        // 4. Crear asignaciones docente-materia (todos los periodos del año en curso)
+        $periodosDelAnio = PeriodoAcademico::where('anio', (int) date('Y'))->orderBy('id')->get();
+        $periodoActivo = $periodosDelAnio->firstWhere('estado', 'activo') ?? $periodosDelAnio->last();
+        $this->crearAsignaciones($secciones, $docentes, Materia::all(), $periodosDelAnio, $periodoActivo);
 
         // 5. Crear horarios
         $this->crearHorarios($secciones);
 
         // 6. Crear asistencias y calificaciones
-        $this->crearAsistenciasYCalificaciones($estudiantes, $secciones, PeriodoAcademico::all());
+        $this->crearAsistenciasYCalificaciones($estudiantes, $secciones, $periodosDelAnio);
 
         // 7. Crear usuarios de prueba
-        $this->crearUsuariosPrueba($periodo2025);
+        $this->crearUsuariosPrueba($periodoActivo);
 
         // 8. Ejecutar seeders adicionales
         $this->call([
@@ -153,17 +154,35 @@ class DatabaseSeeder extends Seeder
         // Períodos Académicos - Automáticos basados en el año actual
         $anioActual = (int) date('Y');
         $anioSiguiente = $anioActual + 1;
-
-        $periodosData = [
-            ['nombre' => "I Bimestre {$anioActual}", 'anio' => $anioActual, 'estado' => 'activo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => "II Bimestre {$anioActual}", 'anio' => $anioActual, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => "III Bimestre {$anioActual}", 'anio' => $anioActual, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => "IV Bimestre {$anioActual}", 'anio' => $anioActual, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => "I Bimestre {$anioSiguiente}", 'anio' => $anioSiguiente, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => "II Bimestre {$anioSiguiente}", 'anio' => $anioSiguiente, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => "III Bimestre {$anioSiguiente}", 'anio' => $anioSiguiente, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
-            ['nombre' => "IV Bimestre {$anioSiguiente}", 'anio' => $anioSiguiente, 'estado' => 'inactivo', 'created_at' => now(), 'updated_at' => now()],
+        $romanos = [1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV'];
+        $rangosBimestre = [
+            1 => ['03-02', '05-08'],
+            2 => ['05-11', '07-17'],
+            3 => ['07-20', '10-09'],
+            4 => ['10-12', '12-18'],
         ];
+        $hoy = now()->format('Y-m-d');
+
+        $periodosData = [];
+        foreach ([$anioActual, $anioSiguiente] as $anio) {
+            foreach ($rangosBimestre as $numero => $rango) {
+                $fechaInicio = "{$anio}-{$rango[0]}";
+                $fechaFin = "{$anio}-{$rango[1]}";
+                $periodosData[] = [
+                    'nombre' => "{$romanos[$numero]} Bimestre {$anio}",
+                    'anio' => $anio,
+                    'estado' => $hoy >= $fechaInicio && $hoy <= $fechaFin ? 'activo' : 'inactivo',
+                    'fecha_inicio' => $fechaInicio,
+                    'fecha_fin' => $fechaFin,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+        }
+
+        if (! collect($periodosData)->contains(fn ($periodo) => $periodo['estado'] === 'activo')) {
+            $periodosData[0]['estado'] = 'activo';
+        }
 
         PeriodoAcademico::insert($periodosData);
     }
@@ -282,33 +301,41 @@ class DatabaseSeeder extends Seeder
     /**
      * Crear asignaciones docente-materia-sección
      */
-    private function crearAsignaciones($secciones, $docentes, $materias, $periodo): void
+    private function crearAsignaciones($secciones, $docentes, $materias, $periodos, $periodoActivo): void
     {
         $asignacionesData = [];
+
+        // Cada materia tiene un grupo estable de docentes para todo el anio
+        $docentesPorMateria = [];
+        foreach ($materias as $materia) {
+            $docentesPorMateria[$materia->id] = $docentes->random(min(2, $docentes->count()))->pluck('id')->all();
+        }
 
         foreach ($secciones as $seccion) {
             // 5-7 materias por sección
             $materiasAsignadas = $materias->random(rand(5, 7));
 
-            foreach ($materiasAsignadas as $materia) {
-                $docente = $docentes->random();
+            foreach ($periodos as $periodo) {
+                foreach ($materiasAsignadas as $materia) {
+                    $docenteId = collect($docentesPorMateria[$materia->id])->random();
 
-                $asignacionesData[] = [
-                    'docente_id' => $docente->id,
-                    'materia_id' => $materia->id,
-                    'seccion_id' => $seccion->id,
-                    'periodo_academico_id' => $periodo->id,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
+                    $asignacionesData[] = [
+                        'docente_id' => $docenteId,
+                        'materia_id' => $materia->id,
+                        'seccion_id' => $seccion->id,
+                        'periodo_academico_id' => $periodo->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
             }
         }
 
         // Insertar en batch para mayor eficiencia
         AsignacionDocenteMateria::insert($asignacionesData);
 
-        // Asignar tutores a algunas secciones (1 tutor por sección)
-        $this->asignarTutores($secciones, $docentes, $periodo);
+        // Asignar tutores a todas las secciones en el periodo vigente
+        $this->asignarTutores($secciones, $docentes, $periodoActivo);
     }
 
     /**
@@ -433,11 +460,18 @@ class DatabaseSeeder extends Seeder
                         $rand = rand(1, 100);
                         $estado = $rand <= 85 ? 'presente' : ($rand <= 95 ? 'tarde' : 'ausente');
 
+                        $observaciones = match ($estado) {
+                            'tarde' => fake()->randomElement(['Llego con retraso', 'Ingreso despues del timbre', 'Retraso por transporte']),
+                            'ausente' => fake()->randomElement(['Falto sin justificar', 'Permiso medico presentado', 'Ausencia por tramite familiar']),
+                            default => null,
+                        };
+
                         $asistenciasData[] = [
                             'estudiante_id' => $estudiante->id,
                             'materia_id' => $materiaId,
                             'fecha' => $fecha->format('Y-m-d'),
                             'estado' => $estado,
+                            'observaciones' => $observaciones,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ];
@@ -467,6 +501,7 @@ class DatabaseSeeder extends Seeder
                         'estudiante_id' => $estudiante->id,
                         'materia_id' => $materiaId,
                         'periodo_academico_id' => $periodo->id,
+                        'tipo_calificacion' => 'numerica',
                         'nota' => $nota,
                         'created_at' => now(),
                         'updated_at' => now(),
@@ -535,19 +570,14 @@ class DatabaseSeeder extends Seeder
                 'user_id' => $userDocente->id,
             ]);
 
-            // Asignar materias al docente test
-            $materiasMath = Materia::where('nombre', 'like', '%Matemática%')->take(2)->get();
-            $seccionesTest = Seccion::take(2)->get();
+            // Tomar dos asignaciones existentes para que el docente tenga clases con datos
+            $asignacionesExistentes = AsignacionDocenteMateria::where('periodo_academico_id', $periodo->id)
+                ->inRandomOrder()
+                ->take(2)
+                ->get();
 
-            foreach ($seccionesTest as $seccion) {
-                foreach ($materiasMath as $materia) {
-                    AsignacionDocenteMateria::create([
-                        'docente_id' => $docenteTest->id,
-                        'materia_id' => $materia->id,
-                        'seccion_id' => $seccion->id,
-                        'periodo_academico_id' => $periodo->id,
-                    ]);
-                }
+            foreach ($asignacionesExistentes as $asignacion) {
+                $asignacion->update(['docente_id' => $docenteTest->id]);
             }
         }
 
@@ -597,9 +627,40 @@ class DatabaseSeeder extends Seeder
                 'apellido_materno' => 'Silva',
                 'dni' => '11223344',
                 'fecha_nacimiento' => '2010-01-01',
+                'telefono' => '984112233',
+                'direccion' => 'Av. Universitaria 145, Cusco',
                 'seccion_id' => $seccionTest->id,
                 'user_id' => $userEstudiante->id,
             ]);
+
+            // Generar notas y asistencias para el estudiante de prueba
+            $materiasSeccion = AsignacionDocenteMateria::where('seccion_id', $seccionTest->id)
+                ->where('periodo_academico_id', $periodo->id)
+                ->pluck('materia_id')
+                ->unique();
+
+            foreach ($materiasSeccion as $materiaId) {
+                Calificacion::create([
+                    'estudiante_id' => $estudianteTest->id,
+                    'materia_id' => $materiaId,
+                    'periodo_academico_id' => $periodo->id,
+                    'tipo_calificacion' => 'numerica',
+                    'nota' => rand(13, 18),
+                ]);
+            }
+
+            for ($i = 0; $i < 5; $i++) {
+                $fecha = now()->subDays($i);
+
+                if ($fecha->dayOfWeek >= 1 && $fecha->dayOfWeek <= 5 && $materiasSeccion->isNotEmpty()) {
+                    Asistencia::create([
+                        'estudiante_id' => $estudianteTest->id,
+                        'materia_id' => $materiasSeccion->first(),
+                        'fecha' => $fecha->format('Y-m-d'),
+                        'estado' => 'presente',
+                    ]);
+                }
+            }
 
             $padreTest = Padre::where('user_id', User::where('email', 'padre@colegio.pe')->first()?->id)->first();
             if ($padreTest) {

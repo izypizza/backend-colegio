@@ -16,14 +16,14 @@ class ConfiguracionSeeder extends Seeder
             // Configuraciones Generales
             [
                 'clave' => 'general_nombre_institucion',
-                'valor' => 'Institución Educativa Modelo',
+                'valor' => 'I.E. N° 51006 Túpac Amaru',
                 'tipo' => 'string',
                 'descripcion' => 'Nombre de la Institución Educativa',
                 'categoria' => 'general'
             ],
             [
                 'clave' => 'general_año_academico',
-                'valor' => '2026',
+                'valor' => (string) date('Y'),
                 'tipo' => 'integer',
                 'descripcion' => 'Año Académico Actual',
                 'categoria' => 'general'
