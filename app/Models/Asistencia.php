@@ -14,11 +14,17 @@ class Asistencia extends Model
         'materia_id',
         'fecha',
         'estado',
+        'justificada',
+        'motivo_justificacion',
+        'justificado_por',
+        'justificado_at',
         'observaciones'
     ];
 
     protected $casts = [
         'fecha' => 'date',
+        'justificada' => 'boolean',
+        'justificado_at' => 'datetime',
     ];
 
     /**

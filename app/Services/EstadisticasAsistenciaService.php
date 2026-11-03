@@ -27,6 +27,8 @@ class EstadisticasAsistenciaService
                 'tarde' => 0,
                 'ausente' => 0,
                 'justificado' => 0,
+                'ausente_justificado' => 0,
+                'ausente_injustificado' => 0,
                 'porcentaje_asistencia' => 0,
                 'porcentaje_ausencia' => 0,
             ];
@@ -35,7 +37,7 @@ class EstadisticasAsistenciaService
         $presente = $asistencias->where('estado', 'presente')->count();
         $tarde = $asistencias->where('estado', 'tarde')->count();
         $ausente = $asistencias->where('estado', 'ausente')->count();
-        $justificado = $asistencias->where('estado', 'justificado')->count();
+        $justificado = $asistencias->where('justificada', true)->count();
 
         // Considerar "tarde" como asistencia para el porcentaje
         $porcentajeAsistencia = round((($presente + $tarde) / $total) * 100, 2);
@@ -47,6 +49,8 @@ class EstadisticasAsistenciaService
             'tarde' => $tarde,
             'ausente' => $ausente,
             'justificado' => $justificado,
+            'ausente_justificado' => $asistencias->where('estado', 'ausente')->where('justificada', true)->count(),
+            'ausente_injustificado' => $asistencias->where('estado', 'ausente')->where('justificada', false)->count(),
             'porcentaje_asistencia' => $porcentajeAsistencia,
             'porcentaje_ausencia' => $porcentajeAusencia,
         ];

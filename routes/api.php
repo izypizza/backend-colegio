@@ -123,6 +123,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/asistencias/{id}', [AsistenciaController::class, 'update']);
         Route::delete('/asistencias/{id}', [AsistenciaController::class, 'destroy']);
 
+        // Justificar o retirar la justificación de una falta
+        Route::put('/asistencias/{id}/justificar', [AsistenciaController::class, 'justificar']);
+
         // Reportes de asistencias
         Route::get('/asistencias/reporte/estudiante/{estudiante_id}', [AsistenciaController::class, 'reportePorEstudiante']);
         Route::get('/asistencias/reporte/seccion/{seccion_id}', [AsistenciaController::class, 'reportePorSeccion']);

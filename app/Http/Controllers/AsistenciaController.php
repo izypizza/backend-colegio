@@ -219,6 +219,66 @@ class AsistenciaController extends Controller
     }
 
     /**
+     * Justificar o quitar la justificación de una falta o tardanza.
+     * Solo el auxiliar y el administrador pueden hacerlo.
+     */
+    public function justificar(Request $request, string $id)
+    {
+        $usuario = $request->user();
+
+        if (! in_array($usuario->role, ['admin', 'auxiliar'], true)) {
+            return response()->json([
+                'message' => 'Solo el auxiliar o el administrador pueden justificar una falta.',
+            ], 403);
+        }
+
+        $asistencia = Asistencia::find($id);
+
+        if (! $asistencia) {
+            return response()->json([
+                'message' => 'El registro de asistencia no existe o fue eliminado.',
+            ], 404);
+        }
+
+        if ($asistencia->estado === Asistencia::ESTADO_PRESENTE) {
+            return response()->json([
+                'message' => 'Un estudiante presente no necesita justificación.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'justificada' => 'required|boolean',
+            'motivo' => 'nullable|string|max:500',
+        ], [
+            'justificada.required' => 'Indica si la falta se justifica o no.',
+            'motivo.max' => 'El motivo no puede superar los 500 caracteres.',
+        ]);
+
+        if ($validated['justificada'] && trim((string) ($validated['motivo'] ?? '')) === '') {
+            return response()->json([
+                'message' => 'Escribe el motivo de la justificación.',
+                'errors' => [
+                    'motivo' => ['Escribe el motivo de la justificación.'],
+                ],
+            ], 422);
+        }
+
+        $asistencia->update([
+            'justificada' => (bool) $validated['justificada'],
+            'motivo_justificacion' => $validated['justificada'] ? trim($validated['motivo']) : null,
+            'justificado_por' => $validated['justificada'] ? $usuario->id : null,
+            'justificado_at' => $validated['justificada'] ? now() : null,
+        ]);
+
+        return response()->json([
+            'message' => $validated['justificada']
+                ? 'La falta quedó registrada como justificada.'
+                : 'Se retiró la justificación de la falta.',
+            'asistencia' => $asistencia->load(['estudiante', 'materia']),
+        ]);
+    }
+
+    /**
      * Remove the specified resource from storage.
      * Restricciones: no se permite eliminar registros de asistencia
      * con más de 60 días de antigüedad (mismo límite que para crearlos).
