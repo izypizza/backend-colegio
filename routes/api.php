@@ -325,6 +325,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users', [UserManagementController::class, 'store']);
         Route::put('/users/{id}', [UserManagementController::class, 'update']);
         Route::post('/users/{id}/toggle-active', [UserManagementController::class, 'toggleActive']);
+        Route::post('/users/{id}/restablecer-password', [UserManagementController::class, 'restablecerPassword']);
         Route::get('/personas-sin-usuario/{tipo}', [UserManagementController::class, 'personasSinUsuario']);
         Route::put('/estudiantes/{id}/estado', [UserManagementController::class, 'updateEstadoEstudiante']);
     });

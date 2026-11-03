@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Estudiante;
 use App\Models\Docente;
 use App\Models\Padre;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -205,6 +206,56 @@ class UserManagementController extends Controller
         return response()->json([
             'message' => $user->is_active ? 'Usuario activado' : 'Usuario desactivado',
             'user' => $user
+        ]);
+    }
+
+    /**
+     * Restablecer la contraseña de un usuario generando una clave temporal.
+     * La clave se muestra una sola vez al administrador y se registra en auditoría.
+     */
+    public function restablecerPassword(Request $request, $id)
+    {
+        $user = User::find($id);
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'El usuario no existe o fue eliminado.',
+            ], 404);
+        }
+
+        if ($user->id === $request->user()->id) {
+            return response()->json([
+                'message' => 'No puedes restablecer tu propia contraseña desde esta opción.',
+            ], 422);
+        }
+
+        $letras = substr(str_shuffle('abcdefghjkmnpqrstuvwxyz'), 0, 2);
+        $passwordTemporal = 'Tupac-' . random_int(1000, 9999) . $letras;
+
+        $user->password = Hash::make($passwordTemporal);
+        $user->save();
+
+        $user->tokens()->delete();
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'accion' => 'restablecer_password',
+            'entidad' => 'users',
+            'entidad_id' => $user->id,
+            'descripcion' => "Contraseña restablecida para {$user->name} ({$user->email})",
+            'ip' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 255),
+        ]);
+
+        return response()->json([
+            'message' => 'Contraseña restablecida correctamente. Entrégala al usuario y pídele que la cambie al ingresar.',
+            'password_temporal' => $passwordTemporal,
+            'usuario' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
         ]);
     }
 
