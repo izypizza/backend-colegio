@@ -341,6 +341,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/docente/es-tutor', [DocentePortalController::class, 'esTutor']);
         Route::get('/docente/tutor-calificaciones', [DocentePortalController::class, 'tutorCalificaciones']);
         Route::get('/docente/tutor-asistencias', [DocentePortalController::class, 'tutorAsistencias']);
+
+        // Llamar lista de una clase
+        Route::get('/docente/lista-seccion/{seccion_id}', [DocentePortalController::class, 'listaSeccion']);
+        Route::post('/docente/llamar-lista', [DocentePortalController::class, 'llamarLista']);
     });
 
     // ========================================

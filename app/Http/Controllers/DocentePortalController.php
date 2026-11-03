@@ -6,7 +6,9 @@ use App\Models\AsignacionDocenteMateria;
 use App\Models\Asistencia;
 use App\Models\Calificacion;
 use App\Models\Estudiante;
+use App\Models\Seccion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DocentePortalController extends Controller
 {
@@ -417,5 +419,177 @@ class DocentePortalController extends Controller
             'asistencias' => $asistencias,
             'seccion' => $asignacionTutor->seccion
         ]);
+    }
+
+    /**
+     * Lista de estudiantes de una sección con su asistencia del día.
+     * Sirve para que el docente llame lista en su hora de clase.
+     */
+    public function listaSeccion(Request $request, $seccionId)
+    {
+        $validated = $request->validate([
+            'materia_id' => 'required|exists:materias,id',
+            'fecha' => 'required|date|before_or_equal:today',
+        ], [
+            'materia_id.required' => 'Selecciona la materia que estás dictando.',
+            'materia_id.exists' => 'La materia seleccionada no existe.',
+            'fecha.required' => 'Indica la fecha de la clase.',
+            'fecha.before_or_equal' => 'No puedes tomar asistencia de una fecha futura.',
+        ]);
+
+        $autorizacion = $this->verificarDocenteEnSeccion($request->user(), (int) $validated['materia_id'], (int) $seccionId);
+        if ($autorizacion !== true) {
+            return $autorizacion;
+        }
+
+        $seccion = Seccion::with('grado')->find($seccionId);
+        if (! $seccion) {
+            return response()->json(['message' => 'La sección no existe o fue eliminada.'], 404);
+        }
+
+        $estudiantes = Estudiante::where('seccion_id', $seccionId)
+            ->orderBy('apellido_paterno')
+            ->orderBy('apellido_materno')
+            ->orderBy('nombres')
+            ->get(['id', 'nombres', 'apellido_paterno', 'apellido_materno', 'dni']);
+
+        $registradas = Asistencia::whereIn('estudiante_id', $estudiantes->pluck('id'))
+            ->where('materia_id', $validated['materia_id'])
+            ->whereDate('fecha', $validated['fecha'])
+            ->get()
+            ->keyBy('estudiante_id');
+
+        return response()->json([
+            'seccion' => [
+                'id' => $seccion->id,
+                'nombre' => trim(($seccion->grado->nombre ?? '') . ' - ' . $seccion->nombre),
+            ],
+            'fecha' => $validated['fecha'],
+            'ya_registrada' => $registradas->isNotEmpty(),
+            'estudiantes' => $estudiantes->map(function ($estudiante) use ($registradas) {
+                $registro = $registradas->get($estudiante->id);
+
+                return [
+                    'id' => $estudiante->id,
+                    'nombres' => $estudiante->nombres,
+                    'apellido_paterno' => $estudiante->apellido_paterno,
+                    'apellido_materno' => $estudiante->apellido_materno,
+                    'dni' => $estudiante->dni,
+                    'estado' => $registro->estado ?? null,
+                    'observaciones' => $registro->observaciones ?? null,
+                ];
+            })->values(),
+        ]);
+    }
+
+    /**
+     * Registrar la asistencia de toda la sección en una sola operación.
+     */
+    public function llamarLista(Request $request)
+    {
+        $validated = $request->validate([
+            'materia_id' => 'required|exists:materias,id',
+            'seccion_id' => 'required|exists:secciones,id',
+            'fecha' => 'required|date|before_or_equal:today',
+            'registros' => 'required|array|min:1',
+            'registros.*.estudiante_id' => 'required|exists:estudiantes,id',
+            'registros.*.estado' => 'required|in:presente,tarde,ausente',
+            'registros.*.observaciones' => 'nullable|string|max:500',
+        ], [
+            'materia_id.required' => 'Selecciona la materia que estás dictando.',
+            'seccion_id.required' => 'Selecciona la sección.',
+            'fecha.required' => 'Indica la fecha de la clase.',
+            'fecha.before_or_equal' => 'No puedes tomar asistencia de una fecha futura.',
+            'registros.required' => 'No hay estudiantes para registrar.',
+            'registros.*.estado.in' => 'El estado debe ser presente, tarde o ausente.',
+        ]);
+
+        $autorizacion = $this->verificarDocenteEnSeccion($request->user(), (int) $validated['materia_id'], (int) $validated['seccion_id']);
+        if ($autorizacion !== true) {
+            return $autorizacion;
+        }
+
+        $fecha = \Carbon\Carbon::parse($validated['fecha'])->startOfDay();
+        if ($fecha->diffInDays(now()->startOfDay()) > 60) {
+            return response()->json([
+                'message' => 'No puedes registrar asistencia con más de 60 días de antigüedad.',
+            ], 422);
+        }
+
+        $idsRegistrados = collect($validated['registros'])->pluck('estudiante_id')->unique();
+        $idsDeLaSeccion = Estudiante::whereIn('id', $idsRegistrados)
+            ->where('seccion_id', $validated['seccion_id'])
+            ->pluck('id');
+
+        if ($idsDeLaSeccion->count() !== $idsRegistrados->count()) {
+            return response()->json([
+                'message' => 'Hay estudiantes que no pertenecen a la sección seleccionada.',
+            ], 422);
+        }
+
+        $creados = 0;
+        $actualizados = 0;
+
+        DB::transaction(function () use ($validated, $fecha, &$creados, &$actualizados) {
+            foreach ($validated['registros'] as $registro) {
+                $existente = Asistencia::where('estudiante_id', $registro['estudiante_id'])
+                    ->where('materia_id', $validated['materia_id'])
+                    ->whereDate('fecha', $fecha->toDateString())
+                    ->first();
+
+                $datos = [
+                    'estado' => $registro['estado'],
+                    'observaciones' => $registro['observaciones'] ?? null,
+                ];
+
+                if ($existente) {
+                    $existente->update($datos);
+                    $actualizados++;
+                } else {
+                    Asistencia::create($datos + [
+                        'estudiante_id' => $registro['estudiante_id'],
+                        'materia_id' => $validated['materia_id'],
+                        'fecha' => $fecha->toDateString(),
+                    ]);
+                    $creados++;
+                }
+            }
+        });
+
+        return response()->json([
+            'message' => 'Asistencia registrada correctamente.',
+            'creados' => $creados,
+            'actualizados' => $actualizados,
+            'total' => $creados + $actualizados,
+        ]);
+    }
+
+    /**
+     * Verifica que el usuario pueda registrar asistencia en una materia y sección.
+     */
+    private function verificarDocenteEnSeccion($usuario, int $materiaId, int $seccionId)
+    {
+        if (in_array($usuario->role, ['admin', 'auxiliar'], true)) {
+            return true;
+        }
+
+        if ($usuario->role !== 'docente' || ! $usuario->docente) {
+            return response()->json([
+                'message' => 'Solo los docentes pueden registrar asistencia de sus clases.',
+            ], 403);
+        }
+
+        $tieneAsignacion = AsignacionDocenteMateria::where('docente_id', $usuario->docente->id)
+            ->where('materia_id', $materiaId)
+            ->where('seccion_id', $seccionId)
+            ->exists();
+
+        if (! $tieneAsignacion) {
+            return response()->json([
+                'message' => 'No tienes asignada esta materia en esta sección.',
+            ], 403);
+        }
+
+        return true;
     }
 }
