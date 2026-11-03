@@ -2,10 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Configuracion;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\Configuracion;
 
 class CheckMaintenanceMode
 {
@@ -20,38 +20,39 @@ class CheckMaintenanceMode
         $exemptRoutes = [
             'api/auth/login',
             'api/auth/register',
+            'api/ping',
         ];
-        
+
         $currentPath = $request->path();
-        
+
         foreach ($exemptRoutes as $route) {
             if ($currentPath === $route) {
                 return $next($request);
             }
         }
-        
+
         // Verificar si el modo mantenimiento está activado
         $modoMantenimiento = Configuracion::obtener('sistema_modo_mantenimiento', false);
-        
+
         // Si está en mantenimiento
         if ($modoMantenimiento) {
             // Permitir acceso solo a admins autenticados
             $user = $request->user();
-            
-            if (!$user || $user->role !== 'admin') {
+
+            if (! $user || $user->role !== 'admin') {
                 $mensaje = Configuracion::obtener(
                     'sistema_mensaje_mantenimiento',
                     'El sistema está en mantenimiento. Por favor, inténtelo más tarde.'
                 );
-                
+
                 return response()->json([
                     'error' => 'Sistema en mantenimiento',
                     'message' => $mensaje,
-                    'maintenance_mode' => true
+                    'maintenance_mode' => true,
                 ], 503);
             }
         }
-        
+
         return $next($request);
     }
 }

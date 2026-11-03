@@ -25,6 +25,7 @@ use App\Http\Controllers\PadreController;
 use App\Http\Controllers\PadrePortalController;
 use App\Http\Controllers\PartidoController;
 use App\Http\Controllers\PeriodoAcademicoController;
+use App\Http\Controllers\PingController;
 use App\Http\Controllers\PrestamoLibroController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\SeccionController;
@@ -38,6 +39,9 @@ Route::post('/auth/login', [AuthController::class, 'login'])->middleware('thrott
 
 // Rutas mobile (públicas)
 Route::post('/mobile/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+
+// Verificación de disponibilidad (despierta el servicio en frío)
+Route::get('/ping', PingController::class)->middleware('throttle:ping');
 
 // Rutas protegidas con autenticación
 Route::middleware('auth:sanctum')->group(function () {

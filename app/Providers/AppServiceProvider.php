@@ -26,5 +26,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('login', function (Request $request) {
             return Limit::perMinute(5)->by($request->input('email') . '|' . $request->ip());
         });
+
+        // Límite del chequeo de disponibilidad
+        RateLimiter::for('ping', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
     }
 }
