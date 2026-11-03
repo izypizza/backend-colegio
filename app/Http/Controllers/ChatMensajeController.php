@@ -31,6 +31,24 @@ class ChatMensajeController extends Controller
         // Marcar mensajes como leídos
         $conversacion->marcarMensajesLeidosPara($user->id);
 
+        // Consulta incremental: solo los mensajes posteriores al último conocido
+        if ($request->filled('after_id')) {
+            $nuevos = ChatMensaje::where('conversacion_id', $conversacionId)
+                ->with('user')
+                ->where('id', '>', $request->integer('after_id'))
+                ->orderBy('id')
+                ->get();
+
+            return response()->json([
+                'data' => $nuevos,
+                'current_page' => 1,
+                'last_page' => 1,
+                'per_page' => $nuevos->count(),
+                'total' => $nuevos->count(),
+                'incremental' => true,
+            ]);
+        }
+
         $mensajes = ChatMensaje::where('conversacion_id', $conversacionId)
             ->with('user')
             ->orderBy('created_at')
