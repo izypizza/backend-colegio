@@ -34,6 +34,56 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $excepcion, $peticion) {
+            if ($peticion->is('api/*') || $peticion->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tu sesión expiró o no has iniciado sesión. Vuelve a ingresar.',
+                    'code' => 'no_autenticado',
+                ], 401);
+            }
+        });
+
+        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $excepcion, $peticion) {
+            if ($peticion->is('api/*') || $peticion->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes permisos para realizar esta acción.',
+                    'code' => 'sin_permisos',
+                ], 403);
+            }
+        });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $excepcion, $peticion) {
+            if ($peticion->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El registro solicitado no existe o fue eliminado.',
+                    'code' => 'no_encontrado',
+                ], 404);
+            }
+        });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $excepcion, $peticion) {
+            if ($peticion->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes permisos para realizar esta acción.',
+                    'code' => 'sin_permisos',
+                ], 403);
+            }
+        });
+
+        $exceptions->render(function (\Illuminate\Http\Exceptions\ThrottleRequestsException $excepcion, $peticion) {
+            if ($peticion->is('api/*') || $peticion->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Demasiados intentos. Espera un momento antes de volver a intentarlo.',
+                    'code' => 'demasiadas_solicitudes',
+                ], 429)->withHeaders($excepcion->getHeaders());
+            }
+        });
+
         $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response) {
             return \App\Http\Middleware\SanitizeApiErrors::sanitize($response, request());
         });

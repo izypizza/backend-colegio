@@ -10,3 +10,11 @@ Route::get('/', function () {
         'status' => 'active'
     ]);
 });
+
+Route::get('/login', function () {
+    return response()->json([
+        'success' => false,
+        'message' => 'Debes iniciar sesión para acceder a este recurso.',
+        'code' => 'no_autenticado',
+    ], 401);
+})->name('login');
