@@ -34,14 +34,14 @@ class SeccionController extends Controller
             $validated = $request->validate([
                 'nombre' => 'required|string|max:255',
                 'grado_id' => 'required|exists:grados,id',
-                'capacidad' => 'nullable|integer|min:1|max:100',
+                'capacidad_maxima' => 'nullable|integer|min:1|max:100',
                 'turno' => 'nullable|in:Mañana,Tarde'
             ], [
                 'nombre.required' => 'El nombre de la sección es obligatorio',
                 'grado_id.required' => 'El grado es obligatorio',
                 'grado_id.exists' => 'El grado seleccionado no existe',
-                'capacidad.min' => 'La capacidad debe ser al menos 1',
-                'capacidad.max' => 'La capacidad no puede ser mayor a 100'
+                'capacidad_maxima.min' => 'La capacidad debe ser al menos 1',
+                'capacidad_maxima.max' => 'La capacidad no puede ser mayor a 100'
             ]);
 
             $seccion = Seccion::create($validated);
@@ -76,12 +76,12 @@ class SeccionController extends Controller
             $validated = $request->validate([
                 'nombre' => 'sometimes|required|string|max:255',
                 'grado_id' => 'sometimes|required|exists:grados,id',
-                'capacidad' => 'nullable|integer|min:1|max:100',
+                'capacidad_maxima' => 'nullable|integer|min:1|max:100',
                 'turno' => 'nullable|in:Mañana,Tarde'
             ], [
                 'nombre.required' => 'El nombre de la sección es obligatorio',
                 'grado_id.exists' => 'El grado seleccionado no existe',
-                'capacidad.min' => 'La capacidad debe ser al menos 1'
+                'capacidad_maxima.min' => 'La capacidad debe ser al menos 1'
             ]);
 
             $seccion->update($validated);
