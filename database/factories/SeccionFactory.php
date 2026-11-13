@@ -18,7 +18,9 @@ class SeccionFactory extends Factory
     {
         return [
             'nombre' => fake()->randomElement(['A', 'B', 'C', 'D', 'E']),
-            'grado_id' => \App\Models\Grado::factory()
+            'grado_id' => \App\Models\Grado::factory(),
+            'capacidad_maxima' => 40,
+            'turno' => 'Mañana',
         ];
     }
 }

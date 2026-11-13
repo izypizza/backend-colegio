@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\AsignacionDocenteMateria;
+use App\Models\AnioEscolar;
 use App\Models\Asistencia;
 use App\Models\Calificacion;
 use App\Models\Docente;
@@ -10,10 +11,12 @@ use App\Models\Estudiante;
 use App\Models\Grado;
 use App\Models\Horario;
 use App\Models\Materia;
+use App\Models\Matricula;
 use App\Models\Padre;
 use App\Models\PeriodoAcademico;
 use App\Models\Seccion;
 use App\Models\User;
+use App\Services\MatriculaService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Database\Seeders\ConfiguracionSeeder;
@@ -41,6 +44,10 @@ class DatabaseSeeder extends Seeder
     {
         // 1. Crear estructura base (grados, secciones, materias, períodos)
         $this->crearEstructuraBase();
+
+        // 2. Abrir el año escolar en curso
+        $anioEscolar = app(MatriculaService::class)
+            ->obtenerOCrearAnioEscolar((int) date('Y'));
 
         // 2. Crear personal y padres
         $docentes = $this->crearDocentes(15);
@@ -73,6 +80,10 @@ class DatabaseSeeder extends Seeder
             PrestamosSeeder::class,
             VotosSeeder::class,
         ]);
+
+        // 9. Registrar la matrícula de todos los estudiantes del año
+        app(MatriculaService::class)
+            ->generarMatriculasPendientes($anioEscolar, 'sistema');
 
         $this->mostrarEstadisticas();
     }
@@ -271,9 +282,11 @@ class DatabaseSeeder extends Seeder
             $cantidadEstudiantes = rand(...self::ESTUDIANTES_POR_SECCION);
 
             for ($i = 0; $i < $cantidadEstudiantes; $i++) {
-                $estudiante = Estudiante::factory()->create([
-                    'seccion_id' => $seccion->id,
-                ]);
+                $estudiante = Estudiante::factory()
+                    ->paraGrado($seccion->grado?->nombre ?? '1° Primaria')
+                    ->create([
+                        'seccion_id' => $seccion->id,
+                    ]);
 
                 // Crear usuario para el estudiante
                 $nombreCompleto = "{$estudiante->nombres} {$estudiante->apellido_paterno} {$estudiante->apellido_materno}";
@@ -620,13 +633,16 @@ class DatabaseSeeder extends Seeder
                 'is_active' => true,
             ]);
 
-            $seccionTest = Seccion::first();
+            $seccionTest = Seccion::whereHas('grado', function ($consulta) {
+                $consulta->where('nombre', 'like', '%Secundaria%');
+            })->orderByDesc('grado_id')->first() ?? Seccion::first();
+
             $estudianteTest = Estudiante::create([
                 'nombres' => 'Diego',
                 'apellido_paterno' => 'Martínez',
                 'apellido_materno' => 'Silva',
                 'dni' => '11223344',
-                'fecha_nacimiento' => '2010-01-01',
+                'fecha_nacimiento' => now()->subYears(16)->subMonths(2)->format('Y-m-d'),
                 'telefono' => '984112233',
                 'direccion' => 'Av. Universitaria 145, Cusco',
                 'seccion_id' => $seccionTest->id,
@@ -682,6 +698,8 @@ class DatabaseSeeder extends Seeder
         $this->command->info('Estudiantes: '.Estudiante::count());
         $this->command->info('Materias: '.Materia::count());
         $this->command->info('Periodos: '.PeriodoAcademico::count());
+        $this->command->info('Años escolares: '.AnioEscolar::count());
+        $this->command->info('Matrículas: '.Matricula::count());
         $this->command->info('Asignaciones: '.AsignacionDocenteMateria::count());
         $this->command->info('Horarios: '.Horario::count());
         $this->command->info('Asistencias: '.Asistencia::count());

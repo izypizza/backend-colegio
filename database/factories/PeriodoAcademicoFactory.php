@@ -16,12 +16,15 @@ class PeriodoAcademicoFactory extends Factory
      */
     public function definition(): array
     {
+        $anioActual = (int) now()->year;
+        $bimestres = ['I Bimestre', 'II Bimestre', 'III Bimestre', 'IV Bimestre'];
+
         return [
-            'nombre' => fake()->randomElement([
-                'I Bimestre', 'II Bimestre', 'III Bimestre', 'IV Bimestre',
-                'I Trimestre', 'II Trimestre', 'III Trimestre'
-            ]),
-            'anio' => fake()->numberBetween(2023, 2025)
+            'nombre' => fake()->randomElement($bimestres) . ' ' . $anioActual,
+            'anio' => $anioActual,
+            'estado' => 'inactivo',
+            'fecha_inicio' => null,
+            'fecha_fin' => null,
         ];
     }
 }

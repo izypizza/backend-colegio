@@ -45,4 +45,37 @@ class EstudianteFactory extends Factory
             'seccion_id' => \App\Models\Seccion::factory()
         ];
     }
+
+    /**
+     * Ajusta la edad del estudiante al grado en el que se matricula,
+     * para que los datos sembrados sean coherentes con la realidad escolar.
+     */
+    public function paraGrado(string $nombreGrado): static
+    {
+        $edad = $this->edadEsperadaParaGrado($nombreGrado);
+
+        return $this->state(fn () => [
+            'fecha_nacimiento' => now()
+                ->subYears($edad)
+                ->subDays(fake()->numberBetween(0, 300))
+                ->format('Y-m-d'),
+        ]);
+    }
+
+    private function edadEsperadaParaGrado(string $nombreGrado): int
+    {
+        if (preg_match('/(\d+)/', $nombreGrado, $coincidencia)) {
+            $numeroGrado = (int) $coincidencia[1];
+
+            if (str_contains($nombreGrado, 'Primaria')) {
+                return 5 + $numeroGrado;
+            }
+
+            if (str_contains($nombreGrado, 'Secundaria')) {
+                return 11 + $numeroGrado;
+            }
+        }
+
+        return 6;
+    }
 }
