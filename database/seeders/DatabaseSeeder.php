@@ -16,6 +16,7 @@ use App\Models\Padre;
 use App\Models\PeriodoAcademico;
 use App\Models\Seccion;
 use App\Models\User;
+use App\Services\HistorialAcademicoService;
 use App\Services\MatriculaService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -84,6 +85,9 @@ class DatabaseSeeder extends Seeder
         // 9. Registrar la matrícula de todos los estudiantes del año
         app(MatriculaService::class)
             ->generarMatriculasPendientes($anioEscolar, 'sistema');
+
+        // 10. Vincular calificaciones y asistencias con su matrícula
+        app(HistorialAcademicoService::class)->vincularPendientes();
 
         $this->mostrarEstadisticas();
     }
@@ -318,22 +322,26 @@ class DatabaseSeeder extends Seeder
     {
         $asignacionesData = [];
 
-        // Cada materia tiene un grupo estable de docentes para todo el anio
+        // Cada docente queda a cargo de al menos una materia
         $docentesPorMateria = [];
-        foreach ($materias as $materia) {
-            $docentesPorMateria[$materia->id] = $docentes->random(min(2, $docentes->count()))->pluck('id')->all();
+        foreach ($docentes as $posicion => $docente) {
+            $materia = $materias[$posicion % $materias->count()];
+            $docentesPorMateria[$materia->id][] = $docente->id;
         }
 
         foreach ($secciones as $seccion) {
-            // 5-7 materias por sección
-            $materiasAsignadas = $materias->random(rand(5, 7));
+            // El docente de cada materia se mantiene durante todo el año
+            $docentePorMateriaDeLaSeccion = [];
+            foreach ($materias as $materia) {
+                $docentePorMateriaDeLaSeccion[$materia->id] = collect(
+                    $docentesPorMateria[$materia->id]
+                )->random();
+            }
 
-            foreach ($periodos as $periodo) {
-                foreach ($materiasAsignadas as $materia) {
-                    $docenteId = collect($docentesPorMateria[$materia->id])->random();
-
+            foreach ($materias as $materia) {
+                foreach ($periodos as $periodo) {
                     $asignacionesData[] = [
-                        'docente_id' => $docenteId,
+                        'docente_id' => $docentePorMateriaDeLaSeccion[$materia->id],
                         'materia_id' => $materia->id,
                         'seccion_id' => $seccion->id,
                         'periodo_academico_id' => $periodo->id,
@@ -356,27 +364,29 @@ class DatabaseSeeder extends Seeder
      */
     private function asignarTutores($secciones, $docentes, $periodo): void
     {
-        // Asignar un tutor a CADA sección
+        // Asignar un tutor a CADA sección, eligiendo un docente que ya dicte en ella
         foreach ($secciones as $seccion) {
-            $docente = $docentes->random();
+            $asignacionesDeLaSeccion = AsignacionDocenteMateria::query()
+                ->where('seccion_id', $seccion->id)
+                ->where('periodo_academico_id', $periodo->id)
+                ->get();
 
-            // Actualizar la sección con el tutor asignado
-            $seccion->update(['tutor_id' => $docente->id]);
+            if ($asignacionesDeLaSeccion->isEmpty()) {
+                continue;
+            }
 
-            // Buscar si ya existe una asignación para este docente en esta sección
-            $asignacionExistente = AsignacionDocenteMateria::where([
-                'docente_id' => $docente->id,
-                'seccion_id' => $seccion->id,
-                'periodo_academico_id' => $periodo->id,
-            ])->first();
+            $asignacionTutor = $asignacionesDeLaSeccion->random();
 
-            if ($asignacionExistente) {
-                // Marcar como tutor la asignación existente
-                $asignacionExistente->update([
+            $seccion->update(['tutor_id' => $asignacionTutor->docente_id]);
+
+            AsignacionDocenteMateria::query()
+                ->where('docente_id', $asignacionTutor->docente_id)
+                ->where('materia_id', $asignacionTutor->materia_id)
+                ->where('seccion_id', $seccion->id)
+                ->update([
                     'es_tutor' => true,
                     'tutor_hasta' => now()->addMonths(6)->format('Y-m-d'),
                 ]);
-            }
         }
     }
 
@@ -589,8 +599,17 @@ class DatabaseSeeder extends Seeder
                 ->take(2)
                 ->get();
 
+            $periodosDelAnio = PeriodoAcademico::query()
+                ->where('anio', $periodo->anio)
+                ->pluck('id');
+
+            // El cambio de docente se replica en todos los bimestres del año
             foreach ($asignacionesExistentes as $asignacion) {
-                $asignacion->update(['docente_id' => $docenteTest->id]);
+                AsignacionDocenteMateria::query()
+                    ->where('materia_id', $asignacion->materia_id)
+                    ->where('seccion_id', $asignacion->seccion_id)
+                    ->whereIn('periodo_academico_id', $periodosDelAnio)
+                    ->update(['docente_id' => $docenteTest->id]);
             }
         }
 

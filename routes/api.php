@@ -192,6 +192,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     Route::middleware(['permission:docentes'])->group(function () {
         Route::apiResource('docentes', DocenteController::class);
+        Route::get('/asignaciones/anual', [AsignacionDocenteMateriaController::class, 'listadoAnual']);
+        Route::post('/asignaciones/anual', [AsignacionDocenteMateriaController::class, 'asignarAnio']);
+        Route::delete('/asignaciones/anual', [AsignacionDocenteMateriaController::class, 'quitarAnio']);
         Route::apiResource('asignaciones', AsignacionDocenteMateriaController::class);
     });
 
