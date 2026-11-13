@@ -11,6 +11,7 @@ class Calificacion extends Model
 
     protected $fillable = [
         'estudiante_id',
+        'matricula_id',
         'materia_id',
         'periodo_academico_id',
         'nota',
@@ -18,6 +19,56 @@ class Calificacion extends Model
         'modificaciones_count',
         'ultima_modificacion'
     ];
+
+    private static array $anioPorPeriodo = [];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $calificacion) {
+            if ($calificacion->matricula_id || !$calificacion->estudiante_id) {
+                return;
+            }
+
+            $calificacion->matricula_id = self::matriculaParaPeriodo(
+                (int) $calificacion->estudiante_id,
+                $calificacion->periodo_academico_id
+            );
+        });
+    }
+
+    public function matricula()
+    {
+        return $this->belongsTo(Matricula::class);
+    }
+
+    private static function matriculaParaPeriodo(int $estudianteId, ?int $periodoAcademicoId): ?int
+    {
+        if (!$periodoAcademicoId) {
+            return null;
+        }
+
+        if (!array_key_exists($periodoAcademicoId, self::$anioPorPeriodo)) {
+            $anio = PeriodoAcademico::whereKey($periodoAcademicoId)->value('anio');
+            self::$anioPorPeriodo[$periodoAcademicoId] = $anio ? (int) $anio : null;
+        }
+
+        $anio = self::$anioPorPeriodo[$periodoAcademicoId];
+
+        if (!$anio) {
+            return null;
+        }
+
+        $anioEscolarId = AnioEscolar::where('anio', $anio)->value('id');
+
+        if (!$anioEscolarId) {
+            return null;
+        }
+
+        return Matricula::query()
+            ->where('estudiante_id', $estudianteId)
+            ->where('anio_escolar_id', $anioEscolarId)
+            ->value('id');
+    }
 
     protected $casts = [
         'nota' => 'decimal:2',

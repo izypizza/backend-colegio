@@ -11,6 +11,7 @@ class Asistencia extends Model
 
     protected $fillable = [
         'estudiante_id',
+        'matricula_id',
         'materia_id',
         'fecha',
         'estado',
@@ -20,6 +21,32 @@ class Asistencia extends Model
         'justificado_at',
         'observaciones'
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $asistencia) {
+            if ($asistencia->matricula_id || !$asistencia->estudiante_id || !$asistencia->fecha) {
+                return;
+            }
+
+            $anio = (int) substr((string) $asistencia->fecha, 0, 4);
+            $anioEscolarId = AnioEscolar::where('anio', $anio)->value('id');
+
+            if (!$anioEscolarId) {
+                return;
+            }
+
+            $asistencia->matricula_id = Matricula::query()
+                ->where('estudiante_id', $asistencia->estudiante_id)
+                ->where('anio_escolar_id', $anioEscolarId)
+                ->value('id');
+        });
+    }
+
+    public function matricula()
+    {
+        return $this->belongsTo(Matricula::class);
+    }
 
     protected $casts = [
         'fecha' => 'date',
