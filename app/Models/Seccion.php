@@ -37,4 +37,9 @@ class Seccion extends Model
     {
         return $this->hasMany(AsignacionDocenteMateria::class);
     }
+
+    public function matriculas()
+    {
+        return $this->hasMany(Matricula::class);
+    }
 }

@@ -86,4 +86,16 @@ class Estudiante extends Model
     {
         return $this->hasMany(Calificacion::class);
     }
+
+    public function matriculas()
+    {
+        return $this->hasMany(Matricula::class);
+    }
+
+    public function matriculaVigente()
+    {
+        return $this->hasOne(Matricula::class)
+            ->where('estado', 'matriculado')
+            ->latestOfMany();
+    }
 }
