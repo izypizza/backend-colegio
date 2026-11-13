@@ -162,6 +162,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     Route::middleware(['permission:matriculas'])->group(function () {
         Route::get('/anios-escolares', [MatriculaController::class, 'aniosEscolares']);
+        Route::post('/anios-escolares', [MatriculaController::class, 'crearAnioEscolar']);
         Route::get('/matriculas/vacantes', [MatriculaController::class, 'vacantes']);
         Route::get('/matriculas/estadisticas', [MatriculaController::class, 'estadisticas']);
         Route::get('/matriculas/estudiantes-sin-matricula', [MatriculaController::class, 'estudiantesSinMatricula']);

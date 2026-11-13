@@ -140,10 +140,10 @@ class MatriculaService
         ?int $registradoPorId = null,
         ?CarbonInterface $fechaMatricula = null
     ): Matricula {
-        if (!$anioEscolar->estaAbierto()) {
+        if (!$anioEscolar->permiteMatricula()) {
             throw ValidationException::withMessages([
                 'anio_escolar_id' => [
-                    "El año escolar {$anioEscolar->anio} no está abierto para matrícula (estado: {$anioEscolar->estado}).",
+                    "El año escolar {$anioEscolar->anio} está cerrado. Su historial no puede modificarse.",
                 ],
             ]);
         }
@@ -193,6 +193,14 @@ class MatriculaService
         if (!$matricula->estaVigente()) {
             throw ValidationException::withMessages([
                 'matricula' => ['Solo se puede trasladar una matrícula vigente.'],
+            ]);
+        }
+
+        if (!$matricula->anioEscolar->permiteMatricula()) {
+            throw ValidationException::withMessages([
+                'anio_escolar_id' => [
+                    "El año escolar {$matricula->anioEscolar->anio} está cerrado. Su historial no puede modificarse.",
+                ],
             ]);
         }
 

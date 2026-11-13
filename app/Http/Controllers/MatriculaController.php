@@ -137,6 +137,14 @@ class MatriculaController extends Controller
             ]);
         }
 
+        if (!$matricula->anioEscolar->permiteMatricula()) {
+            throw ValidationException::withMessages([
+                'anio_escolar_id' => [
+                    "El año escolar {$matricula->anioEscolar->anio} está cerrado. Su historial no puede modificarse.",
+                ],
+            ]);
+        }
+
         $matricula = DB::transaction(function () use ($validated, $matricula) {
             if (isset($validated['seccion_id'])) {
                 $seccionDestino = Seccion::with('grado')->findOrFail($validated['seccion_id']);
@@ -182,6 +190,37 @@ class MatriculaController extends Controller
                 ->orderByDesc('anio')
                 ->get(['id', 'anio', 'estado', 'fecha_inicio', 'fecha_fin'])
         );
+    }
+
+    /**
+     * Crea el año escolar indicado si aún no existe. Es idempotente.
+     */
+    public function crearAnioEscolar(Request $request)
+    {
+        $validated = $request->validate([
+            'anio' => 'required|integer|min:2000|max:2100',
+        ], [
+            'anio.required' => 'Indique el año escolar a crear',
+            'anio.integer' => 'El año escolar debe ser un número',
+            'anio.min' => 'El año escolar no puede ser anterior a 2000',
+            'anio.max' => 'El año escolar no puede ser posterior a 2100',
+        ]);
+
+        $existente = AnioEscolar::query()->delAnio((int) $validated['anio'])->first();
+
+        if ($existente) {
+            return response()->json([
+                'message' => "El año escolar {$existente->anio} ya existe",
+                'anio_escolar' => $existente,
+            ]);
+        }
+
+        $anioEscolar = $this->matriculas->obtenerOCrearAnioEscolar((int) $validated['anio']);
+
+        return response()->json([
+            'message' => "Año escolar {$anioEscolar->anio} creado ({$anioEscolar->estado})",
+            'anio_escolar' => $anioEscolar,
+        ], 201);
     }
 
     /**

@@ -6,8 +6,10 @@ use App\Models\User;
 use App\Models\Estudiante;
 use App\Models\Docente;
 use App\Models\Padre;
+use App\Models\Matricula;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -333,8 +335,13 @@ class UserManagementController extends Controller
         ]);
 
         $estadoAnterior = $estudiante->estado;
-        $estudiante->estado = $validated['estado'];
-        $estudiante->save();
+
+        DB::transaction(function () use ($estudiante, $validated) {
+            $estudiante->estado = $validated['estado'];
+            $estudiante->save();
+
+            $this->sincronizarMatriculaConEstado($estudiante);
+        });
 
         // Si se suspende o egresa, desactivar usuario
         if ($estudiante->user_id && in_array($validated['estado'], ['suspendido', 'egresado'])) {
@@ -358,10 +365,55 @@ class UserManagementController extends Controller
     }
 
     /**
+     * El estado académico del estudiante y su matrícula vigente deben coincidir.
+     * Un egresado no puede seguir ocupando una vacante.
+     */
+    private function sincronizarMatriculaConEstado(Estudiante $estudiante): void
+    {
+        $vigente = Matricula::query()
+            ->where('estudiante_id', $estudiante->id)
+            ->where('estado', 'matriculado')
+            ->latest('id')
+            ->first();
+
+        if ($estudiante->estado === 'egresado') {
+            $vigente?->update([
+                'estado' => 'culminado',
+                'observacion' => $this->combinarObservacion(
+                    $vigente->observacion,
+                    'Matrícula culminada al registrar el egreso del estudiante.'
+                ),
+            ]);
+
+            return;
+        }
+
+        if ($estudiante->estado === 'activo' && !$vigente) {
+            $culminada = Matricula::query()
+                ->where('estudiante_id', $estudiante->id)
+                ->where('estado', 'culminado')
+                ->latest('id')
+                ->first();
+
+            $culminada?->update([
+                'estado' => 'matriculado',
+                'observacion' => $this->combinarObservacion(
+                    $culminada->observacion,
+                    'Matrícula reactivada al cambiar el estado del estudiante a activo.'
+                ),
+            ]);
+        }
+    }
+
+    private function combinarObservacion(?string $actual, string $nueva): string
+    {
+        return $actual ? "{$actual} | {$nueva}" : $nueva;
+    }
+
+    /**
      * Desactivar padres si todos sus hijos egresaron
      */
-    private function checkAndDeactivateParents($estudiante)
-    {
+    private function checkAndDeactivateParents($estudiante)    {
         $padres = $estudiante->padres;
 
         foreach ($padres as $padre) {

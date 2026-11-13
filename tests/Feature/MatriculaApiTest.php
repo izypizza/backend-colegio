@@ -214,6 +214,64 @@ class MatriculaApiTest extends TestCase
         $respuesta->assertJsonPath('0.estado', 'abierto');
     }
 
+    public function test_no_permite_trasladar_en_un_anio_cerrado(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $anioEscolar = $this->crearAnioEscolar('cerrado');
+        $origen = $this->crearSeccion('A', 40);
+        $destino = $this->crearSeccion('B', 40);
+        $estudiante = $this->crearEstudiante($origen, '74000111');
+        $matricula = $this->crearMatricula($estudiante, $origen, $anioEscolar);
+
+        Sanctum::actingAs($admin);
+
+        $respuesta = $this->putJson("/api/matriculas/{$matricula->id}", [
+            'seccion_id' => $destino->id,
+        ]);
+
+        $respuesta->assertStatus(422);
+        $respuesta->assertJsonValidationErrors('anio_escolar_id');
+        $this->assertSame($origen->id, $matricula->fresh()->seccion_id);
+    }
+
+    public function test_permite_matricular_en_un_anio_en_planificacion(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $anioEscolar = $this->crearAnioEscolar('planificacion');
+        $seccion = $this->crearSeccion('A', 40);
+        $estudiante = $this->crearEstudiante($seccion, '74000222');
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/matriculas', [
+            'estudiante_id' => $estudiante->id,
+            'anio_escolar_id' => $anioEscolar->id,
+            'seccion_id' => $seccion->id,
+        ])->assertCreated();
+
+        $this->assertSame(1, Matricula::count());
+    }
+
+    public function test_crea_el_anio_escolar_si_no_existe_y_es_idempotente(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $anio = (int) now()->year;
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/anios-escolares', ['anio' => $anio])
+            ->assertCreated();
+
+        $this->postJson('/api/anios-escolares', ['anio' => $anio])
+            ->assertOk();
+
+        $this->assertSame(1, AnioEscolar::count());
+        $this->assertDatabaseHas('anios_escolares', [
+            'anio' => $anio,
+            'estado' => 'abierto',
+        ]);
+    }
+
     private function crearAnioEscolar(string $estado): AnioEscolar
     {
         return AnioEscolar::create([

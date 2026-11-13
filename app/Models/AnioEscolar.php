@@ -51,6 +51,15 @@ class AnioEscolar extends Model
         return $this->estado === 'abierto';
     }
 
+    /**
+     * Un año cerrado es historial inmutable. Tanto la planificación del año
+     * siguiente como el año en curso permiten registrar matrícula.
+     */
+    public function permiteMatricula(): bool
+    {
+        return $this->estado !== 'cerrado';
+    }
+
     public static function vigente(): ?self
     {
         return self::query()
