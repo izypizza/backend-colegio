@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Estudiante;
+use App\Models\Seccion;
 use App\Models\AsignacionDocenteMateria;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use App\Helpers\AcademicYearHelper;
 
 class EstudianteController extends Controller
@@ -72,40 +75,33 @@ class EstudianteController extends Controller
             ]);
 
             // Validación adicional de edad según grado y período académico
-            $seccion = \App\Models\Seccion::with('grado')->findOrFail($validated['seccion_id']);
-            $nombreGrado = $seccion->grado->nombre;
-            
-            // Validar edad usando el helper centralizado
-            $validacion = AcademicYearHelper::validarEdadParaGrado(
-                $validated['fecha_nacimiento'],
-                $nombreGrado
-            );
-            
-            if (!$validacion['valido']) {
-                return response()->json([
-                    'message' => 'Error de validación',
-                    'errors' => ['fecha_nacimiento' => [$validacion['mensaje']]]
-                ], 422);
-            }
+            $estudiante = DB::transaction(function () use ($validated) {
+                $seccion = Seccion::with('grado')
+                    ->lockForUpdate()
+                    ->findOrFail($validated['seccion_id']);
 
-            // Verificar capacidad de la sección
-            $seccion = \App\Models\Seccion::findOrFail($validated['seccion_id']);
-            $cantidadActual = \App\Models\Estudiante::where('seccion_id', $seccion->id)->count();
-            
-            if ($seccion->capacidad && $cantidadActual >= $seccion->capacidad) {
-                return response()->json([
-                    'message' => 'La sección ha alcanzado su capacidad máxima',
-                    'errors' => ['seccion_id' => ['La sección está llena']]
-                ], 422);
-            }
+                $validacion = AcademicYearHelper::validarEdadParaGrado(
+                    $validated['fecha_nacimiento'],
+                    $seccion->grado->nombre
+                );
 
-            $estudiante = Estudiante::create($validated);
+                if (!$validacion['valido']) {
+                    throw ValidationException::withMessages([
+                        'fecha_nacimiento' => [$validacion['mensaje']]
+                    ]);
+                }
+
+                $this->asegurarVacanteDisponible($seccion);
+
+                return Estudiante::create($validated);
+            });
+
             return response()->json([
                 'message' => 'Estudiante creado correctamente',
                 'estudiante' => $estudiante->load(['seccion.grado'])
             ], 201);
             
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación',
                 'errors' => $e->errors()
@@ -154,43 +150,45 @@ class EstudianteController extends Controller
                 'telefono.regex' => 'El teléfono debe tener 9 dígitos y comenzar con 9'
             ]);
 
-            // Si cambia de sección, verificar capacidad
-            if (isset($validated['seccion_id']) && $validated['seccion_id'] != $estudiante->seccion_id) {
-                $seccion = \App\Models\Seccion::findOrFail($validated['seccion_id']);
-                $cantidadActual = \App\Models\Estudiante::where('seccion_id', $seccion->id)->count();
-                
-                if ($seccion->capacidad && $cantidadActual >= $seccion->capacidad) {
-                    return response()->json([
-                        'message' => 'La sección ha alcanzado su capacidad máxima',
-                        'errors' => ['seccion_id' => ['La sección está llena']]
-                    ], 422);
-                }
-                
-                // Validar edad según el nuevo grado y período académico usando el helper
-                $fechaNacimientoStr = isset($validated['fecha_nacimiento']) 
-                    ? $validated['fecha_nacimiento'] 
-                    : $estudiante->fecha_nacimiento;
-                
-                $seccionNueva = \App\Models\Seccion::with('grado')->findOrFail($validated['seccion_id']);
-                $nombreGrado = $seccionNueva->grado->nombre;
-                
-                $validacion = AcademicYearHelper::validarEdadParaGrado($fechaNacimientoStr, $nombreGrado);
-                
-                if (!$validacion['valido']) {
-                    return response()->json([
-                        'message' => 'Error de validación',
-                        'errors' => ['seccion_id' => [$validacion['mensaje']]]
-                    ], 422);
-                }
-            }
+            $estudiante = DB::transaction(function () use ($validated, $estudiante) {
+                $cambiaDeSeccion = isset($validated['seccion_id'])
+                    && (int) $validated['seccion_id'] !== (int) $estudiante->seccion_id;
 
-            $estudiante->update($validated);
+                if ($cambiaDeSeccion) {
+                    $seccionDestino = Seccion::with('grado')
+                        ->lockForUpdate()
+                        ->findOrFail($validated['seccion_id']);
+
+                    $fechaNacimiento = $validated['fecha_nacimiento'] ?? $estudiante->fecha_nacimiento;
+                    $fechaNacimiento = $fechaNacimiento instanceof \Carbon\CarbonInterface
+                        ? $fechaNacimiento->format('Y-m-d')
+                        : (string) $fechaNacimiento;
+
+                    $validacion = AcademicYearHelper::validarEdadParaGrado(
+                        $fechaNacimiento,
+                        $seccionDestino->grado->nombre
+                    );
+
+                    if (!$validacion['valido']) {
+                        throw ValidationException::withMessages([
+                            'seccion_id' => [$validacion['mensaje']]
+                        ]);
+                    }
+
+                    $this->asegurarVacanteDisponible($seccionDestino, $estudiante->id);
+                }
+
+                $estudiante->update($validated);
+
+                return $estudiante;
+            });
+
             return response()->json([
                 'message' => 'Estudiante actualizado correctamente',
                 'estudiante' => $estudiante->load(['seccion.grado'])
             ]);
             
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación',
                 'errors' => $e->errors()
@@ -265,6 +263,35 @@ class EstudianteController extends Controller
                 'message' => 'Error al eliminar el estudiante',
                 'error' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Impide matricular o mover a un estudiante a una sección sin vacantes.
+     * Los estudiantes egresados no ocupan vacante.
+     */
+    private function asegurarVacanteDisponible(Seccion $seccion, ?int $estudianteExcluidoId = null): void
+    {
+        $capacidadMaxima = $seccion->capacidad_maxima;
+
+        if ($capacidadMaxima === null) {
+            return;
+        }
+
+        $ocupadas = Estudiante::where('seccion_id', $seccion->id)
+            ->where('estado', '!=', 'egresado')
+            ->when(
+                $estudianteExcluidoId,
+                fn ($consulta) => $consulta->where('id', '!=', $estudianteExcluidoId)
+            )
+            ->count();
+
+        if ($ocupadas >= $capacidadMaxima) {
+            throw ValidationException::withMessages([
+                'seccion_id' => [
+                    "La sección {$seccion->nombre} del {$seccion->grado->nombre} ya alcanzó su capacidad máxima ({$ocupadas} de {$capacidadMaxima} estudiantes).",
+                ],
+            ]);
         }
     }
 }
