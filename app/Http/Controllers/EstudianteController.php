@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Estudiante;
+use App\Models\AnioEscolar;
+use App\Models\Matricula;
 use App\Models\Seccion;
 use App\Models\AsignacionDocenteMateria;
 use Illuminate\Http\Request;
@@ -93,7 +95,10 @@ class EstudianteController extends Controller
 
                 $this->asegurarVacanteDisponible($seccion);
 
-                return Estudiante::create($validated);
+                $estudiante = Estudiante::create($validated);
+                $this->registrarMatriculaInicial($estudiante);
+
+                return $estudiante;
             });
 
             return response()->json([
@@ -179,6 +184,10 @@ class EstudianteController extends Controller
                 }
 
                 $estudiante->update($validated);
+
+                if ($cambiaDeSeccion) {
+                    $this->sincronizarMatriculaVigente($estudiante);
+                }
 
                 return $estudiante;
             });
@@ -270,8 +279,7 @@ class EstudianteController extends Controller
      * Impide matricular o mover a un estudiante a una sección sin vacantes.
      * Los estudiantes egresados no ocupan vacante.
      */
-    private function asegurarVacanteDisponible(Seccion $seccion, ?int $estudianteExcluidoId = null): void
-    {
+    private function asegurarVacanteDisponible(Seccion $seccion, ?int $estudianteExcluidoId = null): void    {
         $capacidadMaxima = $seccion->capacidad_maxima;
 
         if ($capacidadMaxima === null) {
@@ -293,5 +301,56 @@ class EstudianteController extends Controller
                 ],
             ]);
         }
+    }
+
+    /**
+     * Al dar de alta a un estudiante se crea su matrícula del año vigente.
+     * Si no hay año escolar abierto, no se altera nada.
+     */
+    private function registrarMatriculaInicial(Estudiante $estudiante): void
+    {
+        $anioEscolar = AnioEscolar::vigente();
+
+        if (!$anioEscolar) {
+            return;
+        }
+
+        $yaMatriculado = Matricula::query()
+            ->where('estudiante_id', $estudiante->id)
+            ->where('anio_escolar_id', $anioEscolar->id)
+            ->exists();
+
+        if ($yaMatriculado) {
+            return;
+        }
+
+        Matricula::create([
+            'estudiante_id' => $estudiante->id,
+            'anio_escolar_id' => $anioEscolar->id,
+            'seccion_id' => $estudiante->seccion_id,
+            'estado' => 'matriculado',
+            'tipo' => 'regular',
+            'origen' => 'sistema',
+            'fecha_matricula' => now()->toDateString(),
+            'registrado_por' => auth()->id(),
+        ]);
+    }
+
+    /**
+     * Mantiene alineada la matrícula vigente con la sección operativa del estudiante.
+     */
+    private function sincronizarMatriculaVigente(Estudiante $estudiante): void
+    {
+        $anioEscolar = AnioEscolar::vigente();
+
+        if (!$anioEscolar) {
+            return;
+        }
+
+        Matricula::query()
+            ->where('estudiante_id', $estudiante->id)
+            ->where('anio_escolar_id', $anioEscolar->id)
+            ->where('estado', 'matriculado')
+            ->update(['seccion_id' => $estudiante->seccion_id]);
     }
 }

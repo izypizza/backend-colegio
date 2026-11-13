@@ -20,6 +20,7 @@ use App\Http\Controllers\GradoController;
 use App\Http\Controllers\HorarioController;
 use App\Http\Controllers\LibroController;
 use App\Http\Controllers\MateriaController;
+use App\Http\Controllers\MatriculaController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\PadreController;
 use App\Http\Controllers\PadrePortalController;
@@ -154,6 +155,19 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::middleware(['permission:estudiantes'])->group(function () {
         Route::apiResource('estudiantes', EstudianteController::class);
+    });
+
+    // ========================================
+    // MATRICULA - Vincula persona, año escolar y sección
+    // ========================================
+    Route::middleware(['permission:matriculas'])->group(function () {
+        Route::get('/anios-escolares', [MatriculaController::class, 'aniosEscolares']);
+        Route::get('/matriculas/vacantes', [MatriculaController::class, 'vacantes']);
+        Route::get('/matriculas/estadisticas', [MatriculaController::class, 'estadisticas']);
+        Route::get('/matriculas/estudiantes-sin-matricula', [MatriculaController::class, 'estudiantesSinMatricula']);
+        Route::get('/matriculas', [MatriculaController::class, 'index']);
+        Route::post('/matriculas', [MatriculaController::class, 'store']);
+        Route::put('/matriculas/{id}', [MatriculaController::class, 'update']);
     });
     
     Route::middleware(['permission:secciones'])->group(function () {
