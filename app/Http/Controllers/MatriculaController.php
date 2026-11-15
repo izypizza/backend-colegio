@@ -6,6 +6,7 @@ use App\Helpers\AcademicYearHelper;
 use App\Models\AnioEscolar;
 use App\Models\Estudiante;
 use App\Models\Matricula;
+use App\Models\MatriculaApoderado;
 use App\Models\Padre;
 use App\Models\Seccion;
 use App\Services\MatriculaService;
@@ -39,6 +40,8 @@ class MatriculaController extends Controller
                 'anioEscolar:id,anio,estado',
                 'seccion:id,nombre,grado_id',
                 'seccion.grado:id,nombre,nivel',
+                'apoderados:id,matricula_id,padre_id,tipo,es_contacto_principal',
+                'apoderados.padre:id,nombres,apellido_paterno,apellido_materno,telefono',
             ])
             ->when(
                 $request->filled('anio_escolar_id'),
@@ -202,6 +205,8 @@ class MatriculaController extends Controller
             'apoderado.apellido_paterno' => 'nullable|string|min:2|max:255',
             'apoderado.apellido_materno' => 'nullable|string|min:2|max:255',
             'apoderado.telefono' => 'nullable|string|regex:/^9[0-9]{8}$/',
+            'apoderado.tipo' => 'nullable|in:padre,madre,apoderado',
+            'apoderado.es_contacto_principal' => 'nullable|boolean',
         ], [
             'dni.required' => 'El DNI del estudiante es obligatorio.',
             'dni.size' => 'El DNI debe tener exactamente 8 dígitos.',
@@ -269,7 +274,7 @@ class MatriculaController extends Controller
 
             $this->sincronizarSeccionDelEstudiante($estudiante, $seccion, $anioEscolar);
 
-            $apoderado = $this->asociarApoderado($estudiante, $comunes['apoderado'] ?? null);
+            $apoderado = $this->asociarApoderado($estudiante, $matricula, $comunes['apoderado'] ?? null);
 
             return compact('estudiante', 'matricula', 'personaCreada', 'apoderado');
         });
@@ -288,7 +293,7 @@ class MatriculaController extends Controller
     /**
      * Busca al apoderado por DNI o lo crea, y lo asocia al estudiante.
      */
-    private function asociarApoderado(Estudiante $estudiante, ?array $datos): ?Padre
+    private function asociarApoderado(Estudiante $estudiante, Matricula $matricula, ?array $datos): ?Padre
     {
         if (!$datos || empty($datos['dni'])) {
             return null;
@@ -313,6 +318,17 @@ class MatriculaController extends Controller
         }
 
         $estudiante->padres()->syncWithoutDetaching([$padre->id]);
+
+        MatriculaApoderado::updateOrCreate(
+            [
+                'matricula_id' => $matricula->id,
+                'padre_id' => $padre->id,
+            ],
+            [
+                'tipo' => $datos['tipo'] ?? 'apoderado',
+                'es_contacto_principal' => (bool) ($datos['es_contacto_principal'] ?? false),
+            ]
+        );
 
         return $padre;
     }
