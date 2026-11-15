@@ -24,6 +24,11 @@ class SanitizeApiErrors
             return $response;
         }
 
+        // Respuestas controladas por la aplicación: su mensaje es útil y no expone detalles internos
+        if (($data['code'] ?? null) === 'esquema_desactualizado') {
+            return $response;
+        }
+
         // Conservar encabezados (CORS, cookies, Retry-After); nunca enviar SQL ni trazas.
         $response->setContent(json_encode([
             'message' => 'No se pudo completar la solicitud. Inténtalo nuevamente más tarde.',

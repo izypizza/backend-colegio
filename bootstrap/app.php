@@ -84,6 +84,29 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
+        // Base de datos sin las tablas o columnas que el código espera
+        $exceptions->render(function (\Illuminate\Database\QueryException $excepcion, $peticion) {
+            if (!$peticion->is('api/*') && !$peticion->expectsJson()) {
+                return null;
+            }
+
+            $mensaje = $excepcion->getMessage();
+            $esquemaDesactualizado = str_contains($mensaje, 'Base table or view not found')
+                || str_contains($mensaje, "doesn't exist")
+                || str_contains($mensaje, 'Unknown column')
+                || str_contains($mensaje, 'no such table');
+
+            if (!$esquemaDesactualizado) {
+                return null;
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'La base de datos no está actualizada. Aplica las migraciones pendientes en el servidor.',
+                'code' => 'esquema_desactualizado',
+            ], 503);
+        });
+
         $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response) {
             return \App\Http\Middleware\SanitizeApiErrors::sanitize($response, request());
         });
