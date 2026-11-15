@@ -5,20 +5,60 @@ namespace App\Http\Middleware;
 use App\Models\AuditLog;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuditLogMiddleware
 {
+    private const TABLA_POR_ENTIDAD = [
+        'estudiantes' => 'estudiantes',
+        'docentes' => 'docentes',
+        'padres' => 'padres',
+        'grados' => 'grados',
+        'secciones' => 'secciones',
+        'materias' => 'materias',
+        'periodos' => 'periodos_academicos',
+        'anios-escolares' => 'anios_escolares',
+        'matriculas' => 'matriculas',
+        'asignaciones' => 'asignacion_docente_materia',
+        'horarios' => 'horarios',
+        'calificaciones' => 'calificaciones',
+        'asistencias' => 'asistencias',
+        'usuarios' => 'users',
+        'users' => 'users',
+        'libros' => 'libros',
+        'prestamos' => 'prestamos_libros',
+        'elecciones' => 'elecciones',
+    ];
+
+    private const CAMPOS_SENSIBLES = [
+        'password',
+        'password_confirmation',
+        'current_password',
+        'remember_token',
+        'two_factor_secret',
+    ];
+
     public function handle(Request $request, Closure $next): Response
     {
-        $response = $next($request);
+        $metodo = $request->method();
+        $debeAuditar = in_array($metodo, ['POST', 'PUT', 'PATCH', 'DELETE'], true);
 
-        if (!in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'])) {
-            return $response;
+        $segmentos = array_values(
+            array_filter(explode('/', trim($request->path(), '/')))
+        );
+        $entidad = $segmentos[1] ?? ($segmentos[0] ?? 'sistema');
+        $entidadId = $debeAuditar ? $this->idDelRecurso($request, $segmentos) : null;
+
+        // Estado previo: debe leerse antes de que el controlador modifique el registro
+        $estadoAnterior = null;
+        if ($debeAuditar && $entidadId && in_array($metodo, ['PUT', 'PATCH', 'DELETE'], true)) {
+            $estadoAnterior = $this->estadoPrevio($entidad, $entidadId);
         }
 
-        // Solo se audita lo que realmente se ejecutó
-        if ($response->getStatusCode() >= 400) {
+        $response = $next($request);
+
+        if (!$debeAuditar || $response->getStatusCode() >= 400) {
             return $response;
         }
 
@@ -27,18 +67,12 @@ class AuditLogMiddleware
             return $response;
         }
 
-        $path = $request->path();
-        $segmentos = array_values(array_filter(explode('/', trim($path, '/'))));
-        $entidad = $segmentos[1] ?? ($segmentos[0] ?? 'sistema');
-
-        $accion = match ($request->method()) {
+        $accion = match ($metodo) {
             'POST' => 'crear',
             'PUT', 'PATCH' => 'actualizar',
             'DELETE' => 'eliminar',
-            default => strtolower($request->method()),
+            default => strtolower($metodo),
         };
-
-        $entidadId = $this->idDelRecurso($request, $segmentos);
 
         AuditLog::create([
             'user_id' => $user->id,
@@ -46,17 +80,33 @@ class AuditLogMiddleware
             'entidad' => $entidad,
             'entidad_id' => $entidadId,
             'descripcion' => $this->descripcion($accion, $entidad, $entidadId),
-            'cambios_antes' => null,
-            'cambios_despues' => $request->except([
-                'password',
-                'password_confirmation',
-                'current_password',
-            ]),
+            'cambios_antes' => $estadoAnterior,
+            'cambios_despues' => $request->except(self::CAMPOS_SENSIBLES),
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
 
         return $response;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function estadoPrevio(string $entidad, int $id): ?array
+    {
+        $tabla = self::TABLA_POR_ENTIDAD[$entidad] ?? null;
+
+        if (!$tabla) {
+            return null;
+        }
+
+        $registro = DB::table($tabla)->where('id', $id)->first();
+
+        if (!$registro) {
+            return null;
+        }
+
+        return array_diff_key((array) $registro, array_flip(self::CAMPOS_SENSIBLES));
     }
 
     /**

@@ -289,6 +289,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Crear notificaciones y auditoría (solo admin)
     Route::middleware(['permission:auditoria'])->group(function () {
         Route::post('/notificaciones', [NotificacionController::class, 'store']);
+        Route::get('/auditoria/filtros', [AuditLogController::class, 'filtros']);
         Route::get('/auditoria', [AuditLogController::class, 'index']);
     });
 
