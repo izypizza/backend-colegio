@@ -167,6 +167,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/matriculas/estadisticas', [MatriculaController::class, 'estadisticas']);
         Route::get('/matriculas/estudiantes-sin-matricula', [MatriculaController::class, 'estudiantesSinMatricula']);
         Route::get('/matriculas', [MatriculaController::class, 'index']);
+        Route::post('/matriculas/registro-completo', [MatriculaController::class, 'registroCompleto']);
         Route::post('/matriculas', [MatriculaController::class, 'store']);
         Route::put('/matriculas/{id}', [MatriculaController::class, 'update']);
     });

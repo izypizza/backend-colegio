@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AcademicYearHelper;
 use App\Models\AnioEscolar;
 use App\Models\Estudiante;
 use App\Models\Matricula;
+use App\Models\Padre;
 use App\Models\Seccion;
 use App\Services\MatriculaService;
 use Illuminate\Http\Request;
@@ -178,6 +180,141 @@ class MatriculaController extends Controller
             'message' => 'Matrícula actualizada correctamente',
             'matricula' => $matricula->load(['estudiante', 'seccion.grado', 'anioEscolar']),
         ]);
+    }
+
+    /**
+     * Registra al estudiante y su matrícula en un solo paso.
+     * Si la persona ya existe por DNI solo se crea la matrícula del año.
+     */
+    public function registroCompleto(Request $request)
+    {
+        $comunes = $request->validate([
+            'dni' => ['required', 'string', 'size:8', 'regex:/^[0-9]{8}$/'],
+            'anio_escolar_id' => 'required|exists:anios_escolares,id',
+            'seccion_id' => 'required|exists:secciones,id',
+            'tipo' => 'nullable|in:' . implode(',', Matricula::TIPOS),
+            'observacion' => 'nullable|string|max:500',
+            'telefono' => 'nullable|string|regex:/^9[0-9]{8}$/',
+            'direccion' => 'nullable|string|min:5|max:500',
+            'apoderado' => 'nullable|array',
+            'apoderado.dni' => 'nullable|string|size:8|regex:/^[0-9]{8}$/',
+            'apoderado.nombres' => 'nullable|string|min:2|max:255',
+            'apoderado.apellido_paterno' => 'nullable|string|min:2|max:255',
+            'apoderado.apellido_materno' => 'nullable|string|min:2|max:255',
+            'apoderado.telefono' => 'nullable|string|regex:/^9[0-9]{8}$/',
+        ], [
+            'dni.required' => 'El DNI del estudiante es obligatorio.',
+            'dni.size' => 'El DNI debe tener exactamente 8 dígitos.',
+            'dni.regex' => 'El DNI solo debe contener números.',
+            'anio_escolar_id.required' => 'Selecciona el año escolar.',
+            'seccion_id.required' => 'Selecciona la sección.',
+            'telefono.regex' => 'El teléfono debe tener 9 dígitos y comenzar con 9.',
+            'apoderado.dni.size' => 'El DNI del apoderado debe tener 8 dígitos.',
+        ]);
+
+        $anioEscolar = AnioEscolar::findOrFail($comunes['anio_escolar_id']);
+        $seccion = Seccion::with('grado')->findOrFail($comunes['seccion_id']);
+
+        $resultado = DB::transaction(function () use ($comunes, $anioEscolar, $seccion, $request) {
+            $estudiante = Estudiante::query()->where('dni', $comunes['dni'])->first();
+            $personaCreada = false;
+
+            if (!$estudiante) {
+                $personales = $request->validate([
+                    'nombres' => 'required|string|min:2|max:255',
+                    'apellido_paterno' => 'required|string|min:2|max:255',
+                    'apellido_materno' => 'required|string|min:2|max:255',
+                    'fecha_nacimiento' => 'required|date|before:today',
+                ], [
+                    'nombres.required' => 'Los nombres son obligatorios para un estudiante nuevo.',
+                    'apellido_paterno.required' => 'El apellido paterno es obligatorio.',
+                    'apellido_materno.required' => 'El apellido materno es obligatorio.',
+                    'fecha_nacimiento.required' => 'La fecha de nacimiento es obligatoria.',
+                ]);
+
+                $validacionEdad = AcademicYearHelper::validarEdadParaGrado(
+                    $personales['fecha_nacimiento'],
+                    $seccion->grado->nombre
+                );
+
+                if (!$validacionEdad['valido']) {
+                    throw ValidationException::withMessages([
+                        'fecha_nacimiento' => [$validacionEdad['mensaje']],
+                    ]);
+                }
+
+                $estudiante = Estudiante::create([
+                    'nombres' => $personales['nombres'],
+                    'apellido_paterno' => $personales['apellido_paterno'],
+                    'apellido_materno' => $personales['apellido_materno'],
+                    'dni' => $comunes['dni'],
+                    'fecha_nacimiento' => $personales['fecha_nacimiento'],
+                    'telefono' => $comunes['telefono'] ?? null,
+                    'direccion' => $comunes['direccion'] ?? null,
+                    'seccion_id' => $seccion->id,
+                    'estado' => 'activo',
+                ]);
+
+                $personaCreada = true;
+            }
+
+            $matricula = $this->matriculas->matricular(
+                $estudiante,
+                $seccion,
+                $anioEscolar,
+                $comunes['tipo'] ?? 'regular',
+                $comunes['observacion'] ?? null,
+                $request->user()->id
+            );
+
+            $this->sincronizarSeccionDelEstudiante($estudiante, $seccion, $anioEscolar);
+
+            $apoderado = $this->asociarApoderado($estudiante, $comunes['apoderado'] ?? null);
+
+            return compact('estudiante', 'matricula', 'personaCreada', 'apoderado');
+        });
+
+        return response()->json([
+            'message' => $resultado['personaCreada']
+                ? "Estudiante registrado y matriculado en {$seccion->grado->nombre} \"{$seccion->nombre}\"."
+                : "Matrícula registrada para {$resultado['estudiante']->nombre_completo}.",
+            'persona_creada' => $resultado['personaCreada'],
+            'estudiante' => $resultado['estudiante']->load('seccion.grado'),
+            'matricula' => $resultado['matricula']->load(['anioEscolar', 'seccion.grado']),
+            'apoderado' => $resultado['apoderado'],
+        ], 201);
+    }
+
+    /**
+     * Busca al apoderado por DNI o lo crea, y lo asocia al estudiante.
+     */
+    private function asociarApoderado(Estudiante $estudiante, ?array $datos): ?Padre
+    {
+        if (!$datos || empty($datos['dni'])) {
+            return null;
+        }
+
+        $padre = Padre::query()->where('dni', $datos['dni'])->first();
+
+        if (!$padre) {
+            if (empty($datos['nombres']) || empty($datos['apellido_paterno']) || empty($datos['apellido_materno'])) {
+                throw ValidationException::withMessages([
+                    'apoderado.nombres' => ['Para registrar un apoderado nuevo indica nombres y apellidos.'],
+                ]);
+            }
+
+            $padre = Padre::create([
+                'nombres' => $datos['nombres'],
+                'apellido_paterno' => $datos['apellido_paterno'],
+                'apellido_materno' => $datos['apellido_materno'],
+                'dni' => $datos['dni'],
+                'telefono' => $datos['telefono'] ?? null,
+            ]);
+        }
+
+        $estudiante->padres()->syncWithoutDetaching([$padre->id]);
+
+        return $padre;
     }
 
     /**
