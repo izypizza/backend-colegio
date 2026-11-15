@@ -113,7 +113,10 @@ class AsignacionDocenteMateriaController extends Controller
                 (SELECT COUNT(*) FROM matriculas m
                     WHERE m.seccion_id = asignacion.seccion_id
                     AND m.anio_escolar_id = ?
-                    AND m.estado = \'matriculado\') as ocupadas
+                    AND m.estado = \'matriculado\') as ocupadas,
+                (SELECT COUNT(*) FROM horarios h
+                    WHERE h.seccion_id = asignacion.seccion_id
+                    AND h.materia_id = asignacion.materia_id) as bloques_horario
             ', [$anioEscolarId])
             ->groupBy(
                 'asignacion.docente_id',
@@ -144,6 +147,7 @@ class AsignacionDocenteMateriaController extends Controller
                 'grado' => $fila->grado,
                 'capacidad' => (int) $fila->capacidad,
                 'ocupadas' => (int) $fila->ocupadas,
+                'bloques_horario' => (int) $fila->bloques_horario,
                 'anio' => $anio,
                 'bimestres' => (int) $fila->bimestres,
                 'bimestres_del_anio' => $bimestresDelAnio,
