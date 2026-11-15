@@ -17,28 +17,74 @@ class AuditLogMiddleware
             return $response;
         }
 
+        // Solo se audita lo que realmente se ejecutó
+        if ($response->getStatusCode() >= 400) {
+            return $response;
+        }
+
         $user = $request->user();
         if (!$user) {
             return $response;
         }
 
         $path = $request->path();
-        $segments = explode('/', trim($path, '/'));
-        $entidad = $segments[0] ?? 'sistema';
-        $entidadId = $request->route('id') ?? null;
+        $segmentos = array_values(array_filter(explode('/', trim($path, '/'))));
+        $entidad = $segmentos[1] ?? ($segmentos[0] ?? 'sistema');
+
+        $accion = match ($request->method()) {
+            'POST' => 'crear',
+            'PUT', 'PATCH' => 'actualizar',
+            'DELETE' => 'eliminar',
+            default => strtolower($request->method()),
+        };
+
+        $entidadId = $this->idDelRecurso($request, $segmentos);
 
         AuditLog::create([
             'user_id' => $user->id,
-            'accion' => $request->method(),
+            'accion' => $accion,
             'entidad' => $entidad,
-            'entidad_id' => is_numeric($entidadId) ? (int) $entidadId : null,
-            'descripcion' => 'Operacion realizada en ' . $path,
+            'entidad_id' => $entidadId,
+            'descripcion' => $this->descripcion($accion, $entidad, $entidadId),
             'cambios_antes' => null,
-            'cambios_despues' => $request->except(['password', 'password_confirmation']),
+            'cambios_despues' => $request->except([
+                'password',
+                'password_confirmation',
+                'current_password',
+            ]),
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
 
         return $response;
+    }
+
+    /**
+     * @param  array<int, string>  $segmentos
+     */
+    private function idDelRecurso(Request $request, array $segmentos): ?int
+    {
+        foreach ($request->route()?->parameters() ?? [] as $valor) {
+            if (is_numeric($valor)) {
+                return (int) $valor;
+            }
+        }
+
+        foreach ($segmentos as $segmento) {
+            if (ctype_digit($segmento)) {
+                return (int) $segmento;
+            }
+        }
+
+        return null;
+    }
+
+    private function descripcion(string $accion, string $entidad, ?int $entidadId): string
+    {
+        $recurso = strlen($entidad) > 1 ? rtrim($entidad, 's') : $entidad;
+
+        return $entidadId
+            ? ucfirst($accion) . " {$recurso} #{$entidadId}"
+            : ucfirst($accion) . " en {$entidad}";
     }
 }

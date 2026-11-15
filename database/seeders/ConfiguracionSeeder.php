@@ -13,29 +13,6 @@ class ConfiguracionSeeder extends Seeder
     public function run(): void
     {
         $configuraciones = [
-            // Configuraciones Generales
-            [
-                'clave' => 'general_nombre_institucion',
-                'valor' => 'I.E. N° 51006 Túpac Amaru',
-                'tipo' => 'string',
-                'descripcion' => 'Nombre de la Institución Educativa',
-                'categoria' => 'general'
-            ],
-            [
-                'clave' => 'general_año_academico',
-                'valor' => (string) date('Y'),
-                'tipo' => 'integer',
-                'descripcion' => 'Año Académico Actual',
-                'categoria' => 'general'
-            ],
-            [
-                'clave' => 'general_email_contacto',
-                'valor' => 'contacto@colegio.pe',
-                'tipo' => 'string',
-                'descripcion' => 'Email de Contacto Institucional',
-                'categoria' => 'general'
-            ],
-
             // Módulos del Sistema
             [
                 'clave' => 'modulos_biblioteca',
@@ -81,20 +58,6 @@ class ConfiguracionSeeder extends Seeder
             ],
 
             // Seguridad
-            [
-                'clave' => 'seguridad_proteccion_grados',
-                'valor' => 'true',
-                'tipo' => 'boolean',
-                'descripcion' => 'Protección de Grados (requiere confirmación)',
-                'categoria' => 'seguridad'
-            ],
-            [
-                'clave' => 'seguridad_proteccion_secciones',
-                'valor' => 'true',
-                'tipo' => 'boolean',
-                'descripcion' => 'Protección de Secciones (requiere confirmación)',
-                'categoria' => 'seguridad'
-            ],
             [
                 'clave' => 'seguridad_intentos_login',
                 'valor' => '5',
