@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\AnioEscolar;
 use App\Models\AsignacionDocenteMateria;
 use App\Models\Docente;
+use App\Models\Estudiante;
 use App\Models\Grado;
 use App\Models\Materia;
+use App\Models\Matricula;
 use App\Models\PeriodoAcademico;
 use App\Models\Seccion;
 use App\Models\User;
@@ -137,6 +140,52 @@ class AsignacionAnualTest extends TestCase
             'seccion_id' => $contexto['seccion']->id,
             'anio' => $contexto['anio'],
         ])->assertStatus(403);
+    }
+
+    public function test_incluye_aforo_y_ocupacion_real_de_la_seccion(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $contexto = $this->crearContexto();
+
+        $anioEscolar = AnioEscolar::create([
+            'anio' => $contexto['anio'],
+            'estado' => 'abierto',
+        ]);
+
+        $estudiante = Estudiante::create([
+            'nombres' => 'Alumno',
+            'apellido_paterno' => 'Carga',
+            'apellido_materno' => 'Academica',
+            'dni' => '77111222',
+            'fecha_nacimiento' => now()->subYears(6)->format('Y-m-d'),
+            'seccion_id' => $contexto['seccion']->id,
+            'estado' => 'activo',
+        ]);
+
+        Matricula::create([
+            'estudiante_id' => $estudiante->id,
+            'anio_escolar_id' => $anioEscolar->id,
+            'seccion_id' => $contexto['seccion']->id,
+            'estado' => 'matriculado',
+            'tipo' => 'regular',
+            'origen' => 'sistema',
+            'fecha_matricula' => now()->toDateString(),
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/asignaciones/anual', [
+            'docente_id' => $contexto['docente']->id,
+            'materia_id' => $contexto['materia']->id,
+            'seccion_id' => $contexto['seccion']->id,
+            'anio' => $contexto['anio'],
+        ])->assertCreated();
+
+        $respuesta = $this->getJson("/api/asignaciones/anual?anio={$contexto['anio']}");
+
+        $respuesta->assertOk();
+        $respuesta->assertJsonPath('cursos.0.capacidad', 40);
+        $respuesta->assertJsonPath('cursos.0.ocupadas', 1);
     }
 
     /**

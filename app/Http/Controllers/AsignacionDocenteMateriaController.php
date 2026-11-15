@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AnioEscolar;
 use App\Models\AsignacionDocenteMateria;
 use App\Models\PeriodoAcademico;
 use Illuminate\Http\Request;
@@ -87,6 +88,7 @@ class AsignacionDocenteMateriaController extends Controller
             : (int) now()->year;
 
         $bimestresDelAnio = PeriodoAcademico::query()->where('anio', $anio)->count();
+        $anioEscolarId = AnioEscolar::query()->delAnio($anio)->value('id') ?? 0;
 
         $filas = DB::table('asignacion_docente_materia as asignacion')
             ->join('periodos_academicos as periodo', 'periodo.id', '=', 'asignacion.periodo_academico_id')
@@ -104,10 +106,15 @@ class AsignacionDocenteMateriaController extends Controller
                 materia.nombre as materia,
                 asignacion.seccion_id,
                 seccion.nombre as seccion,
+                seccion.capacidad_maxima as capacidad,
                 grado.nombre as grado,
                 COUNT(*) as bimestres,
-                MAX(asignacion.es_tutor) as es_tutor
-            ')
+                MAX(asignacion.es_tutor) as es_tutor,
+                (SELECT COUNT(*) FROM matriculas m
+                    WHERE m.seccion_id = asignacion.seccion_id
+                    AND m.anio_escolar_id = ?
+                    AND m.estado = \'matriculado\') as ocupadas
+            ', [$anioEscolarId])
             ->groupBy(
                 'asignacion.docente_id',
                 'docente.nombres',
@@ -117,6 +124,7 @@ class AsignacionDocenteMateriaController extends Controller
                 'materia.nombre',
                 'asignacion.seccion_id',
                 'seccion.nombre',
+                'seccion.capacidad_maxima',
                 'grado.nombre'
             )
             ->orderBy('docente.apellido_paterno')
@@ -134,6 +142,8 @@ class AsignacionDocenteMateriaController extends Controller
                 'seccion_id' => (int) $fila->seccion_id,
                 'seccion' => $fila->seccion,
                 'grado' => $fila->grado,
+                'capacidad' => (int) $fila->capacidad,
+                'ocupadas' => (int) $fila->ocupadas,
                 'anio' => $anio,
                 'bimestres' => (int) $fila->bimestres,
                 'bimestres_del_anio' => $bimestresDelAnio,
