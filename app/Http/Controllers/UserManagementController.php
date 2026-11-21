@@ -18,11 +18,24 @@ class UserManagementController extends Controller
     /**
      * Listar todos los usuarios con sus roles asociados
      */
-    public function index()
+    public function index(\Illuminate\Http\Request $request)
     {
-        $users = User::with(['estudiante.seccion.grado', 'docente', 'padre.estudiantes'])
-            ->orderBy('created_at', 'desc')
-            ->get()
+        $query = User::with(['estudiante.seccion.grado', 'docente', 'padre.estudiantes'])
+            ->orderBy('created_at', 'desc');
+
+        if ($request->filled('buscar')) {
+            \App\Helpers\BusquedaHelper::aplicar($query, $request->input('buscar'), ['name', 'email']);
+        }
+
+        if ($request->filled('role')) {
+            $query->where('role', $request->input('role'));
+        }
+
+        if ($request->filled('is_active')) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
+        $users = $query->get()
             ->map(function($user) {
                 return [
                     'id' => $user->id,
