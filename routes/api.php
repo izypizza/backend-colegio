@@ -18,6 +18,7 @@ use App\Http\Controllers\DocenteController;
 use App\Http\Controllers\DocentePortalController;
 use App\Http\Controllers\EleccionController;
 use App\Http\Controllers\EstudianteController;
+use App\Http\Controllers\EstudianteClasesController;
 use App\Http\Controllers\EstudiantePortalController;
 use App\Http\Controllers\GradoController;
 use App\Http\Controllers\HorarioController;
@@ -420,6 +421,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     Route::middleware(['role:estudiante'])->group(function () {
         Route::get('/estudiante/mi-horario', [EstudiantePortalController::class, 'miHorario']);
+        Route::get('/estudiante/mis-clases', [EstudianteClasesController::class, 'index']);
         Route::get('/estudiante/mis-calificaciones', [EstudiantePortalController::class, 'misCalificaciones']);
         Route::get('/estudiante/mis-asistencias', [EstudiantePortalController::class, 'misAsistencias']);
         Route::get('/estudiante/mi-perfil', [EstudiantePortalController::class, 'miPerfil']);
