@@ -46,8 +46,26 @@ class DocentePortalController extends Controller
             ->pluck('seccion_id');
 
         $estudiantes = Estudiante::whereIn('seccion_id', $seccionesIds)
-            ->with(['seccion.grado'])
-            ->get();
+            ->with(['seccion.grado', 'matriculas'])
+            ->get()
+            ->map(function (Estudiante $estudiante) {
+                $matriculaDelAnio = $estudiante->matriculas
+                    ->sortByDesc('id')
+                    ->first();
+
+                return [
+                    'id' => $estudiante->id,
+                    'nombres' => $estudiante->nombres,
+                    'apellido_paterno' => $estudiante->apellido_paterno,
+                    'apellido_materno' => $estudiante->apellido_materno,
+                    'codigo_estudiante' => $estudiante->codigo_estudiante,
+                    'dni' => $estudiante->dni,
+                    'seccion_id' => $estudiante->seccion_id,
+                    'seccion' => $estudiante->seccion,
+                    'estado_matricula' => $matriculaDelAnio?->estado,
+                    'matriculado' => $matriculaDelAnio?->estado === 'matriculado',
+                ];
+            });
 
         return response()->json(['estudiantes' => $estudiantes]);
     }
