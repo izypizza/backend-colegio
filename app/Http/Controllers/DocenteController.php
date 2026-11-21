@@ -27,6 +27,12 @@ class DocenteController extends Controller
     public function index(Request $request)
     {
         $query = Docente::with(['asignaciones', 'user:id,is_active,email']);
+
+        if ($request->filled('buscar')) {
+            \App\Helpers\BusquedaHelper::aplicar($query, $request->input('buscar'), [
+                'nombres', 'apellido_paterno', 'apellido_materno',
+            ]);
+        }
         
         // Paginación para mejorar performance
         if ($request->has('all') && $request->all === 'true') {

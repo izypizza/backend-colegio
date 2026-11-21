@@ -14,6 +14,12 @@ class PadreController extends Controller
     {
         $query = Padre::with(['estudiantes', 'user:id,is_active,email']);
 
+        if ($request->filled('buscar')) {
+            \App\Helpers\BusquedaHelper::aplicar($query, $request->input('buscar'), [
+                'nombres', 'apellido_paterno', 'apellido_materno',
+            ]);
+        }
+
         // Paginación para mejorar performance
         if ($request->has('all') && $request->all === 'true') {
             $padres = $query->get();
