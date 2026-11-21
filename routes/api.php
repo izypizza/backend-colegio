@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActividadEvaluacionController;
 use App\Http\Controllers\AsignacionDocenteMateriaController;
 use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\AuditLogController;
@@ -156,6 +157,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/calificaciones-competencias/consolidado/{estudiante_id}/{periodo_id}', [CalificacionCompetenciaController::class, 'consolidado']);
         Route::post('/calificaciones-competencias', [CalificacionCompetenciaController::class, 'guardar']);
         Route::post('/calificaciones-competencias/lote', [CalificacionCompetenciaController::class, 'guardarLote']);
+
+        // Evidencias de evaluación y notas por actividad
+        Route::get('/actividades-evaluacion', [ActividadEvaluacionController::class, 'index']);
+        Route::post('/actividades-evaluacion', [ActividadEvaluacionController::class, 'store']);
+        Route::put('/actividades-evaluacion/{id}', [ActividadEvaluacionController::class, 'update']);
+        Route::delete('/actividades-evaluacion/{id}', [ActividadEvaluacionController::class, 'destroy']);
+        Route::post('/actividades-evaluacion/{id}/notas', [ActividadEvaluacionController::class, 'registrarNotas']);
+        Route::post('/actividades-evaluacion/recalcular', [ActividadEvaluacionController::class, 'recalcular']);
+        Route::get('/actividades-evaluacion/resumen', [ActividadEvaluacionController::class, 'resumen']);
     });
 
     // ========================================

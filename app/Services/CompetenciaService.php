@@ -113,6 +113,7 @@ class CompetenciaService
             'nivel' => $nivel,
             'nota' => $escala === 'numerica' ? $nota : null,
             'conclusion_descriptiva' => $conclusion !== '' ? $conclusion : null,
+            'calculada_desde_actividades' => false,
             'registrado_por' => $usuario?->id,
         ];
 

@@ -20,6 +20,7 @@ class CalificacionCompetencia extends Model
         'nivel',
         'nota',
         'conclusion_descriptiva',
+        'calculada_desde_actividades',
         'modificaciones_count',
         'ultima_modificacion',
         'registrado_por',
@@ -29,6 +30,7 @@ class CalificacionCompetencia extends Model
         'nota' => 'decimal:2',
         'ultima_modificacion' => 'datetime',
         'modificaciones_count' => 'integer',
+        'calculada_desde_actividades' => 'boolean',
     ];
 
     protected static function booted(): void
