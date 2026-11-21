@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Helpers\AcademicYearHelper;
+use App\Helpers\BusquedaHelper;
 
 class EstudianteController extends Controller
 {
@@ -19,8 +20,22 @@ class EstudianteController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Estudiante::with(['seccion.grado', 'padres'])
+        $query = Estudiante::with([
+            'seccion.grado',
+            'padres',
+            'matriculas',
+        ])
             ->orderByDesc('created_at');
+
+        if ($request->filled('buscar')) {
+            BusquedaHelper::aplicar($query, $request->input('buscar'), [
+                'nombres', 'apellido_paterno', 'apellido_materno', 'dni',
+            ]);
+        }
+
+        if ($request->filled('seccion_id')) {
+            $query->where('seccion_id', $request->integer('seccion_id'));
+        }
 
         if ($request->user()->isDocente()) {
             $seccionesIds = AsignacionDocenteMateria::where('docente_id', $request->user()->docente?->id)
