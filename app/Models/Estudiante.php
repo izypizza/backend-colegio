@@ -87,6 +87,24 @@ class Estudiante extends Model
         return $this->hasMany(Calificacion::class);
     }
 
+    public function calificacionesCompetencias()
+    {
+        return $this->hasMany(CalificacionCompetencia::class);
+    }
+
+    public function asistenciasSesion()
+    {
+        return $this->hasMany(AsistenciaSesion::class);
+    }
+
+    /**
+     * Ciclo del Currículo Nacional según el grado del estudiante.
+     */
+    public function ciclo(): ?string
+    {
+        return $this->seccion?->grado?->ciclo;
+    }
+
     public function matriculas()
     {
         return $this->hasMany(Matricula::class);

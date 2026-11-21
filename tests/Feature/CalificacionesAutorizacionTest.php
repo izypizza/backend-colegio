@@ -100,7 +100,10 @@ class CalificacionesAutorizacionTest extends TestCase
             'materia_id' => $materia->id, 'periodo_academico_id' => $periodo->id]);
         $otro = PeriodoAcademico::create(['nombre' => 'Otro', 'anio' => 2027, 'estado' => 'inactivo']);
         Sanctum::actingAs($usuario);
-        $this->putJson('/api/calificaciones/'.$notas[0]->id, ['periodo_academico_id' => $otro->id])->assertForbidden();
+        $this->putJson('/api/calificaciones/'.$notas[0]->id, ['periodo_academico_id' => $otro->id])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.periodo_academico_id.0', 'El período de la calificación no se puede cambiar. Elimine el registro y vuelva a crearlo.');
+        $this->assertDatabaseHas('calificaciones', ['id' => $notas[0]->id, 'periodo_academico_id' => $periodo->id]);
         $this->postJson('/api/calificaciones', ['estudiante_id' => $propio->id, 'materia_id' => $materia->id,
             'periodo_academico_id' => $otro->id, 'nota' => 16, 'tipo_evaluacion' => 'final', 'fecha' => today()->toDateString()])
             ->assertForbidden();
@@ -130,5 +133,57 @@ class CalificacionesAutorizacionTest extends TestCase
             Sanctum::actingAs(User::factory()->create(['role' => $rol]));
             $this->getJson('/api/calificaciones?todos=1')->assertOk()->assertJsonPath('total', 2);
         }
+    }
+
+    public function test_busqueda_encuentra_por_apellido_materia_y_dni(): void
+    {
+        [$propio, , $notas, , $materia] = $this->escenario();
+        $propio->update(['nombres' => 'Rosa', 'apellido_paterno' => 'Quispe', 'apellido_materno' => 'Huaman', 'dni' => '74125896']);
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+
+        $this->getJson('/api/calificaciones?todos=1&buscar=quispe')->assertOk()->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.id', $notas[0]->id);
+        $this->getJson('/api/calificaciones?todos=1&buscar=HUAMAN')->assertOk()->assertJsonPath('total', 1);
+        $this->getJson('/api/calificaciones?todos=1&buscar=74125896')->assertOk()->assertJsonPath('total', 1);
+        $this->getJson('/api/calificaciones?todos=1&buscar='.$materia->nombre)->assertOk()->assertJsonPath('total', 2);
+        $this->getJson('/api/calificaciones?todos=1&buscar=inexistente')->assertOk()->assertJsonPath('total', 0);
+    }
+
+    public function test_no_se_edita_calificacion_de_anio_escolar_cerrado(): void
+    {
+        [, , $notas, $periodo] = $this->escenario();
+        \App\Models\AnioEscolar::create(['anio' => $periodo->anio, 'estado' => 'cerrado']);
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+
+        $this->putJson('/api/calificaciones/'.$notas[0]->id, ['nota' => 20])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'El año escolar está cerrado');
+        $this->assertDatabaseHas('calificaciones', ['id' => $notas[0]->id, 'nota' => 15]);
+
+        \App\Models\AnioEscolar::where('anio', $periodo->anio)->update(['estado' => 'abierto']);
+        $this->putJson('/api/calificaciones/'.$notas[0]->id, ['nota' => 20])->assertOk();
+        $this->assertDatabaseHas('calificaciones', ['id' => $notas[0]->id, 'nota' => 20]);
+    }
+
+    public function test_no_se_puede_trasladar_una_nota_a_otro_estudiante_ni_materia(): void
+    {
+        [$propio, $ajeno, $notas, , $materia] = $this->escenario();
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+        $otraMateria = Materia::factory()->create();
+
+        $this->putJson('/api/calificaciones/'.$notas[0]->id, ['estudiante_id' => $ajeno->id, 'nota' => 19])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.estudiante_id.0', 'El estudiante de la calificación no se puede cambiar. Elimine el registro y vuelva a crearlo.');
+        $this->putJson('/api/calificaciones/'.$notas[0]->id, ['materia_id' => $otraMateria->id])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.materia_id.0', 'La materia de la calificación no se puede cambiar. Elimine el registro y vuelva a crearlo.');
+
+        $this->assertDatabaseHas('calificaciones', [
+            'id' => $notas[0]->id, 'estudiante_id' => $propio->id, 'materia_id' => $materia->id, 'nota' => 15,
+        ]);
+
+        $this->putJson('/api/calificaciones/'.$notas[0]->id, ['estudiante_id' => $propio->id, 'materia_id' => $materia->id, 'nota' => 17])
+            ->assertOk();
+        $this->assertDatabaseHas('calificaciones', ['id' => $notas[0]->id, 'nota' => 17]);
     }
 }

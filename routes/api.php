@@ -5,10 +5,12 @@ use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AuxiliarPermisoController;
+use App\Http\Controllers\CalificacionCompetenciaController;
 use App\Http\Controllers\CalificacionController;
 use App\Http\Controllers\CategoriaLibroController;
 use App\Http\Controllers\ChatConversacionController;
 use App\Http\Controllers\ChatMensajeController;
+use App\Http\Controllers\CompetenciaController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocenteController;
@@ -30,6 +32,7 @@ use App\Http\Controllers\PingController;
 use App\Http\Controllers\PrestamoLibroController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\SeccionController;
+use App\Http\Controllers\SesionClaseController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\VotoController;
 use Illuminate\Http\Request;
@@ -147,6 +150,37 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/calificaciones/{id}', [CalificacionController::class, 'show']);
         Route::put('/calificaciones/{id}', [CalificacionController::class, 'update']);
         Route::delete('/calificaciones/{id}', [CalificacionController::class, 'destroy']);
+
+        // Calificación por competencias (Currículo Nacional)
+        Route::get('/calificaciones-competencias', [CalificacionCompetenciaController::class, 'index']);
+        Route::get('/calificaciones-competencias/consolidado/{estudiante_id}/{periodo_id}', [CalificacionCompetenciaController::class, 'consolidado']);
+        Route::post('/calificaciones-competencias', [CalificacionCompetenciaController::class, 'guardar']);
+        Route::post('/calificaciones-competencias/lote', [CalificacionCompetenciaController::class, 'guardarLote']);
+    });
+
+    // ========================================
+    // COMPETENCIAS CNEB
+    // ========================================
+    Route::middleware(['permission:competencias'])->group(function () {
+        Route::get('/competencias', [CompetenciaController::class, 'index']);
+        Route::get('/competencias/ciclos', [CompetenciaController::class, 'ciclos']);
+        Route::get('/competencias/por-curso', [CompetenciaController::class, 'porCurso']);
+        Route::get('/competencias/catalogo-seccion/{seccion_id}', [CompetenciaController::class, 'catalogoSeccion']);
+        Route::post('/competencias', [CompetenciaController::class, 'store']);
+        Route::put('/competencias/{id}', [CompetenciaController::class, 'update']);
+        Route::delete('/competencias/{id}', [CompetenciaController::class, 'destroy']);
+    });
+
+    // ========================================
+    // SESIONES DE CLASE - Asistencia por curso
+    // ========================================
+    Route::middleware(['permission:asistencias'])->group(function () {
+        Route::get('/sesiones-clase', [SesionClaseController::class, 'index']);
+        Route::post('/sesiones-clase', [SesionClaseController::class, 'store']);
+        Route::get('/sesiones-clase/{id}', [SesionClaseController::class, 'show']);
+        Route::get('/sesiones-clase/{id}/hoja', [SesionClaseController::class, 'hojaDeAsistencia']);
+        Route::post('/sesiones-clase/{id}/asistencias', [SesionClaseController::class, 'llamarLista']);
+        Route::put('/sesiones-clase/{id}/anular', [SesionClaseController::class, 'anular']);
     });
 
     // ========================================

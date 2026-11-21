@@ -67,6 +67,12 @@ class PermissionMiddleware
             'update' => ['admin', 'auxiliar', 'docente'],
             'delete' => ['admin'],
         ],
+        'competencias' => [
+            'view' => ['admin', 'auxiliar', 'docente', 'estudiante', 'padre'],
+            'create' => ['admin'],
+            'update' => ['admin'],
+            'delete' => ['admin'],
+        ],
         'asistencias' => [
             'view' => ['admin', 'auxiliar', 'docente'],
             'create' => ['admin', 'auxiliar', 'docente'],

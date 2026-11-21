@@ -27,6 +27,7 @@ class CalificacionController extends Controller
             'grado_id' => 'nullable|exists:grados,id',
             'nota_minima' => 'nullable|numeric|min:0|max:20',
             'nota_maxima' => 'nullable|numeric|min:0|max:20',
+            'buscar' => 'nullable|string|max:100',
             'per_page' => 'nullable|integer|min:10|max:100',
         ]);
 
@@ -76,6 +77,22 @@ class CalificacionController extends Controller
         if ($request->filled('grado_id')) {
             $query->whereHas('estudiante.seccion', function ($q) use ($request) {
                 $q->where('grado_id', $request->grado_id);
+            });
+        }
+
+        // Buscar por apellidos, nombres, DNI o materia
+        if ($request->filled('buscar')) {
+            $termino = '%' . mb_strtolower(trim($request->input('buscar'))) . '%';
+
+            $query->where(function ($sub) use ($termino) {
+                $sub->whereHas('estudiante', function ($estudiante) use ($termino) {
+                    $estudiante->whereRaw('LOWER(nombres) LIKE ?', [$termino])
+                        ->orWhereRaw('LOWER(apellido_paterno) LIKE ?', [$termino])
+                        ->orWhereRaw('LOWER(apellido_materno) LIKE ?', [$termino])
+                        ->orWhere('dni', 'like', $termino);
+                })->orWhereHas('materia', function ($materia) use ($termino) {
+                    $materia->whereRaw('LOWER(nombre) LIKE ?', [$termino]);
+                });
             });
         }
 
@@ -282,21 +299,21 @@ class CalificacionController extends Controller
             return $autorizacionOriginal;
         }
 
+        $anioCerrado = $this->anioEscolarCerradoDelPeriodo($calificacion->periodo_academico_id);
+        if ($anioCerrado) {
+            return response()->json([
+                'message' => 'El año escolar está cerrado',
+                'errors' => ['nota' => ['No se pueden modificar calificaciones de un año escolar cerrado. Solicite la reapertura al administrador.']],
+            ], 422);
+        }
+
+        $contextoInmutable = $this->validarContextoInmutable($request, $calificacion);
+        if ($contextoInmutable !== null) {
+            return $contextoInmutable;
+        }
+
         try {
             $validated = $request->validated();
-
-            // Verificar autorización de docente usando Trait
-            $materiaId = $validated['materia_id'] ?? $calificacion->materia_id;
-            $estudianteId = $validated['estudiante_id'] ?? $calificacion->estudiante_id;
-            $estudiante = \App\Models\Estudiante::findOrFail($estudianteId);
-            
-            $autorizacion = $this->verificarDocenteAsignado(
-                $materiaId, $estudiante->seccion_id,
-                $validated['periodo_academico_id'] ?? $calificacion->periodo_academico_id
-            );
-            if ($autorizacion !== true) {
-                return $autorizacion; // Retorna JsonResponse con error
-            }
 
             // Si es docente, verificar límite de modificaciones (máximo 3 cambios)
             if ($this->esDocente() && isset($validated['nota']) && $validated['nota'] != $calificacion->nota) {
@@ -513,5 +530,56 @@ class CalificacionController extends Controller
             'por_grado' => $porGrado,
             'distribucion' => $distribucion,
         ]);
+    }
+
+    /**
+     * Indica si el período académico pertenece a un año escolar cerrado.
+     */
+    private function anioEscolarCerradoDelPeriodo(?int $periodoId): bool
+    {
+        if (! $periodoId) {
+            return false;
+        }
+
+        $anio = \App\Models\PeriodoAcademico::whereKey($periodoId)->value('anio');
+
+        if (! $anio) {
+            return false;
+        }
+
+        return \App\Models\AnioEscolar::where('anio', $anio)
+            ->where('estado', 'cerrado')
+            ->exists();
+    }
+
+    /**
+     * Impide trasladar una calificación a otro estudiante, materia o período.
+     * El contexto académico se define al crearla; para cambiarlo debe
+     * eliminarse y registrarse de nuevo.
+     */
+    private function validarContextoInmutable(Request $request, Calificacion $calificacion)
+    {
+        $etiquetas = [
+            'estudiante_id' => 'El estudiante de la calificación no se puede cambiar. Elimine el registro y vuelva a crearlo.',
+            'materia_id' => 'La materia de la calificación no se puede cambiar. Elimine el registro y vuelva a crearlo.',
+            'periodo_academico_id' => 'El período de la calificación no se puede cambiar. Elimine el registro y vuelva a crearlo.',
+        ];
+
+        foreach ($etiquetas as $campo => $mensaje) {
+            if (! $request->filled($campo)) {
+                continue;
+            }
+
+            if ((int) $request->input($campo) === (int) $calificacion->{$campo}) {
+                continue;
+            }
+
+            return response()->json([
+                'message' => 'Error de validación',
+                'errors' => [$campo => [$mensaje]],
+            ], 422);
+        }
+
+        return null;
     }
 }

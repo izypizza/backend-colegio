@@ -20,6 +20,7 @@ use App\Services\HistorialAcademicoService;
 use App\Services\MatriculaService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Artisan;
 use Database\Seeders\ConfiguracionSeeder;
 use Database\Seeders\BibliotecaSeeder;
 use Database\Seeders\EleccionSeeder;
@@ -75,6 +76,7 @@ class DatabaseSeeder extends Seeder
         // 8. Ejecutar seeders adicionales
         $this->call([
             ConfiguracionSeeder::class,
+            CompetenciaSeeder::class,
             BibliotecaSeeder::class,
             EleccionSeeder::class,
             BibliotecarioUserSeeder::class,
@@ -89,6 +91,14 @@ class DatabaseSeeder extends Seeder
         // 10. Vincular calificaciones y asistencias con su matrícula
         app(HistorialAcademicoService::class)->vincularPendientes();
 
+        // 11. Derivar el nivel de logro por competencia desde las calificaciones
+        Artisan::call('competencias:derivar', ['--anio' => $anioEscolar->anio]);
+        $this->command?->line(trim(Artisan::output()));
+
+        // 12. Convertir la asistencia histórica en sesiones de clase
+        Artisan::call('asistencias:migrar-sesiones', ['--anio' => $anioEscolar->anio]);
+        $this->command?->line(trim(Artisan::output()));
+
         $this->mostrarEstadisticas();
     }
 
@@ -97,19 +107,19 @@ class DatabaseSeeder extends Seeder
      */
     private function crearEstructuraBase(): void
     {
-        // Grados del sistema educativo peruano
+        // Grados del sistema educativo peruano con su ciclo del Currículo Nacional
         $gradosData = [
-            ['nombre' => '1° Primaria', 'nivel' => 'primaria'],
-            ['nombre' => '2° Primaria', 'nivel' => 'primaria'],
-            ['nombre' => '3° Primaria', 'nivel' => 'primaria'],
-            ['nombre' => '4° Primaria', 'nivel' => 'primaria'],
-            ['nombre' => '5° Primaria', 'nivel' => 'primaria'],
-            ['nombre' => '6° Primaria', 'nivel' => 'primaria'],
-            ['nombre' => '1° Secundaria', 'nivel' => 'secundaria'],
-            ['nombre' => '2° Secundaria', 'nivel' => 'secundaria'],
-            ['nombre' => '3° Secundaria', 'nivel' => 'secundaria'],
-            ['nombre' => '4° Secundaria', 'nivel' => 'secundaria'],
-            ['nombre' => '5° Secundaria', 'nivel' => 'secundaria'],
+            ['nombre' => '1° Primaria', 'nivel' => 'primaria', 'ciclo' => 'III'],
+            ['nombre' => '2° Primaria', 'nivel' => 'primaria', 'ciclo' => 'III'],
+            ['nombre' => '3° Primaria', 'nivel' => 'primaria', 'ciclo' => 'IV'],
+            ['nombre' => '4° Primaria', 'nivel' => 'primaria', 'ciclo' => 'IV'],
+            ['nombre' => '5° Primaria', 'nivel' => 'primaria', 'ciclo' => 'V'],
+            ['nombre' => '6° Primaria', 'nivel' => 'primaria', 'ciclo' => 'V'],
+            ['nombre' => '1° Secundaria', 'nivel' => 'secundaria', 'ciclo' => 'VI'],
+            ['nombre' => '2° Secundaria', 'nivel' => 'secundaria', 'ciclo' => 'VI'],
+            ['nombre' => '3° Secundaria', 'nivel' => 'secundaria', 'ciclo' => 'VII'],
+            ['nombre' => '4° Secundaria', 'nivel' => 'secundaria', 'ciclo' => 'VII'],
+            ['nombre' => '5° Secundaria', 'nivel' => 'secundaria', 'ciclo' => 'VII'],
         ];
 
         Grado::insert($gradosData);

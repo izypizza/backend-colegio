@@ -35,6 +35,21 @@ class Materia extends Model
         return $this->hasMany(Calificacion::class);
     }
 
+    public function competencias()
+    {
+        return $this->hasMany(Competencia::class);
+    }
+
+    public function calificacionesCompetencias()
+    {
+        return $this->hasManyThrough(
+            CalificacionCompetencia::class,
+            Competencia::class,
+            'materia_id',
+            'competencia_id'
+        );
+    }
+
     /**
      * Relación: Docentes que enseñan esta materia
      */
