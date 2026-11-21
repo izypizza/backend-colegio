@@ -194,6 +194,83 @@ class PadrePortalController extends Controller
     }
 
     /**
+     * Horario semanal de un hijo, con el nombre del estudiante al que pertenece.
+     */
+    public function horarioHijo(Request $request, $hijo_id)
+    {
+        $user = $request->user();
+
+        if (! $user->padre) {
+            return response()->json(['message' => 'Usuario no es padre'], 403);
+        }
+
+        $hijo = $user->padre->estudiantes()
+            ->with(['seccion:id,nombre,grado_id', 'seccion.grado:id,nombre,nivel,ciclo'])
+            ->find($hijo_id);
+
+        if (! $hijo) {
+            return response()->json(['message' => 'Hijo no encontrado'], 404);
+        }
+
+        if (! $hijo->seccion_id) {
+            return response()->json([
+                'hijo' => [
+                    'id' => $hijo->id,
+                    'nombre_completo' => $hijo->nombre_completo,
+                    'seccion' => null,
+                ],
+                'bloques' => [],
+                'message' => 'El estudiante aún no tiene sección asignada.',
+            ]);
+        }
+
+        $ordenDias = ['lunes' => 1, 'martes' => 2, 'miercoles' => 3, 'jueves' => 4, 'viernes' => 5, 'sabado' => 6, 'domingo' => 7];
+
+        $docentesPorMateria = \DB::table('asignacion_docente_materia')
+            ->join('docentes', 'asignacion_docente_materia.docente_id', '=', 'docentes.id')
+            ->where('asignacion_docente_materia.seccion_id', $hijo->seccion_id)
+            ->select('asignacion_docente_materia.materia_id', 'docentes.nombres', 'docentes.apellido_paterno', 'docentes.apellido_materno')
+            ->get()
+            ->keyBy('materia_id');
+
+        $bloques = \App\Models\Horario::query()
+            ->with('materia:id,nombre')
+            ->where('seccion_id', $hijo->seccion_id)
+            ->get()
+            ->map(function ($bloque) use ($docentesPorMateria) {
+                $docente = $docentesPorMateria->get($bloque->materia_id);
+
+                return [
+                    'id' => $bloque->id,
+                    'dia' => $bloque->dia,
+                    'hora_inicio' => $bloque->hora_inicio,
+                    'hora_fin' => $bloque->hora_fin,
+                    'materia' => $bloque->materia?->nombre,
+                    'docente' => $docente
+                        ? trim("{$docente->apellido_paterno} {$docente->apellido_materno}, {$docente->nombres}")
+                        : null,
+                ];
+            })
+            ->sortBy(fn ($bloque) => [
+                $ordenDias[\App\Helpers\BusquedaHelper::normalizar($bloque['dia'])] ?? 9,
+                $bloque['hora_inicio'],
+            ])
+            ->values();
+
+        return response()->json([
+            'hijo' => [
+                'id' => $hijo->id,
+                'nombre_completo' => $hijo->nombre_completo,
+                'seccion' => trim(($hijo->seccion->grado->nombre ?? '') . ' - ' . $hijo->seccion->nombre),
+                'grado' => $hijo->seccion->grado->nombre ?? null,
+                'nivel' => $hijo->seccion->grado->nivel ?? null,
+                'ciclo' => $hijo->seccion->grado->ciclo ?? null,
+            ],
+            'bloques' => $bloques,
+        ]);
+    }
+
+    /**
      * Obtener docentes de un hijo (para chat)
      */
     public function docentesHijo(Request $request, $hijo_id)

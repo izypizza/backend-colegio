@@ -53,7 +53,7 @@ class DatabaseSeeder extends Seeder
 
         // 2. Crear personal y padres
         $docentes = $this->crearDocentes(15);
-        $padres = $this->crearPadres(30, 10);
+        $padres = $this->crearPadres(210, 10);
 
         // 3. Crear estudiantes y asignar tutores
         $secciones = Seccion::all();
@@ -296,10 +296,16 @@ class DatabaseSeeder extends Seeder
             $cantidadEstudiantes = rand(...self::ESTUDIANTES_POR_SECCION);
 
             for ($i = 0; $i < $cantidadEstudiantes; $i++) {
+                // El apoderado principal se asigna de forma determinista y el
+                // estudiante hereda su apellido paterno, para que los datos de
+                // prueba sean coherentes al revisar el portal del padre.
+                $padrePrincipal = $padres[$estudianteCounter % $padres->count()];
+
                 $estudiante = Estudiante::factory()
                     ->paraGrado($seccion->grado?->nombre ?? '1° Primaria')
                     ->create([
                         'seccion_id' => $seccion->id,
+                        'apellido_paterno' => $padrePrincipal->apellido_paterno,
                     ]);
 
                 // Crear usuario para el estudiante
@@ -316,9 +322,11 @@ class DatabaseSeeder extends Seeder
                 $estudiantesCreados->push($estudiante);
                 $estudianteCounter++;
 
-                // Asignar 1-2 padres al estudiante
-                $padresAsignados = $padres->random(rand(1, 2));
-                $estudiante->padres()->attach($padresAsignados->pluck('id'));
+                // Asignar apoderado principal y, si corresponde, un segundo apoderado
+                // de la misma pareja, para que compartan los mismos hijos
+                $segundoApoderado = $padres[($estudianteCounter + 1) % $padres->count()];
+                $vinculos = collect([$padrePrincipal->id, $segundoApoderado->id])->unique()->values();
+                $estudiante->padres()->attach($vinculos->all());
             }
         }
 
@@ -646,9 +654,32 @@ class DatabaseSeeder extends Seeder
                 'user_id' => $userPadre->id,
             ]);
 
-            // Asociar estudiantes al padre test
-            $estudiantesTest = Estudiante::take(2)->get();
-            $padreTest->estudiantes()->attach($estudiantesTest->pluck('id'));
+            // Asociar dos hijos al padre de prueba, uno por nivel, con su apellido
+            $hijosSecundaria = Estudiante::query()
+                ->whereHas('seccion.grado', fn ($grado) => $grado->where('nivel', 'secundaria'))
+                ->orderBy('id')
+                ->take(1)
+                ->get();
+            $hijosPrimaria = Estudiante::query()
+                ->whereHas('seccion.grado', fn ($grado) => $grado->where('nivel', 'primaria'))
+                ->orderBy('id')
+                ->take(1)
+                ->get();
+
+            $estudiantesTest = $hijosSecundaria->merge($hijosPrimaria);
+
+            foreach ($estudiantesTest as $indice => $hijo) {
+                $hijo->update([
+                    'apellido_paterno' => 'Pérez',
+                    'apellido_materno' => $indice === 0 ? 'Rojas' : 'Quispe',
+                ]);
+
+                $hijo->user?->update([
+                    'name' => "{$hijo->nombres} {$hijo->apellido_paterno} {$hijo->apellido_materno}",
+                ]);
+            }
+
+            $padreTest->estudiantes()->syncWithoutDetaching($estudiantesTest->pluck('id'));
         }
 
         // Usuario Estudiante Test

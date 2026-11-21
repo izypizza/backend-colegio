@@ -149,6 +149,19 @@ class CalificacionesAutorizacionTest extends TestCase
         $this->getJson('/api/calificaciones?todos=1&buscar=inexistente')->assertOk()->assertJsonPath('total', 0);
     }
 
+    public function test_busqueda_encuentra_aunque_las_palabras_esten_en_columnas_distintas(): void
+    {
+        [$propio, , $notas] = $this->escenario();
+        $propio->update(['nombres' => 'Juan Carlos', 'apellido_paterno' => 'Pérez', 'apellido_materno' => 'Mamani']);
+        Sanctum::actingAs(User::factory()->create(['role' => 'admin']));
+
+        $this->getJson('/api/calificaciones?todos=1&buscar=juan perez')->assertOk()->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.id', $notas[0]->id);
+        $this->getJson('/api/calificaciones?todos=1&buscar=PEREZ JUAN')->assertOk()->assertJsonPath('total', 1);
+        $this->getJson('/api/calificaciones?todos=1&buscar=perez mamani')->assertOk()->assertJsonPath('total', 1);
+        $this->getJson('/api/calificaciones?todos=1&buscar=perez quispe')->assertOk()->assertJsonPath('total', 0);
+    }
+
     public function test_no_se_edita_calificacion_de_anio_escolar_cerrado(): void
     {
         [, , $notas, $periodo] = $this->escenario();

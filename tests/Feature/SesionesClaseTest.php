@@ -8,6 +8,7 @@ use App\Models\AsistenciaSesion;
 use App\Models\Docente;
 use App\Models\Estudiante;
 use App\Models\Grado;
+use App\Models\Horario;
 use App\Models\Materia;
 use App\Models\PeriodoAcademico;
 use App\Models\Seccion;
@@ -43,6 +44,11 @@ class SesionesClaseTest extends TestCase
         return compact('periodo', 'grado', 'seccion', 'materia', 'usuarioDocente', 'docente', 'asignacion', 'primero', 'segundo');
     }
 
+    private function diaHabil(): string
+    {
+        return now()->subWeek()->startOfWeek()->toDateString();
+    }
+
     public function test_docente_abre_una_sesion_y_llama_lista(): void
     {
         ['asignacion' => $asignacion, 'usuarioDocente' => $usuario, 'primero' => $primero, 'segundo' => $segundo] = $this->escenario();
@@ -50,7 +56,7 @@ class SesionesClaseTest extends TestCase
 
         $sesion = $this->postJson('/api/sesiones-clase', [
             'asignacion_id' => $asignacion->id,
-            'fecha' => today()->toDateString(),
+            'fecha' => $this->diaHabil(),
             'hora_inicio' => '08:00',
             'tema' => 'Comprensión lectora',
         ])->assertCreated()->json('sesion');
@@ -223,5 +229,57 @@ class SesionesClaseTest extends TestCase
         Sanctum::actingAs($otro);
 
         $this->getJson('/api/sesiones-clase')->assertOk()->assertJsonPath('total', 0);
+    }
+
+    public function test_no_se_abre_sesion_un_domingo(): void
+    {
+        ['asignacion' => $asignacion, 'usuarioDocente' => $usuario] = $this->escenario();
+        Sanctum::actingAs($usuario);
+        $domingo = now()->subWeek()->endOfWeek()->toDateString();
+
+        $this->postJson('/api/sesiones-clase', [
+            'asignacion_id' => $asignacion->id,
+            'fecha' => $domingo,
+        ])->assertStatus(422)->assertJsonPath('message', 'No se registran clases en sábado ni domingo.');
+
+        $this->assertDatabaseCount('sesiones_clase', 0);
+    }
+
+    public function test_no_se_abre_sesion_un_dia_sin_clase_segun_horario(): void
+    {
+        ['asignacion' => $asignacion, 'usuarioDocente' => $usuario, 'seccion' => $seccion, 'materia' => $materia] = $this->escenario();
+        Horario::create([
+            'seccion_id' => $seccion->id, 'materia_id' => $materia->id,
+            'dia' => 'Lunes', 'hora_inicio' => '08:00:00', 'hora_fin' => '09:30:00',
+        ]);
+        Sanctum::actingAs($usuario);
+
+        $martes = now()->subWeek()->startOfWeek()->addDay()->toDateString();
+        $this->postJson('/api/sesiones-clase', [
+            'asignacion_id' => $asignacion->id,
+            'fecha' => $martes,
+        ])->assertStatus(422);
+
+        $lunes = now()->subWeek()->startOfWeek()->toDateString();
+        $this->postJson('/api/sesiones-clase', [
+            'asignacion_id' => $asignacion->id,
+            'fecha' => $lunes,
+        ])->assertCreated();
+    }
+
+    public function test_no_se_abre_sesion_antes_del_inicio_del_periodo(): void
+    {
+        ['asignacion' => $asignacion, 'usuarioDocente' => $usuario, 'periodo' => $periodo] = $this->escenario();
+        $periodo->update([
+            'fecha_inicio' => now()->subDays(5)->toDateString(),
+            'fecha_fin' => now()->addDays(5)->toDateString(),
+        ]);
+        Sanctum::actingAs($usuario);
+
+        $this->postJson('/api/sesiones-clase', [
+            'asignacion_id' => $asignacion->id,
+            'fecha' => now()->subDays(20)->toDateString(),
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'La fecha es anterior al inicio del periodo académico.');
     }
 }

@@ -78,6 +78,11 @@ class SesionClaseController extends Controller
             return $autorizacion;
         }
 
+        $validacionCalendario = $this->validarCalendario($validated['fecha'], $asignacion);
+        if ($validacionCalendario !== null) {
+            return $validacionCalendario;
+        }
+
         $sesion = $this->sesiones->abrirSesion(
             $asignacion,
             $validated['fecha'],
@@ -221,5 +226,63 @@ class SesionClaseController extends Controller
         );
 
         return $autorizacion === true ? null : $autorizacion;
+    }
+
+    /**
+     * Una sesión solo puede abrirse en un día en que ese curso tiene clase
+     * según el horario, y siempre dentro de las fechas del periodo.
+     */
+    private function validarCalendario(string $fecha, AsignacionDocenteMateria $asignacion)
+    {
+        $dia = \Carbon\Carbon::parse($fecha)->startOfDay();
+        $periodo = \App\Models\PeriodoAcademico::find($asignacion->periodo_academico_id);
+
+        if ($periodo) {
+            $inicio = $periodo->fecha_inicio ? \Carbon\Carbon::parse($periodo->fecha_inicio)->startOfDay() : null;
+            $fin = $periodo->fecha_fin ? \Carbon\Carbon::parse($periodo->fecha_fin)->endOfDay() : null;
+
+            if ($inicio && $dia->lt($inicio)) {
+                return response()->json([
+                    'message' => 'La fecha es anterior al inicio del periodo académico.',
+                ], 422);
+            }
+
+            if ($fin && $dia->gt($fin)) {
+                return response()->json([
+                    'message' => 'La fecha es posterior al cierre del periodo académico.',
+                ], 422);
+            }
+        }
+
+        $nombresDia = [
+            0 => 'domingo', 1 => 'lunes', 2 => 'martes', 3 => 'miercoles',
+            4 => 'jueves', 5 => 'viernes', 6 => 'sabado',
+        ];
+        $nombreDia = $nombresDia[$dia->dayOfWeek] ?? '';
+
+        $diasConClase = \App\Models\Horario::query()
+            ->where('seccion_id', $asignacion->seccion_id)
+            ->where('materia_id', $asignacion->materia_id)
+            ->pluck('dia')
+            ->map(fn ($valor) => \App\Helpers\BusquedaHelper::normalizar($valor))
+            ->unique();
+
+        if ($diasConClase->isNotEmpty()) {
+            if (! $diasConClase->contains($nombreDia)) {
+                return response()->json([
+                    'message' => 'Este curso no tiene clase programada el ' . ucfirst($nombreDia) . '. Revisa el horario de la sección.',
+                ], 422);
+            }
+
+            return null;
+        }
+
+        if ($dia->isWeekend()) {
+            return response()->json([
+                'message' => 'No se registran clases en sábado ni domingo.',
+            ], 422);
+        }
+
+        return null;
     }
 }

@@ -425,5 +425,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/padre/asistencias-hijo/{hijo_id}', [PadrePortalController::class, 'asistenciasHijo']);
         Route::get('/padre/boletin-hijo/{hijo_id}/{periodo_id}', [PadrePortalController::class, 'boletinHijo']);
         Route::get('/padre/docentes-hijo/{hijo_id}', [PadrePortalController::class, 'docentesHijo']);
+        Route::get('/padre/horario-hijo/{hijo_id}', [PadrePortalController::class, 'horarioHijo']);
     });
 }); 

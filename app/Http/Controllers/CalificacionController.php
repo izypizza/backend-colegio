@@ -6,6 +6,7 @@ use App\Models\Calificacion;
 use Illuminate\Http\Request;
 use App\Http\Requests\CalificacionStoreRequest;
 use App\Http\Requests\CalificacionUpdateRequest;
+use App\Helpers\BusquedaHelper;
 use App\Traits\VerificaAutorizacionDocente;
 use App\Helpers\PeriodoAcademicoHelper;
 
@@ -80,19 +81,26 @@ class CalificacionController extends Controller
             });
         }
 
-        // Buscar por apellidos, nombres, DNI o materia
+        // Buscar por apellidos, nombres, DNI o materia (tolera tildes y varias palabras)
         if ($request->filled('buscar')) {
-            $termino = '%' . mb_strtolower(trim($request->input('buscar'))) . '%';
+            $palabras = BusquedaHelper::palabras($request->input('buscar'));
 
-            $query->where(function ($sub) use ($termino) {
-                $sub->whereHas('estudiante', function ($estudiante) use ($termino) {
-                    $estudiante->whereRaw('LOWER(nombres) LIKE ?', [$termino])
-                        ->orWhereRaw('LOWER(apellido_paterno) LIKE ?', [$termino])
-                        ->orWhereRaw('LOWER(apellido_materno) LIKE ?', [$termino])
-                        ->orWhere('dni', 'like', $termino);
-                })->orWhereHas('materia', function ($materia) use ($termino) {
-                    $materia->whereRaw('LOWER(nombre) LIKE ?', [$termino]);
-                });
+            $query->where(function ($sub) use ($palabras) {
+                foreach ($palabras as $palabra) {
+                    $sub->where(function ($condicion) use ($palabra) {
+                        $condicion
+                            ->whereHas('estudiante', fn ($estudiante) => BusquedaHelper::aplicar(
+                                $estudiante,
+                                $palabra,
+                                ['nombres', 'apellido_paterno', 'apellido_materno', 'dni']
+                            ))
+                            ->orWhereHas('materia', fn ($materia) => BusquedaHelper::aplicar(
+                                $materia,
+                                $palabra,
+                                ['nombre']
+                            ));
+                    });
+                }
             });
         }
 
