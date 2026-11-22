@@ -42,8 +42,21 @@ class DerivarCompetenciasDesdeCalificaciones extends Command
             return self::FAILURE;
         }
 
-        $creados = 0;
+        $insertados = 0;
         $omitidos = 0;
+        $lote = [];
+        $ahora = now();
+
+        $vaciarLote = function () use (&$lote, &$insertados) {
+            if ($lote === []) {
+                return;
+            }
+
+            // insertOrIgnore evita sobrescribir notas registradas manualmente
+            // y convierte decenas de miles de consultas en unas pocas.
+            $insertados += CalificacionCompetencia::query()->insertOrIgnore($lote);
+            $lote = [];
+        };
 
         Calificacion::query()
             ->with([
@@ -53,12 +66,11 @@ class DerivarCompetenciasDesdeCalificaciones extends Command
             ])
             ->whereNotNull('nota')
             ->when($anio, fn ($query) => $query->whereHas('periodoAcademico', fn ($periodo) => $periodo->where('anio', $anio)))
-            ->chunkById(500, function ($calificaciones) use ($competenciasPorAreaCiclo, &$creados, &$omitidos) {
+            ->chunkById(1000, function ($calificaciones) use ($competenciasPorAreaCiclo, &$omitidos, &$lote, $ahora) {
                 foreach ($calificaciones as $calificacion) {
                     $grado = $calificacion->estudiante?->seccion?->grado;
                     $ciclo = $grado?->ciclo ?: \App\Models\Grado::calcularCiclo($grado?->nombre, $grado?->nivel);
-                    $clave = $calificacion->materia_id . '-' . $ciclo;
-                    $competencias = $competenciasPorAreaCiclo->get($clave);
+                    $competencias = $competenciasPorAreaCiclo->get($calificacion->materia_id . '-' . $ciclo);
 
                     if (! $competencias) {
                         $omitidos++;
@@ -69,25 +81,25 @@ class DerivarCompetenciasDesdeCalificaciones extends Command
                     $nivel = CnebHelper::nivelDesdeNota((float) $calificacion->nota);
 
                     foreach ($competencias as $competencia) {
-                        CalificacionCompetencia::updateOrCreate(
-                            [
-                                'estudiante_id' => $calificacion->estudiante_id,
-                                'competencia_id' => $competencia->id,
-                                'periodo_academico_id' => $calificacion->periodo_academico_id,
-                            ],
-                            [
-                                'matricula_id' => $calificacion->matricula_id,
-                                'escala' => 'numerica',
-                                'nivel' => $nivel,
-                                'nota' => $calificacion->nota,
-                            ]
-                        );
-                        $creados++;
+                        $lote[] = [
+                            'estudiante_id' => $calificacion->estudiante_id,
+                            'competencia_id' => $competencia->id,
+                            'periodo_academico_id' => $calificacion->periodo_academico_id,
+                            'matricula_id' => $calificacion->matricula_id,
+                            'escala' => 'numerica',
+                            'nivel' => $nivel,
+                            'nota' => $calificacion->nota,
+                            'calculada_desde_actividades' => false,
+                            'created_at' => $ahora,
+                            'updated_at' => $ahora,
+                        ];
                     }
                 }
-            });
+            }, 'id');
 
-        $this->info("Calificaciones por competencia generadas: {$creados}");
+        $vaciarLote();
+
+        $this->info("Calificaciones por competencia insertadas: {$insertados}");
         $this->line("Calificaciones sin competencias aplicables: {$omitidos}");
 
         return self::SUCCESS;
