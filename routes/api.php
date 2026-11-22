@@ -158,6 +158,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/calificaciones-competencias/consolidado/{estudiante_id}/{periodo_id}', [CalificacionCompetenciaController::class, 'consolidado']);
         Route::post('/calificaciones-competencias', [CalificacionCompetenciaController::class, 'guardar']);
         Route::post('/calificaciones-competencias/lote', [CalificacionCompetenciaController::class, 'guardarLote']);
+        Route::get('/calificaciones-competencias/libro', [CalificacionCompetenciaController::class, 'libroDeCurso']);
 
         // Evidencias de evaluación y notas por actividad
         Route::get('/actividades-evaluacion', [ActividadEvaluacionController::class, 'index']);

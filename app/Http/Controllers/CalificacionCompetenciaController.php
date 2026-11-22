@@ -175,6 +175,90 @@ class CalificacionCompetenciaController extends Controller
         ], 201);
     }
 
+    /**
+     * Libro de notas de un curso: estudiantes en filas y competencias en
+     * columnas, con el nivel alcanzado en el periodo.
+     */
+    public function libroDeCurso(Request $request)
+    {
+        $validated = $request->validate([
+            'seccion_id' => 'required|exists:secciones,id',
+            'materia_id' => 'required|exists:materias,id',
+            'periodo_academico_id' => 'required|exists:periodos_academicos,id',
+        ]);
+
+        $seccion = \App\Models\Seccion::with('grado:id,nombre,nivel,ciclo')->findOrFail($validated['seccion_id']);
+        $materia = \App\Models\Materia::findOrFail($validated['materia_id']);
+        $periodo = PeriodoAcademico::findOrFail($validated['periodo_academico_id']);
+
+        $autorizacion = $this->verificarDocenteAsignado(
+            (int) $materia->id,
+            (int) $seccion->id,
+            (int) $periodo->id
+        );
+        if ($autorizacion !== true) {
+            return $autorizacion;
+        }
+
+        $ciclo = $seccion->grado?->ciclo;
+
+        $competencias = Competencia::query()
+            ->activas()
+            ->delCiclo($ciclo)
+            ->where('materia_id', $materia->id)
+            ->ordenadas()
+            ->get(['id', 'codigo', 'nombre', 'orden']);
+
+        $estudiantes = Estudiante::query()
+            ->where('seccion_id', $seccion->id)
+            ->orderBy('apellido_paterno')
+            ->orderBy('apellido_materno')
+            ->orderBy('nombres')
+            ->get(['id', 'nombres', 'apellido_paterno', 'apellido_materno', 'dni']);
+
+        $calificaciones = CalificacionCompetencia::query()
+            ->whereIn('estudiante_id', $estudiantes->pluck('id'))
+            ->whereIn('competencia_id', $competencias->pluck('id'))
+            ->where('periodo_academico_id', $periodo->id)
+            ->get()
+            ->groupBy('estudiante_id');
+
+        return response()->json([
+            'seccion' => [
+                'id' => $seccion->id,
+                'nombre' => trim(($seccion->grado->nombre ?? '') . ' - ' . $seccion->nombre),
+                'ciclo' => $ciclo,
+            ],
+            'materia' => ['id' => $materia->id, 'nombre' => $materia->nombre],
+            'periodo' => ['id' => $periodo->id, 'nombre' => $periodo->nombre, 'anio' => $periodo->anio],
+            'competencias' => $competencias,
+            'estudiantes' => $estudiantes->map(function (Estudiante $estudiante) use ($calificaciones, $competencias) {
+                $registros = ($calificaciones->get($estudiante->id) ?? collect())->keyBy('competencia_id');
+
+                $niveles = $competencias->map(function (Competencia $competencia) use ($registros) {
+                    $registro = $registros->get($competencia->id);
+
+                    return [
+                        'competencia_id' => $competencia->id,
+                        'nivel' => $registro?->nivel,
+                        'nota' => $registro?->nota !== null ? (float) $registro->nota : null,
+                    ];
+                })->values();
+
+                return [
+                    'id' => $estudiante->id,
+                    'nombre_completo' => $estudiante->nombre_completo,
+                    'apellido_paterno' => $estudiante->apellido_paterno,
+                    'apellido_materno' => $estudiante->apellido_materno,
+                    'nombres' => $estudiante->nombres,
+                    'dni' => $estudiante->dni,
+                    'niveles' => $niveles,
+                    'registradas' => $niveles->filter(fn ($nivel) => $nivel['nivel'] !== null)->count(),
+                ];
+            })->values(),
+        ]);
+    }
+
     private function autorizarLectura(Request $request, Estudiante $estudiante)
     {
         $usuario = $request->user();

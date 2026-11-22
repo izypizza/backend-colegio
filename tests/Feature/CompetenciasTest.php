@@ -237,4 +237,45 @@ class CompetenciasTest extends TestCase
 
         $this->getJson('/api/competencias?all=1')->assertOk()->assertJsonCount(3);
     }
+
+    public function test_el_libro_de_curso_agrupa_estudiantes_y_competencias(): void
+    {
+        [
+            'periodo' => $periodo, 'seccion' => $seccion, 'materia' => $materia,
+            'competencia1' => $competencia1, 'usuarioDocente' => $usuario, 'estudiante' => $estudiante,
+        ] = $this->escenario();
+
+        CalificacionCompetencia::create([
+            'estudiante_id' => $estudiante->id,
+            'competencia_id' => $competencia1->id,
+            'periodo_academico_id' => $periodo->id,
+            'escala' => 'literal',
+            'nivel' => 'AD',
+        ]);
+
+        Sanctum::actingAs($usuario);
+
+        $this->getJson('/api/calificaciones-competencias/libro?seccion_id='.$seccion->id
+            .'&materia_id='.$materia->id.'&periodo_academico_id='.$periodo->id)
+            ->assertOk()
+            ->assertJsonCount(2, 'competencias')
+            ->assertJsonCount(1, 'estudiantes')
+            ->assertJsonPath('seccion.ciclo', 'VII')
+            ->assertJsonPath('estudiantes.0.niveles.0.nivel', 'AD')
+            ->assertJsonPath('estudiantes.0.niveles.1.nivel', null)
+            ->assertJsonPath('estudiantes.0.registradas', 1);
+    }
+
+    public function test_el_libro_de_curso_esta_cerrado_para_docentes_ajenos(): void
+    {
+        ['periodo' => $periodo, 'seccion' => $seccion, 'materia' => $materia] = $this->escenario();
+
+        $otro = User::factory()->create(['role' => 'docente']);
+        Docente::factory()->create(['user_id' => $otro->id]);
+        Sanctum::actingAs($otro);
+
+        $this->getJson('/api/calificaciones-competencias/libro?seccion_id='.$seccion->id
+            .'&materia_id='.$materia->id.'&periodo_academico_id='.$periodo->id)
+            ->assertForbidden();
+    }
 }
