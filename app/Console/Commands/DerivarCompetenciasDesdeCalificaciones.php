@@ -3,16 +3,10 @@
 namespace App\Console\Commands;
 
 use App\Helpers\CnebHelper;
-use App\Models\Asistencia;
-use App\Models\AsistenciaSesion;
-use App\Models\AsignacionDocenteMateria;
 use App\Models\Calificacion;
 use App\Models\CalificacionCompetencia;
 use App\Models\Competencia;
-use App\Models\Estudiante;
-use App\Models\SesionClase;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 class DerivarCompetenciasDesdeCalificaciones extends Command
 {
@@ -34,7 +28,7 @@ class DerivarCompetenciasDesdeCalificaciones extends Command
         $competenciasPorAreaCiclo = Competencia::query()
             ->activas()
             ->get()
-            ->groupBy(fn (Competencia $competencia) => $competencia->materia_id . '-' . $competencia->ciclo);
+            ->groupBy(fn (Competencia $competencia) => $competencia->materia_id.'-'.$competencia->ciclo);
 
         if ($competenciasPorAreaCiclo->isEmpty()) {
             $this->error('No hay competencias registradas. Ejecuta el CompetenciaSeeder primero.');
@@ -70,7 +64,7 @@ class DerivarCompetenciasDesdeCalificaciones extends Command
                 foreach ($calificaciones as $calificacion) {
                     $grado = $calificacion->estudiante?->seccion?->grado;
                     $ciclo = $grado?->ciclo ?: \App\Models\Grado::calcularCiclo($grado?->nombre, $grado?->nivel);
-                    $competencias = $competenciasPorAreaCiclo->get($calificacion->materia_id . '-' . $ciclo);
+                    $competencias = $competenciasPorAreaCiclo->get($calificacion->materia_id.'-'.$ciclo);
 
                     if (! $competencias) {
                         $omitidos++;
