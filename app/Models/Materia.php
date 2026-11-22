@@ -12,8 +12,18 @@ class Materia extends Model
     protected $table = 'materias';
 
     protected $fillable = [
-        'nombre'
+        'nombre',
+        'activo',
     ];
+
+    protected $casts = [
+        'activo' => 'boolean',
+    ];
+
+    public function scopeActivas($query)
+    {
+        return $query->where('activo', true);
+    }
 
     public function asignaciones()
     {

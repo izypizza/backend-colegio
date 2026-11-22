@@ -10,9 +10,13 @@ class MateriaController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $materias = Materia::with(['asignaciones'])->get();
+        $materias = Materia::with(['asignaciones'])
+            ->when($request->filled('activo'), fn ($query) => $query->where('activo', $request->boolean('activo')))
+            ->orderBy('nombre')
+            ->get();
+
         return response()->json($materias);
     }
 
@@ -46,11 +50,32 @@ class MateriaController extends Controller
         $materia = Materia::findOrFail($id);
         
         $validated = $request->validate([
-            'nombre' => 'sometimes|required|string|max:255'
+            'nombre' => 'sometimes|required|string|max:255',
+            'activo' => 'sometimes|boolean',
         ]);
 
         $materia->update($validated);
         return response()->json($materia);
+    }
+
+    /**
+     * Activa o desactiva una materia sin borrar su historial.
+     */
+    public function cambiarEstado(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'activo' => 'required|boolean',
+        ]);
+
+        $materia = Materia::findOrFail($id);
+        $materia->update(['activo' => $validated['activo']]);
+
+        return response()->json([
+            'message' => $materia->activo
+                ? "La materia \"{$materia->nombre}\" quedó activa."
+                : "La materia \"{$materia->nombre}\" quedó desactivada. Su historial se conserva.",
+            'materia' => $materia,
+        ]);
     }
 
     /**

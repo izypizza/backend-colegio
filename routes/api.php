@@ -231,6 +231,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     
     Route::middleware(['permission:materias'])->group(function () {
+        Route::match(['put', 'patch'], '/materias/{id}/estado', [MateriaController::class, 'cambiarEstado']);
         Route::apiResource('materias', MateriaController::class);
     });
 
