@@ -242,6 +242,7 @@ class CalificacionCompetenciaController extends Controller
                         'competencia_id' => $competencia->id,
                         'nivel' => $registro?->nivel,
                         'nota' => $registro?->nota !== null ? (float) $registro->nota : null,
+                        'conclusion_descriptiva' => $registro?->conclusion_descriptiva,
                     ];
                 })->values();
 
