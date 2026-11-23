@@ -366,6 +366,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reportes/estudiantes/pdf', [ReporteController::class, 'estudiantesPdf']);
         Route::get('/reportes/calificaciones/excel', [ReporteController::class, 'calificacionesExcel']);
         Route::get('/reportes/calificaciones/pdf', [ReporteController::class, 'calificacionesPdf']);
+
+        // Reporte de secciones y nóminas
+        Route::get('/reportes/secciones', [ReporteController::class, 'secciones']);
+        Route::get('/reportes/secciones/pdf', [ReporteController::class, 'seccionesPdf']);
+        Route::get('/reportes/secciones/excel', [ReporteController::class, 'seccionesExcel']);
+        Route::get('/reportes/secciones/{seccion_id}/nomina', [ReporteController::class, 'nominaSeccion']);
+        Route::get('/reportes/secciones/{seccion_id}/nomina/pdf', [ReporteController::class, 'nominaSeccionPdf']);
+        Route::get('/reportes/secciones/{seccion_id}/nomina/excel', [ReporteController::class, 'nominaSeccionExcel']);
     });
 
     // ========================================
