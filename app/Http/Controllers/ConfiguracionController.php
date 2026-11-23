@@ -39,26 +39,27 @@ class ConfiguracionController extends Controller
      */
     public function actualizar(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'configuraciones' => 'required|array',
-                'configuraciones.*.clave' => 'required|string',
-                'configuraciones.*.valor' => 'required',
-            ]);
+        $validated = $request->validate([
+            'configuraciones' => 'required|array',
+            'configuraciones.*.clave' => 'required|string|exists:configuraciones,clave',
+            // "present" permite enviar false y 0, que "required" rechazaría
+            'configuraciones.*.valor' => 'present',
+        ]);
 
+        try {
             foreach ($validated['configuraciones'] as $config) {
                 Configuracion::establecer($config['clave'], $config['valor']);
             }
-
-            return response()->json([
-                'message' => 'Configuraciones actualizadas correctamente'
-            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al actualizar configuraciones',
                 'error' => $e->getMessage()
             ], 500);
         }
+
+        return response()->json([
+            'message' => 'Configuraciones actualizadas correctamente'
+        ]);
     }
 
     /**

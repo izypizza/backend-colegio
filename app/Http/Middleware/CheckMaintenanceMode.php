@@ -20,6 +20,8 @@ class CheckMaintenanceMode
         $exemptRoutes = [
             'api/auth/login',
             'api/auth/register',
+            'api/auth/me',
+            'api/auth/logout',
             'api/ping',
         ];
 
@@ -36,8 +38,9 @@ class CheckMaintenanceMode
 
         // Si está en mantenimiento
         if ($modoMantenimiento) {
-            // Permitir acceso solo a admins autenticados
-            $user = $request->user();
+            // Este middleware corre antes que auth:sanctum, así que se resuelve
+            // el guard explícitamente para no dejar fuera a los administradores.
+            $user = $request->user() ?? auth('sanctum')->user();
 
             if (! $user || $user->role !== 'admin') {
                 $mensaje = Configuracion::obtener(
