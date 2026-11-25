@@ -12,8 +12,10 @@ class SeccionController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Seccion::with(['grado', 'estudiantes']);
-        
+        // Se envía el conteo de estudiantes en lugar de hidratar cada uno:
+        // la lista de secciones se usa para mostrar cupos, no para listar alumnos.
+        $query = Seccion::withCount('estudiantes')->with('grado');
+
         // Paginación para mejorar performance
         if ($request->has('all') && $request->all === 'true') {
             $secciones = $query->get();
