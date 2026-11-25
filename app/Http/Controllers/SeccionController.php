@@ -12,9 +12,16 @@ class SeccionController extends Controller
      */
     public function index(Request $request)
     {
-        // Se envía el conteo de estudiantes en lugar de hidratar cada uno:
-        // la lista de secciones se usa para mostrar cupos, no para listar alumnos.
+        $soloConteo = $request->boolean('solo_conteo');
+
+        // El conteo se calcula en la misma consulta. Los estudiantes completos
+        // solo se hidratan si el cliente no pidió el modo ligero, para no
+        // romper a otros consumidores del endpoint.
         $query = Seccion::withCount('estudiantes')->with('grado');
+
+        if (! $soloConteo) {
+            $query->with('estudiantes');
+        }
 
         // Paginación para mejorar performance
         if ($request->has('all') && $request->all === 'true') {

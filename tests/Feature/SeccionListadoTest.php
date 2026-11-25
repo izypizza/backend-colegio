@@ -47,10 +47,35 @@ class SeccionListadoTest extends TestCase
         $this->assertSame(0, $porId[$seccionVacia->id]['estudiantes_count']);
     }
 
-    public function test_el_listado_de_secciones_no_hidrata_a_los_estudiantes(): void
+    public function test_el_modo_ligero_no_hidrata_a_los_estudiantes(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $grado = Grado::create(['nombre' => '4 Primaria', 'nivel' => 'primaria']);
+
+        $seccion = Seccion::create([
+            'nombre' => 'A',
+            'grado_id' => $grado->id,
+            'capacidad_maxima' => 30,
+        ]);
+
+        Estudiante::factory()->create(['seccion_id' => $seccion->id]);
+
+        Sanctum::actingAs($admin);
+
+        $respuesta = $this->getJson('/api/secciones?all=true&solo_conteo=true')
+            ->assertOk()
+            ->json();
+
+        $primera = collect($respuesta)->firstWhere('id', $seccion->id);
+
+        $this->assertArrayNotHasKey('estudiantes', $primera);
+        $this->assertSame(1, $primera['estudiantes_count']);
+    }
+
+    public function test_sin_el_modo_ligero_se_mantiene_la_respuesta_anterior(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $grado = Grado::create(['nombre' => '5 Primaria', 'nivel' => 'primaria']);
 
         $seccion = Seccion::create([
             'nombre' => 'A',
@@ -68,7 +93,8 @@ class SeccionListadoTest extends TestCase
 
         $primera = collect($respuesta)->firstWhere('id', $seccion->id);
 
-        $this->assertArrayNotHasKey('estudiantes', $primera);
-        $this->assertArrayHasKey('estudiantes_count', $primera);
+        $this->assertArrayHasKey('estudiantes', $primera);
+        $this->assertCount(1, $primera['estudiantes']);
+        $this->assertSame(1, $primera['estudiantes_count']);
     }
 }
