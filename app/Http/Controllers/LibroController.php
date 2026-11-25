@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EjemplarLibro;
 use App\Models\Libro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -13,7 +14,7 @@ class LibroController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Libro::with('categoria');
+        $query = Libro::with(['categoria', 'ejemplares']);
 
         // Filtrar por disponibilidad
         if ($request->has('disponible')) {
@@ -74,8 +75,14 @@ class LibroController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $libro = Libro::create($validator->validated());
-        return response()->json($libro->load('categoria'), 201);
+        $datos = $validator->validated();
+        $libro = Libro::create($datos);
+
+        if (($datos['tipo'] ?? 'fisico') === 'fisico') {
+            $this->sincronizarEjemplares($libro, (int) $datos['cantidad_total']);
+        }
+
+        return response()->json($libro->load(['categoria', 'ejemplares']), 201);
     }
 
     /**
@@ -93,6 +100,10 @@ class LibroController extends Controller
     public function update(Request $request, $id)
     {
         $libro = Libro::findOrFail($id);
+
+        if ($libro->ejemplares()->count() === 0) {
+            $this->sincronizarEjemplares($libro, (int) ($libro->cantidad_total ?? 1));
+        }
 
         $validator = Validator::make($request->all(), [
             'titulo' => 'string|max:255',
@@ -117,8 +128,57 @@ class LibroController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $libro->update($validator->validated());
-        return response()->json($libro->load('categoria'));
+        $datos = $validator->validated();
+
+        if (($datos['tipo'] ?? $libro->tipo) === 'fisico' && array_key_exists('cantidad_total', $datos)) {
+            $cantidadSolicitada = (int) $datos['cantidad_total'];
+            $prestados = $libro->ejemplares()->where('estado', 'prestado')->count();
+
+            if ($cantidadSolicitada < $prestados) {
+                return response()->json([
+                    'errors' => [
+                        'cantidad_total' => [
+                            'No puedes reducir las copias por debajo de los ejemplares actualmente prestados.',
+                        ],
+                    ],
+                ], 422);
+            }
+        }
+
+        $libro->update($datos);
+
+        if (($datos['tipo'] ?? $libro->tipo) === 'fisico' && array_key_exists('cantidad_total', $datos)) {
+            $this->sincronizarEjemplares($libro, (int) $datos['cantidad_total']);
+        }
+
+        return response()->json($libro->load(['categoria', 'ejemplares']));
+    }
+
+    private function sincronizarEjemplares(Libro $libro, int $cantidad): void
+    {
+        $actual = $libro->ejemplares()->count();
+
+        if ($actual < $cantidad) {
+            for ($numero = $actual + 1; $numero <= $cantidad; $numero++) {
+                EjemplarLibro::create([
+                    'libro_id' => $libro->id,
+                    'codigo' => 'LIB-' . $libro->id . '-' . str_pad((string) $numero, 3, '0', STR_PAD_LEFT),
+                    'estado' => 'disponible',
+                ]);
+            }
+
+            return;
+        }
+
+        if ($actual > $cantidad) {
+            $removibles = $libro->ejemplares()
+                ->where('estado', 'disponible')
+                ->orderByDesc('id')
+                ->limit($actual - $cantidad)
+                ->pluck('id');
+
+            EjemplarLibro::whereIn('id', $removibles)->delete();
+        }
     }
 
     /**

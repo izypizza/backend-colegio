@@ -32,17 +32,28 @@ class Libro extends Model
     protected $appends = ['cantidad_disponible'];
 
     /**
-     * Calcular la cantidad disponible basado en préstamos activos APROBADOS
+     * Calcular la cantidad disponible según ejemplares reales.
      */
     public function getCantidadDisponibleAttribute()
     {
+        $cantidadEjemplares = $this->ejemplares()->count();
+
+        if ($cantidadEjemplares > 0) {
+            return $this->ejemplares()->where('estado', 'disponible')->count();
+        }
+
         $cantidadTotal = $this->cantidad_total ?? 1;
-        // Solo contar préstamos aprobados y no devueltos
         $prestamosActivos = $this->prestamos()
             ->where('estado', 'aprobado')
             ->where('devuelto', false)
             ->count();
+
         return max(0, $cantidadTotal - $prestamosActivos);
+    }
+
+    public function ejemplares()
+    {
+        return $this->hasMany(EjemplarLibro::class, 'libro_id');
     }
 
     /**

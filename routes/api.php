@@ -273,6 +273,8 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::middleware(['permission:prestamos', 'modulo.activo:modulos_biblioteca'])->group(function () {
         Route::get('/prestamos', [PrestamoLibroController::class, 'index']);
+        Route::get('/prestamos/estudiantes', [PrestamoLibroController::class, 'estudiantesDisponibles']);
+        Route::get('/prestamos/ejemplares', [PrestamoLibroController::class, 'ejemplaresDisponibles']);
         Route::post('/prestamos/{id}/aprobar', [PrestamoLibroController::class, 'aprobar']);
         Route::post('/prestamos/{id}/rechazar', [PrestamoLibroController::class, 'rechazar']);
         Route::post('/prestamos/{id}/devolver', [PrestamoLibroController::class, 'devolver']);
