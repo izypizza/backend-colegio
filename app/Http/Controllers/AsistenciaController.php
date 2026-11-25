@@ -49,6 +49,25 @@ class AsistenciaController extends Controller
             });
         }
 
+        // Filtrar por estado
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        // Buscar por nombre o DNI del estudiante
+        if ($request->filled('buscar')) {
+            $texto = $request->input('buscar');
+
+            $query->whereHas('estudiante', function ($q) use ($texto) {
+                \App\Helpers\BusquedaHelper::aplicar($q, $texto, [
+                    'nombres',
+                    'apellido_paterno',
+                    'apellido_materno',
+                    'dni',
+                ]);
+            });
+        }
+
         // Aplicar paginación con trait
         $asistencias = $this->paginateOrAll($query->orderBy('fecha', 'desc'), $request, 100);
         return response()->json($asistencias);
