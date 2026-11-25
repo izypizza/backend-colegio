@@ -411,6 +411,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware(['role:docente'])->group(function () {
         Route::get('/docente/mis-asignaciones', [DocentePortalController::class, 'misAsignaciones']);
         Route::get('/docente/mis-estudiantes', [DocentePortalController::class, 'misEstudiantes']);
+        Route::get('/docente/mis-padres', [DocentePortalController::class, 'misPadres']);
         Route::post('/docente/registrar-asistencia', [DocentePortalController::class, 'registrarAsistencia']);
         Route::post('/docente/registrar-calificacion', [DocentePortalController::class, 'registrarCalificacion']);
         Route::get('/docente/mis-calificaciones', [DocentePortalController::class, 'misCalificaciones']);

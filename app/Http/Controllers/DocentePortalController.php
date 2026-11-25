@@ -6,6 +6,7 @@ use App\Models\AsignacionDocenteMateria;
 use App\Models\Asistencia;
 use App\Models\Calificacion;
 use App\Models\Estudiante;
+use App\Models\Padre;
 use App\Models\Seccion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +69,48 @@ class DocentePortalController extends Controller
             });
 
         return response()->json(['estudiantes' => $estudiantes]);
+    }
+
+    /**
+     * Ver los padres de familia de mis secciones (para iniciar el chat).
+     */
+    public function misPadres(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->docente) {
+            return response()->json(['message' => 'Usuario no es docente'], 403);
+        }
+
+        $seccionesIds = AsignacionDocenteMateria::where('docente_id', $user->docente->id)
+            ->distinct()
+            ->pluck('seccion_id');
+
+        $padres = Padre::whereHas('estudiantes', function ($consulta) use ($seccionesIds) {
+            $consulta->whereIn('seccion_id', $seccionesIds);
+        })
+            ->with(['estudiantes' => function ($consulta) use ($seccionesIds) {
+                $consulta->whereIn('seccion_id', $seccionesIds)
+                    ->select('estudiantes.id', 'nombres', 'apellido_paterno', 'apellido_materno');
+            }])
+            ->orderBy('apellido_paterno')
+            ->get()
+            ->map(function (Padre $padre) {
+                return [
+                    'id' => $padre->id,
+                    'nombres' => $padre->nombres,
+                    'apellido_paterno' => $padre->apellido_paterno,
+                    'apellido_materno' => $padre->apellido_materno,
+                    'estudiantes' => $padre->estudiantes->map(fn ($estudiante) => [
+                        'id' => $estudiante->id,
+                        'nombres' => $estudiante->nombres,
+                        'apellido_paterno' => $estudiante->apellido_paterno,
+                        'apellido_materno' => $estudiante->apellido_materno,
+                    ]),
+                ];
+            });
+
+        return response()->json(['padres' => $padres]);
     }
 
     /**
